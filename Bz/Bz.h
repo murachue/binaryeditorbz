@@ -156,6 +156,7 @@ public:
 	BOOL  bSyncScroll;
 	int  iGrid;
 	int  nBmpColorWidth;
+	int  nBmp8bitPattern;
 
 	BOOL bInspectView;
 	BOOL bAnalyzerView;

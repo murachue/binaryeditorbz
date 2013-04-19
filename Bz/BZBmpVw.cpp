@@ -68,20 +68,19 @@ BEGIN_MESSAGE_MAP(CBZBmpView, CScrollView)
 	//}}AFX_MSG_MAP
 	ON_COMMAND_RANGE(ID_BMPVIEW_WIDTH128, ID_BMPVIEW_ZOOM, OnBmpViewMode)
 	ON_WM_SETCURSOR()
-	ON_COMMAND_RANGE(ID_BMPVIEW_8BITCOLOR, ID_BMPVIEW_32BITCOLOR, OnBmpViewColorWidth)
+	ON_COMMAND_RANGE(ID_BMPVIEW_8BITCOLOR, ID_BMPVIEW_8BITCOLOR_PAT3, OnBmpViewColorWidth)
 END_MESSAGE_MAP()
 
 /////////////////////////////////////////////////////////////////////////////
 // CBZBmpView drawing
 
-/*
 void MakeBzPallet256(DWORD *pRGB)
 {
 	*pRGB++ = 0xFFFFFF;
 	for_to(i, 31) *pRGB++ = 0x00FFFF;
 	for_to_(i, 128-32) *pRGB++ = 0xFF0000;
 	for_to_(i, 128) *pRGB++ = 0x000000;
-}*/
+}
 
 void MakeRedPallet256(DWORD *pRGB)
 {
@@ -145,8 +144,18 @@ void CBZBmpView::OnInitialUpdate()
 
 
 	DWORD* pRGB = (DWORD*)(m_lpbi+1);
-	MakeSafetyPallet256(pRGB); //MakeBzPallet256(pRGB);
-//	MakeRedPallet256(pRGB);
+	switch(options.nBmp8bitPattern)
+	{
+	case 0:
+		MakeBzPallet256(pRGB);
+		break;
+	case 1:
+		MakeSafetyPallet256(pRGB);
+		break;
+	case 2:
+		MakeRedPallet256(pRGB);
+		break;
+	}
 
 	CDC* pDC = GetDC();
 	HDC hDC = pDC->m_hDC;
@@ -314,7 +323,18 @@ void CBZBmpView::OnRButtonDown(UINT nFlags, CPoint point)
 	switch(options.nBmpColorWidth)
 	{
 	case 8:
-		pMenu->CheckMenuItem(ID_BMPVIEW_8BITCOLOR, MF_BYCOMMAND | MF_CHECKED);
+		switch(options.nBmp8bitPattern)
+		{
+		case 0:
+			pMenu->CheckMenuItem(ID_BMPVIEW_8BITCOLOR, MF_BYCOMMAND | MF_CHECKED);
+			break;
+		case 1:
+			pMenu->CheckMenuItem(ID_BMPVIEW_8BITCOLOR_PAT2, MF_BYCOMMAND | MF_CHECKED);
+			break;
+		case 2:
+			pMenu->CheckMenuItem(ID_BMPVIEW_8BITCOLOR_PAT3, MF_BYCOMMAND | MF_CHECKED);
+			break;
+		}
 		break;
 	case 24:
 		pMenu->CheckMenuItem(ID_BMPVIEW_24BITCOLOR, MF_BYCOMMAND | MF_CHECKED);
@@ -362,6 +382,15 @@ void CBZBmpView::OnBmpViewColorWidth(UINT nID)
 	{
 	case ID_BMPVIEW_8BITCOLOR:
 		options.nBmpColorWidth = 8;
+		options.nBmp8bitPattern = 0;
+		break;
+	case ID_BMPVIEW_8BITCOLOR_PAT2:
+		options.nBmpColorWidth = 8;
+		options.nBmp8bitPattern = 1;
+		break;
+	case ID_BMPVIEW_8BITCOLOR_PAT3:
+		options.nBmpColorWidth = 8;
+		options.nBmp8bitPattern = 2;
 		break;
 	case ID_BMPVIEW_24BITCOLOR:
 		options.nBmpColorWidth = 24;

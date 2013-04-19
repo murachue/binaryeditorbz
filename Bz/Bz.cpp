@@ -530,6 +530,16 @@ void CBZOptions::Load()
 		nBmpColorWidth=8;
 		break;
 	}
+	nBmp8bitPattern = GetProfileInt("Bmp8bitPattern", 0);
+	switch(nBmp8bitPattern)
+	{
+	case 0:
+	case 1:
+	case 2:
+		break;
+	default:
+		nBmp8bitPattern=0;
+	}
 
 	bInspectView = GetProfileInt("InspectView", FALSE);
 	bAnalyzerView = GetProfileInt("AnalyzerView", FALSE);
@@ -595,6 +605,7 @@ void CBZOptions::Save()
 	WriteProfileInt("SyncScroll", bSyncScroll);
 	WriteProfileInt("Grid", iGrid);
 	WriteProfileInt("BmpColorWidth", nBmpColorWidth);
+	WriteProfileInt("Bmp8bitPattern", nBmp8bitPattern);
 
 	WriteProfileInt("InspectView", bInspectView);
 	WriteProfileInt("AnalyzerView", bAnalyzerView);

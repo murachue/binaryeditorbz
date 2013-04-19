@@ -119,6 +119,8 @@
 #define ID_BMPVIEW_8BITCOLOR            32850
 #define ID_BMPVIEW_24BITCOLOR           32851
 #define ID_BMPVIEW_32BITCOLOR           32852
+#define ID_BMPVIEW_8BITCOLOR_PAT2       32853
+#define ID_BMPVIEW_8BITCOLOR_PAT3       32854
 #define ID_Menu32857                    32857
 #define ID_VIEW_ANALYZER                32858
 #define ID_INDICATOR_INFO               0xE710
