@@ -2,20 +2,23 @@
 <Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
   <ItemGroup>
     <Filter Include="Source Files">
-      <UniqueIdentifier>{4728c13b-d104-4dbe-8971-b4a188f06c90}</UniqueIdentifier>
+      <UniqueIdentifier>{6867baef-e91e-479f-bf8a-aebc88d093b4}</UniqueIdentifier>
       <Extensions>cpp;c;cxx;rc;def;r;odl;hpj;bat;for;f90</Extensions>
     </Filter>
     <Filter Include="Header Files">
-      <UniqueIdentifier>{9fe69d2b-4726-4177-a76e-41f0f94d0e4c}</UniqueIdentifier>
+      <UniqueIdentifier>{92d9ed0f-a310-4a07-9552-cab880ea4228}</UniqueIdentifier>
       <Extensions>h;hpp;hxx;hm;inl;fi;fd</Extensions>
     </Filter>
     <Filter Include="Resource Files">
-      <UniqueIdentifier>{6fbcdb20-4172-49d5-adb6-b3fb5757b8ea}</UniqueIdentifier>
+      <UniqueIdentifier>{4538258a-a98d-464b-b286-92be42f2efa4}</UniqueIdentifier>
       <Extensions>ico;cur;bmp;dlg;rc2;rct;bin;cnt;rtf;gif;jpg;jpeg;jpe</Extensions>
     </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="BZ.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="BZAnalyzerView.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="BZBmpVw.cpp">
@@ -25,6 +28,9 @@
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="BZFormVw.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="BZInspectView.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="BZView.cpp">
@@ -43,6 +49,9 @@
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="options.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="ProgressDialog.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="SettingDlg.cpp">
@@ -64,7 +73,15 @@
     </ResourceCompile>
   </ItemGroup>
   <ItemGroup>
+    <Text Include="ReadMe.txt">
+      <Filter>Source Files</Filter>
+    </Text>
+  </ItemGroup>
+  <ItemGroup>
     <ClInclude Include="BZ.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="BZAnalyzerView.h">
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="BZBmpVw.h">
@@ -74,6 +91,9 @@
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="BZFormVw.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="BZInspectView.h">
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="BZView.h">
@@ -88,10 +108,22 @@
     <ClInclude Include="ComboBar.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="kb976038.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
     <ClInclude Include="MainFrm.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="MemDC.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
     <ClInclude Include="options.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="ProgressDialog.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="resource.h">
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="SettingDlg.h">
@@ -106,25 +138,29 @@
     <ClInclude Include="TextView.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="resource.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
   </ItemGroup>
   <ItemGroup>
-    <CustomBuild Include="ReadMe.txt">
-      <Filter>Source Files</Filter>
-    </CustomBuild>
-    <CustomBuild Include="res\BZ.ico">
+    <None Include="res\bmppoint.cur">
       <Filter>Resource Files</Filter>
-    </CustomBuild>
-    <CustomBuild Include="res\BZ.rc2">
+    </None>
+    <None Include="res\BZ.rc2">
       <Filter>Resource Files</Filter>
-    </CustomBuild>
-    <CustomBuild Include="res\BZDoc.ico">
+    </None>
+  </ItemGroup>
+  <ItemGroup>
+    <Image Include="res\BZ.ico">
       <Filter>Resource Files</Filter>
-    </CustomBuild>
-    <CustomBuild Include="res\Toolbar.bmp">
+    </Image>
+    <Image Include="res\BZDoc.ico">
       <Filter>Resource Files</Filter>
-    </CustomBuild>
+    </Image>
+    <Image Include="res\Toolbar.bmp">
+      <Filter>Resource Files</Filter>
+    </Image>
+  </ItemGroup>
+  <ItemGroup>
+    <Manifest Include="Bz.manifest">
+      <Filter>Resource Files</Filter>
+    </Manifest>
   </ItemGroup>
 </Project>

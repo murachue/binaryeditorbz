@@ -11,6 +11,7 @@
 #define _WIN32_IE 0x0600	// これを IE の他のバージョン向けに適切な値に変更してください。
 
 #define ISOLATION_AWARE_ENABLED 1
+#define _ATL_CSTRING_EXPLICIT_CONSTRUCTORS
 
 #include <afxwin.h>         // MFC のコアおよび標準コンポーネント
 #include <afxext.h>         // MFC の拡張部分
@@ -28,7 +29,11 @@
 
 #include <afxpriv.h>
 
+#define _WTL_FORWARD_DECLARE_CSTRING 
 #include <atlcoll.h>
+#include <atlstr.h>
+#include <atlbase.h>
+#include <atlwin.h>
 
 #define _WTL_NO_AUTOMATIC_NAMESPACE
 #include <atlapp.h>
@@ -44,7 +49,9 @@
 
 #include <imagehlp.h>
 
+namespace BZ { // TODO:HACK!! avoid conflict with atl
 #include "MemDC.h"
+}
 
 /*
 #ifdef _UNICODE
