@@ -1832,7 +1832,7 @@ void CBZView::OnEditCopyDump()
 	DrawToFile(&memFile);
 
 	ULONGLONG ulSize = memFile.GetLength();
-	DWORD dwSize = (ulSize>0xffffffff) ? 0xffffffff : (DWORD)ulSize;
+	DWORD dwSize = (ulSize>0xffffffff) ? 0xffffffff : ulSize;
 	HGLOBAL hMemTxt = ::GlobalAlloc(GMEM_MOVEABLE, dwSize + 1);
 	LPBYTE pMemTxt  = (LPBYTE)::GlobalLock(hMemTxt);
 	memFile.SeekToBegin();
