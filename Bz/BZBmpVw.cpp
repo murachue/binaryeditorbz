@@ -69,6 +69,7 @@ BEGIN_MESSAGE_MAP(CBZBmpView, CScrollView)
 	ON_COMMAND_RANGE(ID_BMPVIEW_WIDTH128, ID_BMPVIEW_ZOOM, OnBmpViewMode)
 	ON_WM_SETCURSOR()
 	ON_COMMAND_RANGE(ID_BMPVIEW_8BITCOLOR, ID_BMPVIEW_8BITCOLOR_PAT3, OnBmpViewColorWidth)
+	ON_WM_SIZE()
 END_MESSAGE_MAP()
 
 /////////////////////////////////////////////////////////////////////////////
@@ -400,4 +401,28 @@ void CBZBmpView::OnBmpViewColorWidth(UINT nID)
 		break;
 	}
 	GetMainFrame()->CreateClient();
+}
+
+void CBZBmpView::OnSize(UINT nType, int cx, int cy)
+{
+	CScrollView::OnSize(nType, cx, cy);
+
+	// TODO: calculate the total size of this view
+	CSize cView = m_cBmp;
+	cView.cx = cView.cx * options.nBmpZoom + BMPSPACE*2;
+	cView.cy = cView.cy * options.nBmpZoom + BMPSPACE*2;
+
+	if(cx == 0 || cy == 0) { // at initialize
+		return;
+	}
+
+	CSize sizePage;
+	sizePage.cx = 0;
+	sizePage.cy = cy - BMPSPACE*2;
+	CSize sizeLine;
+	sizeLine.cx = 0;
+	sizeLine.cy = sizePage.cy / 10;
+	SetScrollSizes(MM_TEXT, cView, sizePage, sizeLine);
+
+	TRACE("cView.cy=%X\n", GetTotalSize().cy);
 }
