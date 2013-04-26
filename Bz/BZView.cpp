@@ -1927,10 +1927,12 @@ void CBZView::OnUpdateByteOrder(CCmdUI* pCmdUI)
 /////////////////////////////////////////////////////////////////////////////
 // CBZView Character code
 
+// TODO: IsMBS is too slow (without pTop=max(...)), stay limit or cache it.
 BOOL CBZView::IsMBS(LPBYTE pTop, DWORD ofs, BOOL bTrail)
 {
 	LPBYTE p, p1;
 	p = p1 = pTop+ofs;
+	pTop = max(pTop, pTop+ofs-16);
 	while(pTop < p) {
 		if(*(p-1) < 0x81) break;
 		p--;
