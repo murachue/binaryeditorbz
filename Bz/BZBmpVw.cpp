@@ -196,7 +196,7 @@ BOOL CBZBmpView::OnEraseBkgnd(CDC* pDC)
 
 void CBZBmpView::OnDraw(CDC* pDC)
 {
-	pDC->SetBkColor(RGB(255,255,255));
+	pDC->SetBkColor(RGB(220,220,220));
 	BZ::CMemDC pMemDC(pDC);
 	if(m_hBmp) {
 		HDC hDC = pMemDC->m_hDC;
