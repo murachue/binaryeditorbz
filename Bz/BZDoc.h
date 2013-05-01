@@ -132,6 +132,7 @@ private:
 	public:
 	virtual void Serialize(CArchive& ar);
 	void CBZDoc::SavePartial(CFile& file, DWORD offset, DWORD size);
+	void CBZDoc::SavePartialInflated(CFile& file, DWORD offset, DWORD size, CBZView& view);
 	virtual void DeleteContents();
 	protected:
 	//}}AFX_VIRTUAL

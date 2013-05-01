@@ -29,8 +29,10 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 #include "stdafx.h"
 #include "BZ.h"
+#include "BZView.h"
 #include "BZDoc.h"
 #include "Mainfrm.h"
+#include "zlib.h"
 
 #ifdef _DEBUG
 #define new DEBUG_NEW
@@ -212,6 +214,88 @@ void CBZDoc::SavePartial(CFile& file, DWORD offset, DWORD size)
 	} else
 #endif
 		file.Write(m_pData + offset, size);
+}
+
+static int inflateBlock(CFile& file, LPBYTE buf, const DWORD bufsize, z_stream& z, LPBYTE pData, DWORD dataSize) {
+	int ret;
+
+	z.next_in = pData;
+	z.avail_in = dataSize;
+
+	do {
+		z.next_out = buf;
+		z.avail_out = bufsize;
+		ret = inflate(&z, Z_NO_FLUSH);
+
+		if(ret != Z_OK && ret != Z_STREAM_END) {
+			// Error! 即リターン。
+			return ret;
+		}
+
+		file.Write(buf, bufsize - z.avail_out); // 展開後のデータを書き込む。
+	} while(z.avail_out == 0);
+
+	return ret;
+}
+
+void CBZDoc::SavePartialInflated(CFile& file, DWORD offset, DWORD size, CBZView& view)
+{
+	z_stream z = {0};
+	const DWORD bufsize = 32768; // TODO このサイズで大丈夫か?
+	BYTE *buf = new BYTE[bufsize];
+	int ret;
+
+	if(inflateInit(&z) != Z_OK) {
+		AfxMessageBox(IDS_ERR_INFLATEINIT, MB_OK | MB_ICONERROR);
+		return;
+	}
+
+#ifdef FILE_MAPPING
+	if(IsFileMapping()) {
+		// QueryMapViewは使いっぱなしで問題ない。(draw時などにQueryMapViewしなおしてくれる。)
+		while(size > 0) {
+			LPBYTE pData = QueryMapViewTama(offset, size); // 展開したいデータを見えるようにする。
+			DWORD dataSize = min(GetMapRemain(offset), size); // 展開できるだけのデータ量を見積もる。
+			ret = inflateBlock(file, buf, bufsize, z, pData + offset, dataSize);
+
+			if(ret != Z_OK) { // Z_STREAM_END もしくはエラー時はループを抜ける。
+				// offset/sizeをz.avail_inから再計算する。どれくらい余分であったかがわかる。
+				offset += dataSize - z.avail_in;
+				size -= dataSize - z.avail_in;
+				break;
+			}
+
+			// 展開できた分、offset進めてsize減らす。
+			offset += dataSize;
+			size -= dataSize;
+		}
+	} else
+#endif
+	{
+		ret = inflateBlock(file, buf, bufsize, z, m_pData + offset, size);
+		// TODO offset/sizeをz.avail_inから再計算する?
+	}
+
+	if(ret == Z_STREAM_END) {
+		if(size > 0) {
+			// 余ったバイト数を表示。
+			CString sMsg;
+			sMsg.Format(IDS_INFLATE_REMAIN_BYTES, size);
+			if(AfxMessageBox(sMsg, MB_YESNO | MB_ICONQUESTION) == IDYES) {
+				// 既に選択している範囲が正しいという仮定。(実際正しくないとそれはバグ。)
+				view.setBlock(view.BlockBegin(), view.BlockEnd() - size);
+			}
+		} else {
+			/* do nothing */
+		}
+	} else if(ret == Z_OK) {
+		AfxMessageBox(IDS_ERR_INFLATE_RESULT_OK, MB_OK | MB_ICONERROR);
+	} else {
+		AfxMessageBox(IDS_ERR_INFLATE_RESULT_ERROR, MB_OK | MB_ICONERROR);
+	}
+
+	inflateEnd(&z); // 念のため、z.avail_inを参照などした後にinflateEndする。
+	delete buf;
 }
 
 #ifdef FILE_MAPPING

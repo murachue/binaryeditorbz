@@ -32,6 +32,7 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "BZAnalyzerView.h"
 #include "ProgressDialog.h"
 #include "zlib.h"
+#include "BZView.h"
 #include "BZDoc.h"
 #include "Splitter.h"
 //#include "..\..\CFolderDialog\folderdlg.h"//atldlgs.hからCFolderDialogだけ切り取ったもの。shlobj.hのinclude, CFolderDialogImpl, CFolderDialog, ATL_NO_VTABLEを__declspec(novtable)に変更, ATLTRACEをコメントアウトしたもの。代わりにWTLのatldlgs.hをインクルードしても良い。CPL感染するので同梱しない。

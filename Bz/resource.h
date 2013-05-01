@@ -146,6 +146,11 @@
 #define IDS_STRUCT_FILE                 61522
 #define IDS_EDIT_RO                     61524
 #define IDS_SAVESELECTION_CAPTION       61525
+#define IDS_WANT_INFLATE                61526
+#define IDS_ERR_INFLATEINIT             61527
+#define IDS_ERR_INFLATE_RESULT_OK       61528
+#define IDS_ERR_INFLATE_RESULT_ERROR    61529
+#define IDS_INFLATE_REMAIN_BYTES        61530
 
 // Next default values for new objects
 // 

@@ -5,6 +5,8 @@ Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "Bz", "Bz.vcxproj", "{1DE442
 EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "BZres_us", "BZres_us.vcxproj", "{87E12023-4E2C-4616-BF04-7E474EE0506E}"
 EndProject
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "zlib1", "..\zlib1\zlib1.vcxproj", "{ED5192EB-04CB-4E69-8197-65A772C64A75}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Win32 = Debug|Win32
@@ -24,6 +26,12 @@ Global
 		{87E12023-4E2C-4616-BF04-7E474EE0506E}.Release|Win32.Build.0 = Release|Win32
 		{87E12023-4E2C-4616-BF04-7E474EE0506E}.ReleaseUPX|Win32.ActiveCfg = ReleaseUPX|Win32
 		{87E12023-4E2C-4616-BF04-7E474EE0506E}.ReleaseUPX|Win32.Build.0 = ReleaseUPX|Win32
+		{ED5192EB-04CB-4E69-8197-65A772C64A75}.Debug|Win32.ActiveCfg = Debug|Win32
+		{ED5192EB-04CB-4E69-8197-65A772C64A75}.Debug|Win32.Build.0 = Debug|Win32
+		{ED5192EB-04CB-4E69-8197-65A772C64A75}.Release|Win32.ActiveCfg = Release|Win32
+		{ED5192EB-04CB-4E69-8197-65A772C64A75}.Release|Win32.Build.0 = Release|Win32
+		{ED5192EB-04CB-4E69-8197-65A772C64A75}.ReleaseUPX|Win32.ActiveCfg = Release|Win32
+		{ED5192EB-04CB-4E69-8197-65A772C64A75}.ReleaseUPX|Win32.Build.0 = Release|Win32
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

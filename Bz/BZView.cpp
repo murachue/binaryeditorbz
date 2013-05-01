@@ -30,8 +30,8 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "stdafx.h"
 #include "BZ.h"
 
-#include "BZDoc.h"
 #include "BZView.h"
+#include "BZDoc.h"
 #include "BZFormVw.h"
 #include "BZInspectView.h"
 #include "BZAnalyzerView.h"

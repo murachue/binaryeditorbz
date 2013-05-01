@@ -679,6 +679,13 @@ BEGIN
     IDS_STRUCT_FILE         "BZ.DEF"
     IDS_EDIT_RO             "R.O."
     IDS_SAVESELECTION_CAPTION "Save selected area"
+    IDS_WANT_INFLATE        "Would you like to save inflated selected area?"
+    IDS_ERR_INFLATEINIT     "Failed to initialize zlib. (inflateInit returned other than Z_OK.)"
+    IDS_ERR_INFLATE_RESULT_OK 
+                            "Stream did not end during inflate. (Selection is too short?)"
+    IDS_ERR_INFLATE_RESULT_ERROR "An error happened during inflate."
+    IDS_INFLATE_REMAIN_BYTES 
+                            "%d byte(s) remained after inflate. Justify selection?"
 END
 
 STRINGTABLE

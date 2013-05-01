@@ -680,6 +680,11 @@ BEGIN
     IDS_STRUCT_FILE         "BZ.DEF"
     IDS_EDIT_RO             "書禁"
     IDS_SAVESELECTION_CAPTION "選択部分の保存"
+    IDS_WANT_INFLATE        "選択範囲をinflateして保存しますか?"
+    IDS_ERR_INFLATEINIT     "zlibの初期化に失敗しました。(inflateInitがZ_OK以外を返しました。)"
+    IDS_ERR_INFLATE_RESULT_OK "inflateにおいて選択範囲でストリームが終了しませんでした。(選択範囲が短すぎる?)"
+    IDS_ERR_INFLATE_RESULT_ERROR "inflateにおいてエラーが発生しました。"
+    IDS_INFLATE_REMAIN_BYTES "inflateで%dバイト余りました。選択範囲をぴったりにしますか?"
 END
 
 STRINGTABLE

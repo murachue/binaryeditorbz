@@ -97,6 +97,31 @@ private:
 public:
 	DWORD	BlockBegin() { return m_dwBlock < m_dwCaret ? m_dwBlock : m_dwCaret; };
 	DWORD	BlockEnd() { return m_dwBlock > m_dwCaret ? m_dwBlock : m_dwCaret; } ;
+	void    setBlock(DWORD start, DWORD end) {
+		// startとendがあべこべだったら直す。
+		if(end < start) {
+			Swap(start, end);
+		}
+		// endがファイルの終端を超えていたら切り詰める。
+		if(m_dwTotal < end) {
+			end = m_dwTotal;
+		}
+		// start == endなら選択モードを抜けてキャレット移動(このあたりBZView.cppのOnKeyDownとかJumpToあたりとマージしたほうがいい)。
+		if(start == end) {
+			m_bBlock = false;
+			//MoveCaretTo(start);
+			m_dwCaret = start;
+			Invalidate(FALSE); //必要?
+			GotoCaret();
+		} else {
+			m_bBlock = true;
+			m_dwBlock = start;
+			//MoveCaretTo(end);
+			m_dwCaret = end;
+			Invalidate(FALSE); //不要?
+			GotoCaret();
+		}
+	};
 private:
 	CBZView* GetBrotherView();
 	void	ChangeFont(LOGFONT& logFont);

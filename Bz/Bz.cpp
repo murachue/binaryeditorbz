@@ -31,8 +31,8 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "BZ.h"
 
 #include "MainFrm.h"
-#include "BZDoc.h"
 #include "BZView.h"
+#include "BZDoc.h"
 #include <shlobj.h>
 
 #include "kb976038.h"
@@ -642,7 +642,17 @@ void CBZApp::OnFileSaveSelected()
 			CBZView *view = (CBZView*)GetMainFrame()->GetActiveView();
 			DWORD offset = view->BlockBegin();
 			DWORD size = view->BlockEnd() - offset;
-			doc->SavePartial(file, offset, size);
+			bool is_inflate_mode = false; // ‰B‚µ‹@”\c
+			if(::GetKeyState(VK_SHIFT) & 0x8000) {
+				if(AfxMessageBox(IDS_WANT_INFLATE, MB_YESNO | MB_ICONQUESTION) == IDYES) {
+					is_inflate_mode = true;
+				}
+			}
+			if(is_inflate_mode) {
+				doc->SavePartialInflated(file, offset, size, *view);
+			} else {
+				doc->SavePartial(file, offset, size);
+			}
 			file.Close();
 		}
 	}
