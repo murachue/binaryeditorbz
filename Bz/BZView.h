@@ -94,8 +94,10 @@ private:
 	void	SetMark();
 	void	JumpToMark();
 //	BOOL	CheckMark(DWORD dwPtr);
+public:
 	DWORD	BlockBegin() { return m_dwBlock < m_dwCaret ? m_dwBlock : m_dwCaret; };
 	DWORD	BlockEnd() { return m_dwBlock > m_dwCaret ? m_dwBlock : m_dwCaret; } ;
+private:
 	CBZView* GetBrotherView();
 	void	ChangeFont(LOGFONT& logFont);
 	void	SetValue(LPBYTE p, int bytes, int val);

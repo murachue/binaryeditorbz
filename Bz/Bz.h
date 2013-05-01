@@ -93,6 +93,7 @@ private:
 	//}}AFX_MSG
 	afx_msg void OnLanguage(UINT nID);
 	afx_msg void OnUpdateLanguage(CCmdUI* pCmdUI);
+	afx_msg void OnFileSaveSelected();
 	DECLARE_MESSAGE_MAP()
 };
 

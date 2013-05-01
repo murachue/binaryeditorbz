@@ -1,6 +1,6 @@
 //{{NO_DEPENDENCIES}}
-// Microsoft Visual C++ generated include file.
-// Used by BZres_us.rc
+// Microsoft Visual C++ で生成されたインクルード ファイル。
+// BZres_us.rc で使用
 //
 #define IDD_ABOUTBOX                    100
 #define IDD_BZINSPECTVIEW               103
@@ -123,6 +123,7 @@
 #define ID_BMPVIEW_8BITCOLOR_PAT3       32854
 #define ID_Menu32857                    32857
 #define ID_VIEW_ANALYZER                32858
+#define ID_FILE_SAVE_SELECTION          32859
 #define ID_INDICATOR_INFO               0xE710
 #define ID_INDICATOR_SIZE               0xE711
 #define ID_INDICATOR_CHAR               0xE712
@@ -144,6 +145,7 @@
 #define IDS_EBCDIC_FILE                 61521
 #define IDS_STRUCT_FILE                 61522
 #define IDS_EDIT_RO                     61524
+#define IDS_SAVESELECTION_CAPTION       61525
 
 // Next default values for new objects
 // 
@@ -151,7 +153,7 @@
 #ifndef APSTUDIO_READONLY_SYMBOLS
 #define _APS_3D_CONTROLS                     1
 #define _APS_NEXT_RESOURCE_VALUE        145
-#define _APS_NEXT_COMMAND_VALUE         32859
+#define _APS_NEXT_COMMAND_VALUE         32864
 #define _APS_NEXT_CONTROL_VALUE         1044
 #define _APS_NEXT_SYMED_VALUE           107
 #endif

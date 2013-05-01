@@ -195,6 +195,25 @@ void CBZDoc::Serialize(CArchive& ar)
 */	}
 }
 
+void CBZDoc::SavePartial(CFile& file, DWORD offset, DWORD size)
+{
+#ifdef FILE_MAPPING
+	if(IsFileMapping()) {
+		// QueryMapViewは使いっぱなしで問題ない。(draw時などにQueryMapViewしなおしてくれる。)
+		while(size > 0) {
+			LPBYTE pData = QueryMapViewTama(offset, size); // 書き込みたいデータを見えるようにする。
+			DWORD writesize = min(GetMapRemain(offset), size); // 書き込めるだけのデータ量を見積もる。
+			file.Write(pData + offset, writesize); // 書き込む。
+
+			// 書き込めた分、offset進めてsize減らす。
+			offset += writesize;
+			size -= writesize;
+		}
+	} else
+#endif
+		file.Write(m_pData + offset, size);
+}
+
 #ifdef FILE_MAPPING
 
 BOOL CBZDoc::MapView()

@@ -62,6 +62,7 @@ BEGIN_MESSAGE_MAP(CBZApp, CWinApp)
 	ON_COMMAND( ID_HELP_INDEX, OnHelpIndex ) 
 	ON_COMMAND_RANGE(ID_LANG_JPN, ID_LANG_ENU, OnLanguage)
 	ON_UPDATE_COMMAND_UI_RANGE(ID_LANG_JPN, ID_LANG_ENU, OnUpdateLanguage)
+	ON_COMMAND(ID_FILE_SAVE_SELECTION, &CBZApp::OnFileSaveSelected)
 END_MESSAGE_MAP()
 
 /////////////////////////////////////////////////////////////////////////////
@@ -630,3 +631,19 @@ void CBZApp::OnFileSaveDumpList()
 	}
 }
 
+void CBZApp::OnFileSaveSelected()
+{
+	CBZDoc *doc = (CBZDoc*)GetMainFrame()->GetActiveDocument();
+	CString sFileName = "";
+
+	if(m_pDocManager->DoPromptFileName(sFileName, IDS_SAVESELECTION_CAPTION, OFN_OVERWRITEPROMPT | OFN_HIDEREADONLY, FALSE, NULL)) {
+		CFile file;
+		if(file.Open(sFileName, CFile::modeCreate | CFile::modeWrite)) {
+			CBZView *view = (CBZView*)GetMainFrame()->GetActiveView();
+			DWORD offset = view->BlockBegin();
+			DWORD size = view->BlockEnd() - offset;
+			doc->SavePartial(file, offset, size);
+			file.Close();
+		}
+	}
+}

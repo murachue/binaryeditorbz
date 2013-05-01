@@ -131,6 +131,7 @@ private:
 	//{{AFX_VIRTUAL(CBZDoc)
 	public:
 	virtual void Serialize(CArchive& ar);
+	void CBZDoc::SavePartial(CFile& file, DWORD offset, DWORD size);
 	virtual void DeleteContents();
 	protected:
 	//}}AFX_VIRTUAL
