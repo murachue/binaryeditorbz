@@ -69,6 +69,7 @@ static char THIS_FILE[] = __FILE__;
 //static const UINT nMsgFindReplace = ::RegisterWindowMessage(FINDMSGSTRING);
 
 static LPBYTE MemScanByte(LPBYTE, BYTE, DWORD);
+static LPBYTE MemScanByteNeg(LPBYTE, BYTE, DWORD);
 static LPWORD MemScanWord(LPWORD, WORD, DWORD);
 static DWORD  MemCompByte(LPCVOID p1, LPCVOID p2, DWORD len);
 
@@ -1522,9 +1523,19 @@ void CBZView::OnJumpFindnext()
 	int nFind = 0;
 	LPBYTE pFind = NULL;
 	CharSet charset = m_charset;
+	bool negativeFind = false;
 	if(c1 == '#') {
+		if(sFind[1] == '!') {
+			negativeFind = true;
+			sFind.Delete(0, 2); // 2 = strlen("#!")
+		}
 		nFind = ReadHexa(sFind, pFind);
 		if(!nFind) return;
+		if(negativeFind && nFind != 1) {
+			// 2文字以上のnegative findは今のところ未実装(word、dwordあたりは対応させたいかも。)
+			AfxMessageBox(IDS_ERR_TOOLONG_NEGFIND, MB_OK | MB_ICONERROR);
+			return;
+		}
 		c1 = *pFind;
 		charset = CTYPE_BINARY;
 	} else {
@@ -1561,8 +1572,13 @@ void CBZView::OnJumpFindnext()
 				p1 = (LPBYTE)MemScanWord(reinterpret_cast<WORD*>(p), c1, len);
 				if(c2) p2 = (LPBYTE)MemScanWord(reinterpret_cast<WORD*>(p), c2, len);
 			} else {
-				p1 = MemScanByte(p, c1, len);
-				if(c2) p2 = MemScanByte(p, c2, len);
+				if(!negativeFind) {
+					p1 = MemScanByte(p, c1, len);
+					if(c2) p2 = MemScanByte(p, c2, len);
+				} else {
+					// TODO: 2バイト以上のnegative find対応時"c2"を考慮する必要があると思う。
+					p1 = MemScanByteNeg(p, c1, len);
+				}
 			}
 		}
 		if(p1 || p2) {
@@ -1571,6 +1587,9 @@ void CBZView::OnJumpFindnext()
 			switch(charset) {
 			case CTYPE_BINARY:
 				r = memcmp(p1, pFind, nFind);
+				if(negativeFind) {
+					r = !r;
+				}
 				break;
 			case CTYPE_ASCII:
 				r = _strnicmp((LPCSTR)p1, sFind, nFind);
@@ -1620,6 +1639,16 @@ static LPBYTE MemScanByte(BYTE *p, BYTE c, DWORD len)
 	for(;p<p2;p++)
 	{
 		if(*p==c)return p;
+	}
+	return 0;
+}
+
+static LPBYTE MemScanByteNeg(BYTE *p, BYTE c, DWORD len)
+{
+	BYTE *p2 = p+len;
+	for(;p<p2;p++)
+	{
+		if(*p!=c)return p;
 	}
 	return 0;
 }

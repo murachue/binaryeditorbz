@@ -151,6 +151,7 @@
 #define IDS_ERR_INFLATE_RESULT_OK       61528
 #define IDS_ERR_INFLATE_RESULT_ERROR    61529
 #define IDS_INFLATE_REMAIN_BYTES        61530
+#define IDS_ERR_TOOLONG_NEGFIND         61531
 
 // Next default values for new objects
 // 

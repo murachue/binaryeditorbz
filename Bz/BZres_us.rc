@@ -679,6 +679,7 @@ BEGIN
     IDS_ERR_INFLATE_RESULT_ERROR "An error happened during inflate."
     IDS_INFLATE_REMAIN_BYTES 
                             "%d byte(s) remained after inflate. Justify selection?"
+    IDS_ERR_TOOLONG_NEGFIND "Negative find with longer than 1 byte are not implemented at this moment."
 END
 
 STRINGTABLE

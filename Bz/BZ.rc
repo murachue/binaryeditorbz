@@ -678,6 +678,7 @@ BEGIN
     IDS_ERR_INFLATE_RESULT_OK "inflateにおいて選択範囲でストリームが終了しませんでした。(選択範囲が短すぎる?)"
     IDS_ERR_INFLATE_RESULT_ERROR "inflateにおいてエラーが発生しました。"
     IDS_INFLATE_REMAIN_BYTES "inflateで%dバイト余りました。選択範囲をぴったりにしますか?"
+    IDS_ERR_TOOLONG_NEGFIND "2文字以上のnegative findは今のところ未実装です。"
 END
 
 STRINGTABLE
