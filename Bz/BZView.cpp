@@ -1472,14 +1472,26 @@ void CBZView::OnJumpFindnext()
 	LPBYTE p = pData + m_dwCaret + 1;
 	int len = dwFind - m_dwCaret;
 
+	CString sOrigFind = sFind; // •Û‘¶‚µ‚Ä‚¨‚©‚È‚¢‚ÆAliteral findpCombo->AddText‚ÅŠÔˆá‚Á‚½•¶š—ñ‚ª•Û‘¶‚³‚ê‚Ä‚µ‚Ü‚¤B
+
 	int c1 = sFind[0];
+	bool literal = false;
+	if(c1 == '"') {
+		literal = true;
+		if(sFind.GetLength() < 2) {
+			// too short.
+			return;
+		}
+		c1 = sFind[1];
+		sFind.Delete(0, 1);
+	}
 	int c2 = 0;
-	if(c1 == '=') {
+	if(!literal && c1 == '=') {
 		pCombo->SetText("? ");
 		return;
 	}
-	pCombo->AddText(sFind);
-	if(c1 == '?' || c1 == '+' || c1 == '>'|| c1 == '<') {
+	pCombo->AddText(sOrigFind);
+	if(!literal && (c1 == '?' || c1 == '+' || c1 == '>'|| c1 == '<')) {
 		DWORD dwNew = 0;
 		long nResult;
 		if(CalcHexa((LPCSTR)sFind + 1, nResult)) {
@@ -1524,7 +1536,7 @@ void CBZView::OnJumpFindnext()
 	LPBYTE pFind = NULL;
 	CharSet charset = m_charset;
 	bool negativeFind = false;
-	if(c1 == '#') {
+	if(!literal && c1 == '#') {
 		if(sFind[1] == '!') {
 			negativeFind = true;
 			sFind.Delete(0, 2); // 2 = strlen("#!")
