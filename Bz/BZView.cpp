@@ -1737,6 +1737,41 @@ BOOL CBZView::CalcHexa(LPCSTR sExp, long& n1)
 	}
 	return TRUE;
 }
+// TODO:isxdigitがあるなら、これくらいの処理はライブラリにありそうだけど、知らないので再実装…。
+static BYTE hexCharToByte(CHAR c) {
+	if('0' <= c && c <= '9') {
+		return c - '0';
+	}
+	if('A' <= c && c <= 'F') {
+		return c - 'A' + 10;
+	}
+	if('a' <= c && c <= 'f') {
+		return c - 'a' + 10;
+	}
+	return 0;
+}
+// HEXadecimal STRing max-2-chars TO Byte
+// strtolの16進固定で最大長2文字までしか見ない版
+static BYTE hexStr2ToB(LPCSTR& pstr, LPCSTR* endptr) {
+	const int maxlen = 2;
+	BYTE res = 0;
+	LPCSTR p = pstr;
+
+	while(p - pstr < maxlen) {
+		if(!*p || !isxdigit(*p)) {
+			break;
+		}
+		res *= 16;
+		res += hexCharToByte(*p);
+		p++;
+	}
+
+	if(endptr) {
+		*endptr = p;
+	}
+
+	return res;
+}
 int CBZView::ReadHexa(LPCSTR sHexa, LPBYTE& buffer)
 {
 	LPCSTR p = sHexa;
@@ -1747,7 +1782,7 @@ int CBZView::ReadHexa(LPCSTR sHexa, LPBYTE& buffer)
 		while(*p && !isalnum(*p)) p++;
 		if(!*p) break;
 		LPCSTR p0 = p;
-		BYTE n = (BYTE)strtol(p, (char**)&p, 16);
+		BYTE n = hexStr2ToB(p, &p);
 		if(n == 0 && p == p0) break;				// ### 1.54
 		nFind ++;
 		if(!pFind) pFind = (LPBYTE)MemAlloc(nFind);
