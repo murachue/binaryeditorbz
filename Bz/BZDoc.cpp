@@ -227,12 +227,14 @@ static int inflateBlock(CFile& file, LPBYTE buf, const DWORD bufsize, z_stream& 
 		z.avail_out = bufsize;
 		ret = inflate(&z, Z_NO_FLUSH);
 
+		// 展開後のデータを書き込む。
+		// エラーでもできた分は書く。
+		file.Write(buf, bufsize - z.avail_out);
+
 		if(ret != Z_OK && ret != Z_STREAM_END) {
 			// Error! 即リターン。
 			return ret;
 		}
-
-		file.Write(buf, bufsize - z.avail_out); // 展開後のデータを書き込む。
 	} while(z.avail_out == 0);
 
 	return ret;
