@@ -260,7 +260,7 @@ void CBZDoc::SavePartialInflated(CFile& file, DWORD offset, DWORD size, CBZView&
 
 			if(ret != Z_OK) { // Z_STREAM_END もしくはエラー時はループを抜ける。
 				// offset/sizeをz.avail_inから再計算する。どれくらい余分であったかがわかる。
-				offset += dataSize - z.avail_in;
+				offset += dataSize - z.avail_in; // 意味ないけど一応offsetも調整しておく…
 				size -= dataSize - z.avail_in;
 				break;
 			}
@@ -273,7 +273,9 @@ void CBZDoc::SavePartialInflated(CFile& file, DWORD offset, DWORD size, CBZView&
 #endif
 	{
 		ret = inflateBlock(file, buf, bufsize, z, m_pData + offset, size);
-		// TODO offset/sizeをz.avail_inから再計算する?
+		// offset/sizeをz.avail_inから再計算する。どれくらい余分であったかがわかる。
+		offset += size - z.avail_in; // 意味ないけど一応offsetも調整しておく…
+		size = z.avail_in;
 	}
 
 	if(ret == Z_STREAM_END) {
