@@ -34,7 +34,7 @@
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'" Label="Configuration">
     <ConfigurationType>DynamicLibrary</ConfigurationType>
     <PlatformToolset>v110</PlatformToolset>
-    <UseOfMfc>Static</UseOfMfc>
+    <UseOfMfc>false</UseOfMfc>
     <CharacterSet>MultiByte</CharacterSet>
   </PropertyGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.props" />
@@ -57,18 +57,12 @@
     <_ProjectFileVersion>11.0.60315.1</_ProjectFileVersion>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
-    <OutDir>.\Release\</OutDir>
-    <IntDir>.\Release\</IntDir>
     <LinkIncremental>false</LinkIncremental>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
-    <OutDir>.\Debug\</OutDir>
-    <IntDir>.\Debug\</IntDir>
     <LinkIncremental>true</LinkIncremental>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='ReleaseUPX|Win32'">
-    <OutDir>$(Configuration)\</OutDir>
-    <IntDir>$(Configuration)\</IntDir>
     <LinkIncremental>false</LinkIncremental>
   </PropertyGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
@@ -99,11 +93,7 @@
       <Culture>0x0409</Culture>
     </ResourceCompile>
     <Link>
-      <OutputFile>.\Release/BZres_us.dll</OutputFile>
-      <SuppressStartupBanner>true</SuppressStartupBanner>
-      <ProgramDatabaseFile>.\Release/BZres_us.pdb</ProgramDatabaseFile>
       <NoEntryPoint>true</NoEntryPoint>
-      <ImportLibrary>.\Release/BZres_us.lib</ImportLibrary>
       <TargetMachine>MachineX86</TargetMachine>
     </Link>
     <Bscmake>
@@ -139,12 +129,8 @@
       <Culture>0x0409</Culture>
     </ResourceCompile>
     <Link>
-      <OutputFile>.\Debug/BZres_us.dll</OutputFile>
-      <SuppressStartupBanner>true</SuppressStartupBanner>
       <GenerateDebugInformation>true</GenerateDebugInformation>
-      <ProgramDatabaseFile>.\Debug/BZres_us.pdb</ProgramDatabaseFile>
       <NoEntryPoint>true</NoEntryPoint>
-      <ImportLibrary>.\Debug/BZres_us.lib</ImportLibrary>
       <TargetMachine>MachineX86</TargetMachine>
     </Link>
     <Bscmake>
@@ -180,11 +166,7 @@
       <Culture>0x0409</Culture>
     </ResourceCompile>
     <Link>
-      <OutputFile>.\$(OutDir)BZres_us.dll</OutputFile>
-      <SuppressStartupBanner>true</SuppressStartupBanner>
-      <ProgramDatabaseFile>.\$(OutDir)BZres_us.pdb</ProgramDatabaseFile>
       <NoEntryPoint>true</NoEntryPoint>
-      <ImportLibrary>.\$(OutDir)BZres_us.lib</ImportLibrary>
       <TargetMachine>MachineX86</TargetMachine>
     </Link>
     <Bscmake>

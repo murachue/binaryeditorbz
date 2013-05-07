@@ -63,18 +63,12 @@
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
     <LinkIncremental>true</LinkIncremental>
     <IncludePath>D:\lib\wtl81_12085\Include;$(IncludePath)</IncludePath>
-    <OutDir>.\Debug\</OutDir>
-    <IntDir>.\Debug\</IntDir>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
-    <OutDir>.\Release\</OutDir>
-    <IntDir>.\Release\</IntDir>
     <LinkIncremental>false</LinkIncremental>
     <IncludePath>D:\lib\wtl81_12085\Include;$(IncludePath)</IncludePath>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='ReleaseUPX|Win32'">
-    <OutDir>$(Configuration)\</OutDir>
-    <IntDir>$(Configuration)\</IntDir>
     <LinkIncremental>false</LinkIncremental>
     <IncludePath>D:\lib\wtl81_12085\Include;$(IncludePath)</IncludePath>
   </PropertyGroup>
@@ -93,14 +87,8 @@
       <ExceptionHandling>Async</ExceptionHandling>
       <RuntimeLibrary>MultiThreadedDebugDLL</RuntimeLibrary>
       <PrecompiledHeader>Use</PrecompiledHeader>
-      <PrecompiledHeaderFile>stdafx.h</PrecompiledHeaderFile>
-      <PrecompiledHeaderOutputFile>.\Debug/Bz.pch</PrecompiledHeaderOutputFile>
-      <AssemblerListingLocation>.\Debug/</AssemblerListingLocation>
-      <ObjectFileName>.\Debug/</ObjectFileName>
-      <ProgramDataBaseFileName>.\Debug/</ProgramDataBaseFileName>
       <BrowseInformation>true</BrowseInformation>
       <WarningLevel>Level3</WarningLevel>
-      <SuppressStartupBanner>true</SuppressStartupBanner>
       <DebugInformationFormat>ProgramDatabase</DebugInformationFormat>
       <PreprocessorDefinitions>WIN32;_DEBUG;_WINDOWS;_CSTRING_NS=WTL;%(PreprocessorDefinitions)</PreprocessorDefinitions>
     </ClCompile>
@@ -110,19 +98,12 @@
     </ResourceCompile>
     <Link>
       <AdditionalDependencies>imagehlp.lib;%(AdditionalDependencies)</AdditionalDependencies>
-      <OutputFile>.\Debug/Bz.exe</OutputFile>
-      <SuppressStartupBanner>true</SuppressStartupBanner>
       <GenerateDebugInformation>true</GenerateDebugInformation>
-      <ProgramDatabaseFile>.\Debug/Bz.pdb</ProgramDatabaseFile>
       <SubSystem>Windows</SubSystem>
       <LargeAddressAware>true</LargeAddressAware>
       <TargetMachine>MachineX86</TargetMachine>
-      <ImageHasSafeExceptionHandlers>false</ImageHasSafeExceptionHandlers>
     </Link>
-    <Bscmake>
-      <SuppressStartupBanner>true</SuppressStartupBanner>
-      <OutputFile>.\Debug/Bz.bsc</OutputFile>
-    </Bscmake>
+    <Bscmake />
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
     <Midl>
@@ -143,13 +124,7 @@
       <BufferSecurityCheck>true</BufferSecurityCheck>
       <FunctionLevelLinking>true</FunctionLevelLinking>
       <PrecompiledHeader />
-      <PrecompiledHeaderFile>stdafx.h</PrecompiledHeaderFile>
-      <PrecompiledHeaderOutputFile>.\Release/Bz.pch</PrecompiledHeaderOutputFile>
-      <AssemblerListingLocation>.\Release/</AssemblerListingLocation>
-      <ObjectFileName>.\Release/</ObjectFileName>
-      <ProgramDataBaseFileName>.\Release/</ProgramDataBaseFileName>
       <WarningLevel>Level3</WarningLevel>
-      <SuppressStartupBanner>true</SuppressStartupBanner>
       <WholeProgramOptimization>true</WholeProgramOptimization>
     </ClCompile>
     <ResourceCompile>
@@ -158,8 +133,6 @@
     </ResourceCompile>
     <Link>
       <AdditionalDependencies>imagehlp.lib;%(AdditionalDependencies)</AdditionalDependencies>
-      <OutputFile>.\Release/Bz.exe</OutputFile>
-      <SuppressStartupBanner>true</SuppressStartupBanner>
       <GenerateMapFile>true</GenerateMapFile>
       <SubSystem>Windows</SubSystem>
       <LargeAddressAware>true</LargeAddressAware>
@@ -169,10 +142,7 @@
       <TargetMachine>MachineX86</TargetMachine>
       <GenerateDebugInformation>false</GenerateDebugInformation>
     </Link>
-    <Bscmake>
-      <SuppressStartupBanner>true</SuppressStartupBanner>
-      <OutputFile>.\Release/Bz.bsc</OutputFile>
-    </Bscmake>
+    <Bscmake />
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='ReleaseUPX|Win32'">
     <Midl>
@@ -193,21 +163,13 @@
       <BufferSecurityCheck>true</BufferSecurityCheck>
       <FunctionLevelLinking>true</FunctionLevelLinking>
       <PrecompiledHeader>Use</PrecompiledHeader>
-      <PrecompiledHeaderFile>stdafx.h</PrecompiledHeaderFile>
-      <PrecompiledHeaderOutputFile>.\$(OutDir)Bz.pch</PrecompiledHeaderOutputFile>
-      <AssemblerListingLocation>.\$(OutDir)</AssemblerListingLocation>
-      <ObjectFileName>.\$(OutDir)</ObjectFileName>
-      <ProgramDataBaseFileName>.\$(OutDir)</ProgramDataBaseFileName>
       <WarningLevel>Level3</WarningLevel>
-      <SuppressStartupBanner>true</SuppressStartupBanner>
     </ClCompile>
     <ResourceCompile>
       <PreprocessorDefinitions>NDEBUG;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <Culture>0x0411</Culture>
     </ResourceCompile>
     <Link>
-      <OutputFile>.\$(OutDir)Bz.exe</OutputFile>
-      <SuppressStartupBanner>true</SuppressStartupBanner>
       <ProgramDatabaseFile>.\$(OutDir)Bz.pdb</ProgramDatabaseFile>
       <SubSystem>Windows</SubSystem>
       <LargeAddressAware>true</LargeAddressAware>
@@ -216,10 +178,7 @@
       <LinkTimeCodeGeneration />
       <TargetMachine>MachineX86</TargetMachine>
     </Link>
-    <Bscmake>
-      <SuppressStartupBanner>true</SuppressStartupBanner>
-      <OutputFile>.\$(OutDir)Bz.bsc</OutputFile>
-    </Bscmake>
+    <Bscmake />
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClCompile Include="BZ.cpp" />
