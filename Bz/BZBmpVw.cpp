@@ -287,7 +287,7 @@ void CBZBmpView::OnLButtonDown(UINT nFlags, CPoint point)
 		if(dwPtr < pView->m_dwTotal) {
 			pView->m_dwCaret = dwPtr;
 			pView->GotoCaret();
-			//pView->Activate();
+			pView->Activate();
 		}
 	}
 
