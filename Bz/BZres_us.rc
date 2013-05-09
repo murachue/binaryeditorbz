@@ -736,6 +736,11 @@ BEGIN
     AFX_IDS_SCTASKLIST      "Activate Task List"
 END
 
+STRINGTABLE
+BEGIN
+    ID_FILE_SAVE_SELECTION  "Save the selected area of the active document\nSave selected"
+END
+
 #endif    // âpåÍ (ïƒçë) resources
 /////////////////////////////////////////////////////////////////////////////
 

@@ -735,6 +735,11 @@ BEGIN
     AFX_IDS_SCTASKLIST      "アプリケーションの切り替え"
 END
 
+STRINGTABLE
+BEGIN
+    ID_FILE_SAVE_SELECTION  "現在のドキュメントのうち、選択範囲のみ保存します。\n選択部分を保存"
+END
+
 #endif    // 日本語 (日本) resources
 /////////////////////////////////////////////////////////////////////////////
 
