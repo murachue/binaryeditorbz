@@ -1709,26 +1709,19 @@ BOOL CBZView::CalcHexa(LPCSTR sExp, long& n1)
 	long n2;
 	char op = 0;
 	int  base = 16;
-	BOOL flagHex=false;
 
 	for(;;) {
 		while(*p > 0 && *p <= ' ') p++;
 		if(!*p) break;
-		if(*p == '0' && (*(p+1) == 'x' || *(p+1) == 'X'))
-		{
-			flagHex = true;
-			p+=2;
-		}
 		LPCSTR p0 = p;
 		if(*p == '-')
-			n2 = strtol(p, (char**)&p, flagHex?16:base);
+			n2 = strtol(p, (char**)&p, base);
 		else
-			n2 = strtoul(p, (char**)&p, flagHex?16:base);
+			n2 = strtoul(p, (char**)&p, base);
 		base = 16;
 		if(p != p0) {
-			if(flagHex)flagHex=false;
 			switch (op) {
-			case 0:n1=n2;break;
+			case 0:
 			case '+': n1 += n2; break;
 			case '-': n1 -= n2; break;
 			case '*': n1 *= n2; break;
