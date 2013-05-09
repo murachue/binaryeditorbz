@@ -295,7 +295,7 @@ BEGIN
         MENUITEM SEPARATOR
         MENUITEM "上下に分割(&H)",                   ID_VIEW_SPLIT_H
         MENUITEM "左右に分割(&V)",                   ID_VIEW_SPLIT_V
-        MENUITEM "スクロールの同期(&V)",                ID_VIEW_SYNCSCROLL
+        MENUITEM "スクロールの同期(&Y)",                ID_VIEW_SYNCSCROLL
         MENUITEM SEPARATOR
         MENUITEM "グリッド表示(&G)",                  ID_VIEW_GRID1
         MENUITEM SEPARATOR
