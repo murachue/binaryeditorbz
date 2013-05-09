@@ -68,31 +68,35 @@ static char THIS_FILE[] = __FILE__;
 
 //static const UINT nMsgFindReplace = ::RegisterWindowMessage(FINDMSGSTRING);
 
-static LPBYTE MemScanByte(LPBYTE, BYTE, DWORD);
-static LPBYTE MemScanByteNeg(LPBYTE, BYTE, DWORD);
-static LPWORD MemScanWord(LPWORD, WORD, DWORD);
+static LPBYTE MemScanByte(BYTE *p, BYTE c, DWORD len);
+static LPBYTE MemScanByteNeg(BYTE *p, BYTE c, DWORD len);
+static LPWORD MemScanWord(WORD * p, WORD c, DWORD len);
 static DWORD  MemCompByte(LPCVOID p1, LPCVOID p2, DWORD len);
 
 BOOL CBZView::m_bHexSize = FALSE;
 LPSTR CBZView::m_pEbcDic = NULL;
 BOOL  CBZView::m_bLoadEbcDic = FALSE;
 
-inline int SwapWord(int val)
+//inline int SwapWord(int val)
+inline WORD SwapWord(WORD val)
 {
 	if(options.bByteOrder) {
-		_asm {
+		 _byteswap_ushort(val);
+/*		_asm {
 			mov eax, val
 			xchg al,ah
 			mov val, eax
+		}*/
 		}
-	}
 	return val;
 }
 
-inline int SwapDword(int val)
+//inline int SwapDword(int val)
+inline DWORD SwapDword(DWORD val)
 {
 	if(options.bByteOrder) {
-		_asm {
+		 _byteswap_ulong(val);
+/*		_asm {
 			push val
 			pop ax
 			pop bx
@@ -101,8 +105,8 @@ inline int SwapDword(int val)
 			push ax
 			push bx
 			pop val
+		}*/
 		}
-	}
 	return val;
 }
 
@@ -221,13 +225,13 @@ int CBZView::OnCreate(LPCREATESTRUCT lpCreateStruct)
 
 void CBZView::OnUpdate(CView* pSender, LPARAM lHint, CObject* pHint) 
 {
-	// TODO: Add your specialized code here and/or call the base class
+	ATLTRACE("CBZView::OnUpdate()\n");
 	
 	m_pDoc = GetDocument();
 	ASSERT_VALID(m_pDoc);
 #ifdef FILE_MAPPING
 	if(m_pDoc)
-		 m_pDoc->QueryMapView(m_pDoc->GetDocPtr(), 0);
+		m_pDoc->QueryMapViewTama2(0, 1);//ファイルサイズが０の場合で、デフォルト設定ではない場合、ファイルマッピングモードで開くとエラー
 	m_nColAddr = (options.bDWordAddr || m_pDoc->IsFileMapping()) ? ADDRCOLUMNS_MAP : ADDRCOLUMNS;
 	if(GetViewWidth() != VIEWCOLUMNS) {
 		SetViewSize(CSize(VIEWCOLUMNS, 0));
@@ -250,15 +254,19 @@ void CBZView::OnUpdate(CView* pSender, LPARAM lHint, CObject* pHint)
 	if(m_charset == CTYPE_EBCDIC)
 		LoadEbcDicTable();
 
-	if(GetMainFrame() && GetMainFrame()->m_bStructView) {
+	CMainFrame *pMainFrame = GetMainFrame();
+	if(pMainFrame)
+	{
+		if(pMainFrame->m_bStructView) {
 		CBZFormView* pView = (CBZFormView*)GetNextWindow(GW_HWNDPREV);
 		if(pView!=NULL)
 			pView->SelectTag();
 	}
-	if(GetMainFrame()) {
+		if(pMainFrame->m_bAnalyzerView) {
 		CBZAnalyzerView* pView = (CBZAnalyzerView*)GetNextWindow(GW_HWNDPREV);
 		if(pView!=NULL)
 			pView->Clear();
+	}
 	}
 	Invalidate();
 	InitCaret();
@@ -1583,8 +1591,8 @@ void CBZView::OnJumpFindnext()
 		LPBYTE p2 = NULL;
 		if(len >= nFind) {
 			if(charset == CTYPE_UNICODE) {
-				p1 = (LPBYTE)MemScanWord(reinterpret_cast<WORD*>(p), c1, len);
-				if(c2) p2 = (LPBYTE)MemScanWord(reinterpret_cast<WORD*>(p), c2, len);
+				p1 = (LPBYTE)MemScanWord((LPWORD)p, c1, len);
+				if(c2) p2 = (LPBYTE)MemScanWord((LPWORD)p, c2, len);
 			} else {
 				if(!negativeFind) {
 					p1 = MemScanByte(p, c1, len);
@@ -1701,19 +1709,26 @@ BOOL CBZView::CalcHexa(LPCSTR sExp, long& n1)
 	long n2;
 	char op = 0;
 	int  base = 16;
+	BOOL flagHex=false;
 
 	for(;;) {
 		while(*p > 0 && *p <= ' ') p++;
 		if(!*p) break;
+		if(*p == '0' && (*(p+1) == 'x' || *(p+1) == 'X'))
+		{
+			flagHex = true;
+			p+=2;
+		}
 		LPCSTR p0 = p;
 		if(*p == '-')
-			n2 = strtol(p, (char**)&p, base);
+			n2 = strtol(p, (char**)&p, flagHex?16:base);
 		else
-			n2 = strtoul(p, (char**)&p, base);
+			n2 = strtoul(p, (char**)&p, flagHex?16:base);
 		base = 16;
 		if(p != p0) {
+			if(flagHex)flagHex=false;
 			switch (op) {
-			case 0:
+			case 0:n1=n2;break;
 			case '+': n1 += n2; break;
 			case '-': n1 -= n2; break;
 			case '*': n1 *= n2; break;

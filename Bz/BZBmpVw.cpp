@@ -70,6 +70,7 @@ BEGIN_MESSAGE_MAP(CBZBmpView, CScrollView)
 	ON_WM_SETCURSOR()
 	ON_COMMAND_RANGE(ID_BMPVIEW_8BITCOLOR, ID_BMPVIEW_8BITCOLOR_PAT3, OnBmpViewColorWidth)
 	ON_WM_SIZE()
+	ON_WM_MOUSEWHEEL()
 END_MESSAGE_MAP()
 
 /////////////////////////////////////////////////////////////////////////////
@@ -215,32 +216,36 @@ void CBZBmpView::OnDraw(CDC* pDC)
 	} else {
 		CBZDoc* pDoc = (CBZDoc*)GetDocument();
 		ASSERT(pDoc);
+		if(pDoc->GetDocPtr()==NULL)return;
 
 		CRect rClip;
 		pMemDC->GetClipBox(rClip);
-
-		// TRACE("Clip=%d, %d %dx%d\n", rClip.left, rClip.top, rClip.Width(), rClip.Height());
 
 		rClip.top -= rClip.top % options.nBmpZoom;
 		rClip.bottom += rClip.bottom % options.nBmpZoom;
 
 		int nSpaceTop = (rClip.top < BMPSPACE) ? BMPSPACE - rClip.top : 0;
-		int nBottom = m_cBmp.cy * options.nBmpZoom + BMPSPACE;
+		long nBottom = m_cBmp.cy * options.nBmpZoom + BMPSPACE;
 		if(rClip.bottom >= nBottom)
 			rClip.bottom = nBottom;
 
 		int nBmpHeight = (rClip.Height() - nSpaceTop) / options.nBmpZoom;
 		m_lpbi->biHeight = -nBmpHeight;
 
-		DWORD dwOffset = (rClip.top - (BMPSPACE - nSpaceTop)) * m_cBmp.cx / options.nBmpZoom;
-		dwOffset*=options.nBmpColorWidth/8;
+		ATLTRACE("Clip: left=%ld, top=%ld(0x%08lX) %dx%d\n", rClip.left, rClip.top, rClip.top, rClip.Width(), rClip.Height());
+		DWORD dwOffset = ((DWORD)rClip.top - (DWORD)(BMPSPACE - nSpaceTop)) / (DWORD)options.nBmpZoom * (DWORD)m_cBmp.cx;
+		ATLTRACE("DWORD dwOffset 0x%08X = ((DWORD)rClip.top 0x%08X - (DWORD)(BMPSPACE 0x%X - nSpaceTop 0x%X)) * (DWORD)m_cBmp.cx 0x%08X / (DWORD)options.nBmpZoom 0x%08X;\n", dwOffset, (DWORD)rClip.top, BMPSPACE, nSpaceTop, m_cBmp.cx, options.nBmpZoom);
+		dwOffset*=(DWORD)(options.nBmpColorWidth/8);
+		ATLTRACE("dwOffset 0x%08X *=(DWORD)(options.nBmpColorWidth %ld /8);\n", dwOffset, options.nBmpColorWidth);
+
 #ifdef FILE_MAPPING
 		//pDoc->QueryMapView(pDoc->GetDocPtr(), dwOffset);
 		DWORD dwIdeaSize = m_cBmp.cx * nBmpHeight * (options.nBmpColorWidth/8);
-		pDoc->QueryMapViewTama(dwOffset, dwIdeaSize);
+		LPBYTE lpBits = pDoc->QueryMapViewTama2(dwOffset, dwIdeaSize);
 		ASSERT(pDoc->GetMapRemain(dwOffset) >= dwIdeaSize);
-#endif //FILE_MAPPING
+#elif
 		LPBYTE lpBits = pDoc->GetDocPtr() + dwOffset;
+#endif //FILE_MAPPING
 
 		::StretchDIBits(pMemDC->m_hDC, BMPSPACE/*dstX*/, rClip.top + nSpaceTop/*dstY*/
 				, m_cBmp.cx * options.nBmpZoom/*dstW*/, nBmpHeight * options.nBmpZoom/*dstH*/
@@ -282,7 +287,7 @@ void CBZBmpView::OnLButtonDown(UINT nFlags, CPoint point)
 		if(dwPtr < pView->m_dwTotal) {
 			pView->m_dwCaret = dwPtr;
 			pView->GotoCaret();
-			pView->Activate();
+			//pView->Activate();
 		}
 	}
 
@@ -291,6 +296,7 @@ void CBZBmpView::OnLButtonDown(UINT nFlags, CPoint point)
 
 void CBZBmpView::OnVScroll(UINT nSBCode, UINT nPos, CScrollBar* pScrollBar) 
 {
+	ATLTRACE("OnVScroll\n");
 	// TODO: Add your message handler code here and/or call default
 	if(nSBCode == SB_THUMBTRACK) {		// ### 1.54
 		SCROLLINFO si;
@@ -301,6 +307,16 @@ void CBZBmpView::OnVScroll(UINT nSBCode, UINT nPos, CScrollBar* pScrollBar)
 	
 	CScrollView::OnVScroll(nSBCode, nPos, pScrollBar);
 }
+
+BOOL CBZBmpView::OnMouseWheel(UINT nFlags, short zDelta, CPoint pt)
+{
+	// TODO: ここにメッセージ ハンドラ コードを追加するか、既定の処理を呼び出します。
+
+	this->SendMessage(WM_VSCROLL, zDelta > 0 ? SB_LINEUP : SB_LINEDOWN, 0);
+
+	return CScrollView::OnMouseWheel(nFlags, zDelta, pt);
+}
+
 
 // ###1.54c
 

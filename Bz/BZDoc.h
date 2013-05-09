@@ -66,6 +66,7 @@ public:
 public:
 	BOOL	CopyToClipboard(DWORD dwPtr, DWORD dwSize, BOOL bHexString);
 	DWORD	PasteFromClipboard(DWORD dwPtr, BOOL bIns);
+	BOOL	isDocumentEditedSelfOnly();
 	void	InsertData(DWORD dwPtr, DWORD dwSize, BOOL bIns);
 	void	DeleteData(DWORD dwPtr, DWORD dwSize);
 	void	StoreUndo(DWORD dwPtr, DWORD dwSize, UndoMode mode);
@@ -82,22 +83,22 @@ public:
 	BOOL	IsFileMapping() { return m_hMapping != NULL; }
 	LPBYTE  QueryMapView(LPBYTE pBegin, DWORD dwOffset)
 	{
+		ATLTRACE("QueryMapView pBegin=0x%08X, dwOffset=0x%08X\n", pBegin, dwOffset);
 		//return m_pMapStart ? QueryMapView1(pBegin, dwOffset) : pBegin;
 		LPBYTE p = pBegin + dwOffset;
 		if(m_pMapStart && IsOutOfMap1(p))return QueryMapView1(pBegin, dwOffset);
 		else return pBegin;
 	}
-	LPBYTE  QueryMapViewTama(DWORD dwOffset, DWORD dwSize)
+	LPBYTE  QueryMapViewTama2(DWORD dwStartOffset, DWORD dwIdealMapSize)
 	{
-		//return m_pMapStart ? QueryMapView1(pBegin, dwOffset) : pBegin;
+		ASSERT(dwIdealMapSize > 0);
 		if(m_pMapStart)
 		{
-			DWORD dwNeedStart = dwOffset;
-			DWORD dwNeedLast = dwNeedStart+dwSize-1;
-			if(dwNeedLast > m_dwTotal-1)dwNeedLast=m_dwTotal-1;
-			if(IsOutOfMapTama(dwNeedStart) || IsOutOfMapTama(dwNeedLast))return QueryMapView1(m_pData, dwOffset);
+			DWORD dwLastOffset = dwStartOffset + dwIdealMapSize-1;
+			if(dwLastOffset > m_dwTotal-1) dwLastOffset = m_dwTotal-1;
+			if(IsOutOfMapTama(dwStartOffset) || IsOutOfMapTama(dwLastOffset))return _QueryMapViewTama2(dwStartOffset, dwIdealMapSize);
 		}
-		return m_pData;
+		return GetFileMappingPointerFromFileOffset(dwStartOffset);
 	}
 	BOOL    IsOutOfMap(LPBYTE p) { return m_pMapStart ? IsOutOfMap1(p) : FALSE; }
 	DWORD	GetMapSize() { return m_pMapStart ? m_dwFileOffset + m_dwMapSize : m_dwTotal; }
@@ -116,6 +117,9 @@ public:
 private:
 	BOOL     MapView();
 	LPBYTE  QueryMapView1(LPBYTE pBegin, DWORD dwOffset);
+	void	AlignMapSize(DWORD dwStartOffset, DWORD dwIdealMapSize);
+	LPBYTE  _QueryMapViewTama2 (DWORD dwStartOffset, DWORD dwIdealMapSize);
+
 	BOOL    IsOutOfMap1(LPBYTE p);
 	BOOL IsOutOfMapTama(DWORD dwOffset)
 	{

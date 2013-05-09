@@ -29,87 +29,18 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 #include "stdafx.h"
 #include "BZ.h"
+#include "Splitter.h"
 #include "BZAnalyzerView.h"
 #include "ProgressDialog.h"
 #include "zlib.h"
-#include "BZView.h"
 #include "BZDoc.h"
-#include "Splitter.h"
 //#include "..\..\CFolderDialog\folderdlg.h"//atldlgs.hからCFolderDialogだけ切り取ったもの。shlobj.hのinclude, CFolderDialogImpl, CFolderDialog, ATL_NO_VTABLEを__declspec(novtable)に変更, ATLTRACEをコメントアウトしたもの。代わりにWTLのatldlgs.hをインクルードしても良い。CPL感染するので同梱しない。
 
 
 // CBZAnalyzerView
 
-IMPLEMENT_DYNCREATE(CBZAnalyzerView, CFormView)
-
-CBZAnalyzerView::CBZAnalyzerView()
-	: CFormView(CBZAnalyzerView::IDD)
-{
-
-}
-
-CBZAnalyzerView::~CBZAnalyzerView()
-{
-}
-
-void CBZAnalyzerView::DoDataExchange(CDataExchange* pDX)
-{
-	CFormView::DoDataExchange(pDX);
-	DDX_Control(pDX, IDP_ANALYZE_PERCENT, m_progress);
-	DDX_Control(pDX, IDL_ANALYZE_RESULT, m_resultList);
-	DDX_Control(pDX, IDC_ANALYZE_TYPE, m_combo_analyzetype);
-}
-
-BEGIN_MESSAGE_MAP(CBZAnalyzerView, CFormView)
-	ON_BN_CLICKED(IDB_ANALYZE_START, &CBZAnalyzerView::OnBnClickedAnalyzeStart)
-	ON_BN_CLICKED(IDB_ANALYZER_SAVE, &CBZAnalyzerView::OnBnClickedAnalyzerSave)
-	ON_BN_CLICKED(IDB_ANALYZER_SAVEALL, &CBZAnalyzerView::OnBnClickedAnalyzerSaveall)
-END_MESSAGE_MAP()
-
-
-// CBZAnalyzerView 診断
-
-#ifdef _DEBUG
-void CBZAnalyzerView::AssertValid() const
-{
-	CFormView::AssertValid();
-}
-
-#ifndef _WIN32_WCE
-void CBZAnalyzerView::Dump(CDumpContext& dc) const
-{
-	CFormView::Dump(dc);
-}
-#endif
-#endif //_DEBUG
-
 
 // CBZAnalyzerView メッセージ ハンドラ
-
-void CBZAnalyzerView::OnInitialUpdate()
-{
-	CFormView::OnInitialUpdate();
-
-	// TODO: ここに特定なコードを追加するか、もしくは基本クラスを呼び出してください。
-	if(m_combo_analyzetype.GetCount()==0)
-	{
-		m_combo_analyzetype.InsertString(0, "zlib (deflate)");
-		m_combo_analyzetype.SetCurSel(0);
-
-		m_resultList.DeleteAllItems();
-		m_resultList.InsertColumn(0, "Address", LVCFMT_LEFT, 120);
-	//	m_resultList.InsertColumn(1, "Size", LVCFMT_LEFT, 80);
-	}
-	CSplitterWnd* pSplit = (CSplitter*)GetParent();
-	pSplit->SetColumnInfo(0, 180, 0);
-}
-
-void CBZAnalyzerView::Clear()
-{
-	TRACE("AnalyzerClear!\n");
-	if(IsWindow(m_resultList.m_hWnd))
-		m_resultList.DeleteAllItems();
-}
 
 unsigned char secondTables[8+1][8] = {	{0x1d, 0x5b, 0x99, 0xd7, 0x3c, 0x7a, 0xb8, 0xf6},//0x08(first)
 										{0x19, 0x57, 0x95, 0xd3, 0x38, 0x76, 0xb4, 0xf2},//0x18
@@ -140,7 +71,7 @@ __inline BOOL IsZlibDeflate(unsigned char firstChar, unsigned char secondChar)
 	return false;
 }
 
-void CBZAnalyzerView::OnBnClickedAnalyzeStart()
+void CBZAnalyzerView::OnBnClickedAnalyzeStart(UINT uNotifyCode, int nID, CWindow wndCtl)
 {
 	// TODO: ここにコントロール通知ハンドラ コードを追加します。
 	m_resultList.DeleteAllItems();
@@ -165,7 +96,7 @@ void CBZAnalyzerView::OnBnClickedAnalyzeStart()
 	for(DWORD ofs_inflateStart = 0; ofs_inflateStart < filesize-1/*-2以上でもいいかも*/; ofs_inflateStart++)
 	{
 #ifdef FILE_MAPPING
-		if(p && !(p = pDoc->QueryMapViewTama2(ofs_inflateStart, 1000))) return;
+		if(p && !(p = pDoc->QueryMapViewTama(ofs_inflateStart, 1000))) return;
 		DWORD dwRemain = pDoc->GetMapRemain(ofs_inflateStart);
 		if(dwRemain<2)
 		{
@@ -174,13 +105,14 @@ void CBZAnalyzerView::OnBnClickedAnalyzeStart()
 			return;
 		}
 #endif //FILE_MAPPING
-		if(!IsZlibDeflate(*p, *(p+1)))continue;
+		if(!IsZlibDeflate(*(p+ofs_inflateStart), *(p+ofs_inflateStart+1)))continue;
 
 		z_stream z = {0};
 		z.next_out = outbuf;
 		z.avail_out = outbufsize;
 
-		DWORD dwSize_Nokori = dwRemain;
+		DWORD ofs = ofs_inflateStart;
+		DWORD dwSize_Nokori = 1000;
 		if(inflateInit(&z)!=Z_OK)continue;
 		/*do*/ {
 		/*	if(z.avail_out==0)
@@ -195,7 +127,7 @@ void CBZAnalyzerView::OnBnClickedAnalyzeStart()
 				break;
 			}*/
 			DWORD dwSize = min(min(dwRemain, dwSize_Nokori), 100);
-			z.next_in = p;
+			z.next_in = p+ofs;
 			z.avail_in = dwSize;
 			inflateStatus = inflate(&z, Z_NO_FLUSH);
 			dwSize_Nokori -= dwSize;
@@ -238,13 +170,13 @@ int CBZAnalyzerView::MakeExportPathA(LPSTR pathOutput, LPCSTR pathDir, unsigned 
 	return sprintf_s(pathOutput, _MAX_PATH, "%s%08X.bin", pathDir, ulStartAddr);
 }
 
-void CBZAnalyzerView::OnBnClickedAnalyzerSave()
+void CBZAnalyzerView::OnBnClickedAnalyzerSave(UINT uNotifyCode, int nID, CWindow wndCtl)
 {
 	// TODO: ここにコントロール通知ハンドラ コードを追加します。
 	WTL::CFolderDialog dlg(NULL, NULL, BIF_RETURNONLYFSDIRS | BIF_USENEWUI);
 	if(dlg.DoModal()==IDOK)
 	{
-		POSITION pos = m_resultList.GetFirstSelectedItemPosition();
+		int pos = m_resultList.GetNextItem(-1, LVIS_SELECTED);//GetFirstSelectedItemPosition();
 		if(pos==NULL)
 		{
 			MessageBox("no selected", "Error", MB_OK);
@@ -258,9 +190,9 @@ void CBZAnalyzerView::OnBnClickedAnalyzerSave()
 		MakeExportDirA(pathOutputDir, dlg.GetFolderPath());
 		CAtlList<int> delList;
 
-		while(pos)
+		while(pos!=-1)
 		{
-			int nItem = m_resultList.GetNextSelectedItem(pos);
+			int nItem = m_resultList.GetNextItem(pos, LVIS_SELECTED);//GetNextSelectedItem(pos);
 			unsigned long ulStartAddr = GetAddress(nItem);
 			if(FAILED(SaveFileA(pathOutputDir, ulStartAddr, outbuf, outbufsize))) delList.AddHead(nItem);
 		}
@@ -275,7 +207,7 @@ void CBZAnalyzerView::OnBnClickedAnalyzerSave()
 	}
 }
 
-void CBZAnalyzerView::OnBnClickedAnalyzerSaveall()
+void CBZAnalyzerView::OnBnClickedAnalyzerSaveall(UINT uNotifyCode, int nID, CWindow wndCtl)
 {
 	// TODO: ここにコントロール通知ハンドラ コードを追加します。
 	WTL::CFolderDialog dlg(NULL, NULL, BIF_RETURNONLYFSDIRS | BIF_USENEWUI);
@@ -357,7 +289,7 @@ HRESULT CBZAnalyzerView::SaveFileA(LPCSTR pathOutputDir, unsigned long ulStartAd
 		{
 			if(nextOffset>=dwTotal)goto saveerr2;
 #ifdef FILE_MAPPING
-			p = pDoc->QueryMapViewTama2(nextOffset, 0x100000);
+			p = pDoc->QueryMapViewTama(nextOffset, 0x100000);
 			DWORD dwRemain = pDoc->GetMapRemain(nextOffset);
 			if(dwRemain==0)
 			{
@@ -366,10 +298,9 @@ HRESULT CBZAnalyzerView::SaveFileA(LPCSTR pathOutputDir, unsigned long ulStartAd
 			}
 #endif //FILE_MAPPING
 			DWORD dwSize = min(dwRemain, 0x100000);
-			z.next_in = p;
+			z.next_in = p+nextOffset;
 			z.avail_in = dwSize;
 			nextOffset+=dwSize;
-			p+=dwSize;
 		}
 		inflateStatus = inflate(&z, Z_NO_FLUSH);
 		if(z.avail_out==0)

@@ -200,7 +200,7 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
     }
     [self MoveCaret:pt];//MoveCaret(pt);
     pt.x = ptx2;
-    //MoveCaret2(pt);
+    [self MoveCaret2:pt];
     
 /*	if(GetMainFrame() && GetMainFrame()->m_bInspectView) {
 		CBZInspectView* pView = (CBZInspectView*)GetNextWindow(GW_HWNDPREV);
@@ -741,6 +741,7 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
         BZView *bzBrother = [bzWnd GetBrotherView:self];
         [bzBrother StopCaret];
         [self InitCaret];
+        [bzBrother HideCaret2];
         Document *doc = [self GetDocument];
         [bzWnd setTitle:(doc.fileURL)?doc.fileURL.lastPathComponent : @"Untitled"];
     }
@@ -934,11 +935,15 @@ Error:
     
 	if (nChar < ' ' || nChar >= 256)
 		return;
+    NSString *strInput = [NSString stringWithFormat: @"%C", nChar];
+    
 	if (m_pDoc->m_bReadOnly)
 		goto Error;
-	if (!m_bEnterVal && !preChar) {
+    
+	if (!m_bEnterVal && !preChar)
+    {
 		__uint64_t dwSize = 1;
-	/*	if(m_bCaretOnChar && (m_charset == CTYPE_UNICODE || (m_charset > CTYPE_UNICODE) && _ismbblead((BYTE)nChar))) {
+	/*if(m_bCaretOnChar && (m_charset == CTYPE_UNICODE || (m_charset > CTYPE_UNICODE) && _ismbblead((BYTE)nChar))) {
 			if(m_charset == CTYPE_UTF8)		// ### 1.54b
 				dwSize = 3;
 			else
@@ -954,7 +959,7 @@ Error:
         }*/
 	}
 	m_bBlock = FALSE;
-	p  = [m_pDoc GetDocPtr] + m_dwCaret;//m_pDoc->GetDocPtr() + m_dwCaret;
+	p  = [m_pDoc GetDocPtr] + m_dwCaret;
 	if(!m_bCaretOnChar) {
 		if(nChar >= '0' && nChar <= '9')
 			nChar -= '0';
@@ -988,7 +993,7 @@ Error:
 			if(m_charset == CTYPE_UNICODE) len *= 2;
 			pb = (char*)buffer;
 			for (int i = 0; i<len; i++) *p++ = *pb++;
-			MemFree(buffer);
+			free(buffer);
 			//Invalidate(FALSE);
 			if(!m_bEnterVal)
 				MoveCaretTo(m_dwCaret + len);
@@ -998,10 +1003,11 @@ Error:
 	*p = (__uint8_t)nChar;
 	//Invalidate(FALSE);
 	if(!m_bEnterVal) {
-		[self MoveCaretTo:m_dwCaret+1];//MoveCaretTo(m_dwCaret+1);
+		[self MoveCaretTo:m_dwCaret+1];
 	}
 	return;
 Error:
+    NSBeep();
 	//MessageBeep(MB_NOFOCUS);
 	return;
 }
@@ -1420,5 +1426,13 @@ Error:
 {
     [self.window makeFirstResponder:self];
 }
+
+- (IBAction)OnUndo:(id)sender
+{
+	m_dwCaret = [m_pDoc DoUndo];
+	[self GotoCaret];
+	[self UpdateDocSize];
+}
+
 
 @end

@@ -74,7 +74,7 @@ CBZApp::CBZApp()
 	// Place all significant initialization in InitInstance
 	m_bFirstInstance = TRUE;
 	m_hInstDll = NULL;
-	EnableHtmlHelp();
+	//EnableHtmlHelp();
 }
 
 /////////////////////////////////////////////////////////////////////////////

@@ -70,7 +70,6 @@ CBZDoc::CBZDoc()
 	// TODO: add one-time construction code here
 	m_pData = NULL;
 	m_dwTotal = 0;
-	m_pUndo = NULL;
 	m_bReadOnly = TRUE;
 #ifdef FILE_MAPPING
 	m_hMapping = NULL;
@@ -81,6 +80,11 @@ CBZDoc::CBZDoc()
 	m_dwMapSize = 0;
 #endif //FILE_MAPPING
 	m_dwBase = 0;
+
+	//Undo
+	m_pUndo = NULL;
+	m_dwUndo = 0;
+	m_dwUndoSaved = 0;
 
 	SYSTEM_INFO sysinfo;
 	GetSystemInfo(&sysinfo);
@@ -342,7 +346,12 @@ LPBYTE CBZDoc::QueryMapView1(LPBYTE pBegin, DWORD dwOffset)
 			m_dwFileOffset = dwTmp1 - (dwTmp1 % m_dwAllocationGranularity);
 			m_dwMapSize = m_dwTotal - m_dwFileOffset;
 		}
-		m_pMapStart = (LPBYTE)::MapViewOfFile(m_hMapping, m_bReadOnly ? FILE_MAP_READ : FILE_MAP_WRITE, 0, m_dwFileOffset, m_dwMapSize);
+		int retry = 3;
+		m_pMapStart = NULL;
+		do
+		{
+			m_pMapStart = (LPBYTE)::MapViewOfFile(m_hMapping, m_bReadOnly ? FILE_MAP_READ : FILE_MAP_WRITE, 0, m_dwFileOffset, m_dwMapSize);
+		} while(m_pMapStart==NULL && --retry > 0);
 		TRACE("MapViewOfFile Doc=%X, %X, Offset:%X, Size:%X\n", this, m_pMapStart, m_dwFileOffset, m_dwMapSize);
 		if(!m_pMapStart) {
 			ErrorMessageBox();
@@ -350,9 +359,39 @@ LPBYTE CBZDoc::QueryMapView1(LPBYTE pBegin, DWORD dwOffset)
 			return NULL;
 		}
 		m_pData = m_pMapStart - m_dwFileOffset; //バグ?：仮想的なアドレス（ファイルのオフセット0にあたるメモリアドレス）を作り出している。m_pMapStart<m_dwFileOffsetだった場合、0を割ることがあるのではないだろうか？そういった場合まずい？？IsOutOfMapは正常に動きそう？ by tamachan(20121004)
+//		ASSERT(m_pMapStart > m_pData);
 		pBegin = GetFileMappingPointerFromFileOffset(dwBegin);//pBegin = m_pData + dwBegin;
 	//}
 	return pBegin;
+}
+
+void CBZDoc::AlignMapSize(DWORD dwStartOffset, DWORD dwIdealMapSize)
+{
+	m_dwFileOffset = dwStartOffset - (dwStartOffset % m_dwAllocationGranularity);
+	m_dwMapSize = min(max(options.dwMaxMapSize, dwIdealMapSize),  m_dwTotal - m_dwFileOffset);
+	if(m_dwMapSize == 0)
+	{
+		DWORD dwTmp1 = (m_dwTotal - m_dwAllocationGranularity);
+		m_dwFileOffset = dwTmp1 - (dwTmp1 % m_dwAllocationGranularity);
+		m_dwMapSize = m_dwTotal - m_dwFileOffset;
+	}//バグ：ファイルサイズが極端に小さい場合バグる
+}
+LPBYTE CBZDoc::_QueryMapViewTama2(DWORD dwStartOffset, DWORD dwIdealMapSize)
+{
+	if(dwStartOffset == m_dwTotal && dwStartOffset == m_dwFileOffset + m_dwMapSize) return GetFileMappingPointerFromFileOffset(dwStartOffset);//バグ？そもそもここに来るのはおかしいのではないか？
+	VERIFY(::UnmapViewOfFile(m_pMapStart));//ここでマッピング空間への変更が実ファイルへ書き込まれる。後に保存せず閉じる場合はアンドゥで戻す。
+
+	AlignMapSize(dwStartOffset, dwIdealMapSize);
+
+	m_pMapStart = (LPBYTE)::MapViewOfFile(m_hMapping, m_bReadOnly ? FILE_MAP_READ : FILE_MAP_WRITE, 0, m_dwFileOffset, m_dwMapSize);
+	TRACE("MapViewOfFile Doc=%X, %X, Offset:%X, Size:%X\n", this, m_pMapStart, m_dwFileOffset, m_dwMapSize);
+	if(!m_pMapStart) {
+		ErrorMessageBox();
+		AfxPostQuitMessage(0);
+		return NULL;
+	}
+	m_pData = m_pMapStart - m_dwFileOffset;
+	return GetFileMappingPointerFromFileOffset(dwStartOffset);
 }
 
 BOOL CBZDoc::IsOutOfMap1(LPBYTE p)
@@ -540,23 +579,19 @@ void CBZDoc::DeleteData(DWORD dwPtr, DWORD dwSize)
 	TouchDoc();
 }
 
+BOOL CBZDoc::isDocumentEditedSelfOnly()
+{
+	return m_dwUndo != m_dwUndoSaved;
+}
+
 void CBZDoc::TouchDoc()
 {
-	SetModifiedFlag(m_dwUndo != m_dwUndoSaved);
+	SetModifiedFlag(isDocumentEditedSelfOnly());
 	GetMainFrame()->OnUpdateFrameTitle();
-
-/*	CString sTitle = GetTitle();
-	if(b) sTitle += " *";
-	sTitle += " - ";
-	sTitle += AfxGetApp()->m_pszAppName;
-	CWnd *pFrame = AfxGetMainWnd();
-	pFrame->SetWindowText(sTitle);
-*/
 }
 
 void CBZDoc::OnUpdateEditUndo(CCmdUI* pCmdUI) 
 {
-	// TODO: Add your command update UI handler code here
 	pCmdUI->Enable(!!m_pUndo);	
 }
 
@@ -593,6 +628,7 @@ void CBZDoc::StoreUndo(DWORD dwPtr, DWORD dwSize, UndoMode mode)
 	}
 	*((DWORD*&)p)++ = dwBlock;
 	m_dwUndo += dwBlock;
+	ASSERT(m_dwUndo >= dwBlock && m_dwUndo != 0xFFffFFff);//Overflow check
 	ASSERT(p == m_pUndo+m_dwUndo);
 	TouchDoc();
 }
@@ -619,9 +655,9 @@ DWORD CBZDoc::DoUndo()
 	else {				// ### 1.54
 		MemFree(m_pUndo);
 		m_pUndo = NULL;
-		if(m_dwUndoSaved)
-			m_dwUndoSaved = UINT_MAX;
+		//if(m_dwUndoSaved)m_dwUndoSaved = UINT_MAX;
 	}
+	if(m_dwUndo < m_dwUndoSaved)m_dwUndoSaved = 0xFFffFFff;
 	// if(!m_pUndo)
 		TouchDoc();
 	return dwPtr;
@@ -900,8 +936,8 @@ BOOL CBZDoc::SaveModified()
 
 	case IDNO:
 		// If not saving changes, revert the document
-		if(IsFileMapping()) {
-			while(m_pUndo)
+		if(IsFileMapping() && m_dwUndoSaved != 0xFFffFFff) {
+			while(isDocumentEditedSelfOnly())//m_pUndo)
 				DoUndo();
 		}
 		break;

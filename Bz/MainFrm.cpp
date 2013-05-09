@@ -81,6 +81,7 @@ BEGIN_MESSAGE_MAP(CMainFrame, CFrameWnd)
 	ON_UPDATE_COMMAND_UI(ID_VIEW_INSPECT, &CMainFrame::OnUpdateViewInspect)
 	ON_COMMAND(ID_VIEW_ANALYZER, &CMainFrame::OnViewAnalyzer)
 	ON_UPDATE_COMMAND_UI(ID_VIEW_ANALYZER, &CMainFrame::OnUpdateViewAnalyzer)
+	ON_COMMAND(ID_HELP_INDEX, &CMainFrame::OnHelpIndex)
 END_MESSAGE_MAP()
 
 static UINT indicators[] =
@@ -117,17 +118,6 @@ CMainFrame::~CMainFrame()
 
 BOOL CMainFrame::PreCreateWindow(CREATESTRUCT& cs) 
 {
-	// TODO: Add your specialized code here and/or call the base class
-
-	if(options.ptFrame.x && options.ptFrame.y) {	// ###1.63
-		if(((CBZApp*)AfxGetApp())->m_bFirstInstance) {
-			cs.x = options.ptFrame.x;
-			cs.y = options.ptFrame.y;
-		}
-		cs.cx = 0;
-		cs.cy = options.cyFrame;
-	}
-
 	if(CFrameWnd::PreCreateWindow(cs)) {
 		WNDCLASSEX wc;
 		wc.cbSize = sizeof(WNDCLASSEX);
@@ -146,6 +136,20 @@ int CMainFrame::OnCreate(LPCREATESTRUCT lpCreateStruct)
 {
 	if (CFrameWnd::OnCreate(lpCreateStruct) == -1)
 		return -1;
+
+	if(options.ptFrame.x && options.ptFrame.y)
+	{
+		WINDOWPLACEMENT wndpl;
+		GetWindowPlacement(&wndpl);
+		if(((CBZApp*)AfxGetApp())->m_bFirstInstance)
+		{
+			wndpl.rcNormalPosition.left = options.ptFrame.x;
+			int newy = options.ptFrame.y;
+			wndpl.rcNormalPosition.top = (newy<0)?0:newy;
+		}
+		wndpl.rcNormalPosition.bottom = wndpl.rcNormalPosition.top + options.cyFrame;
+		SetWindowPlacement(&wndpl);
+	}
 
 	if (!(options.barState & BARSTATE_NOFLAT ? m_wndToolBar.Create(this)
 		: m_wndToolBar.CreateEx(this, TBSTYLE_FLAT, WS_CHILD | WS_VISIBLE | CBRS_TOP)) ||
@@ -602,6 +606,7 @@ void CMainFrame::OnUpdateFrameTitle(BOOL bAddToTitle)
 		if(!(options.barState & BARSTATE_FULLPATH) || sPath.IsEmpty())
 			sPath = pDoc->GetTitle();
 		s += sPath;
+		s += pDoc->IsFileMapping()?_T(" (FileMap)"):_T(" (Mem)");
 		if(pDoc->IsModified())
 			s += " *";
 		SetWindowText(s);
@@ -735,4 +740,8 @@ void CMainFrame::UpdateInspectViewChecks()
 		((CBZInspectView*)m_pSplitter->GetPane(r, c))->_UpdateChecks();
 		((CBZInspectView*)m_pSplitter->GetPane(r, c))->Update();
 	}
+}
+void CMainFrame::OnHelpIndex()
+{
+	ShellExecute(NULL, _T("open"), _T("index.htm"), NULL, NULL, SW_SHOWNORMAL);
 }
