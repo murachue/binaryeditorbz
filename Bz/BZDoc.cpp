@@ -207,9 +207,9 @@ void CBZDoc::SavePartial(CFile& file, DWORD offset, DWORD size)
 	if(IsFileMapping()) {
 		// QueryMapViewは使いっぱなしで問題ない。(draw時などにQueryMapViewしなおしてくれる。)
 		while(size > 0) {
-			LPBYTE pData = QueryMapViewTama(offset, size); // 書き込みたいデータを見えるようにする。
+			LPBYTE pData = QueryMapViewTama2(offset, size); // 書き込みたいデータを見えるようにする。
 			DWORD writesize = min(GetMapRemain(offset), size); // 書き込めるだけのデータ量を見積もる。
-			file.Write(pData + offset, writesize); // 書き込む。
+			file.Write(pData, writesize); // 書き込む。
 
 			// 書き込めた分、offset進めてsize減らす。
 			offset += writesize;
@@ -260,9 +260,9 @@ void CBZDoc::SavePartialInflated(CFile& file, DWORD offset, DWORD size, CBZView&
 	if(IsFileMapping()) {
 		// QueryMapViewは使いっぱなしで問題ない。(draw時などにQueryMapViewしなおしてくれる。)
 		while(size > 0) {
-			LPBYTE pData = QueryMapViewTama(offset, size); // 展開したいデータを見えるようにする。
+			LPBYTE pData = QueryMapViewTama2(offset, size); // 展開したいデータを見えるようにする。
 			DWORD dataSize = min(GetMapRemain(offset), size); // 展開できるだけのデータ量を見積もる。
-			ret = inflateBlock(file, buf, bufsize, z, pData + offset, dataSize);
+			ret = inflateBlock(file, buf, bufsize, z, pData, dataSize);
 
 			if(ret != Z_OK) { // Z_STREAM_END もしくはエラー時はループを抜ける。
 				// offset/sizeをz.avail_inから再計算する。どれくらい余分であったかがわかる。
