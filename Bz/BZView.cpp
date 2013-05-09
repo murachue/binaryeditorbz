@@ -155,6 +155,8 @@ BEGIN_MESSAGE_MAP(CBZView, CTextView)
 	ON_UPDATE_COMMAND_UI(ID_EDIT_SELECT_ALL, OnUpdateEditSelectAll)
 	ON_COMMAND(ID_EDIT_COPY_DUMP, OnEditCopyDump)
 	ON_UPDATE_COMMAND_UI(ID_EDIT_COPY_DUMP, OnUpdateEditCopyDump)
+	ON_COMMAND(ID_EDIT_COPY_HEXSTRING, OnEditCopyHexstring)
+	ON_UPDATE_COMMAND_UI(ID_EDIT_COPY_HEXSTRING, OnUpdateEditCopyHexstring)
 	ON_COMMAND(ID_JUMP_BASE, OnJumpBase)
 	ON_COMMAND(ID_JUMP_MARK, SetMark)
 	ON_COMMAND(ID_JUMP_MARKNEXT, JumpToMark)
@@ -1833,8 +1835,8 @@ void CBZView::CutOrCopy(CutMode mode)
 	DWORD dwPtr  = BlockBegin();
 	DWORD dwSize = BlockEnd() - dwPtr;
 	if(mode != EDIT_DELETE)
-		m_pDoc->CopyToClipboard(dwPtr, dwSize);
-	if(mode != EDIT_COPY) {
+		m_pDoc->CopyToClipboard(dwPtr, dwSize, mode == EDIT_COPYHEX);
+	if(mode != EDIT_COPY && mode != EDIT_COPYHEX) {
 		m_pDoc->StoreUndo(dwPtr, dwSize, UNDO_INS);
 		m_pDoc->DeleteData(dwPtr, dwSize);
 		m_dwCaret = m_dwOldCaret = dwPtr;
@@ -1923,6 +1925,18 @@ void CBZView::OnEditCopyDump()
 }
 
 void CBZView::OnUpdateEditCopyDump(CCmdUI* pCmdUI) 
+{
+	// TODO: Add your command update UI handler code here
+	pCmdUI->Enable(m_bBlock);
+}
+
+void CBZView::OnEditCopyHexstring()
+{
+	// TODO: Add your command handler code here
+	CutOrCopy(EDIT_COPYHEX);
+}
+
+void CBZView::OnUpdateEditCopyHexstring(CCmdUI* pCmdUI)
 {
 	// TODO: Add your command update UI handler code here
 	pCmdUI->Enable(m_bBlock);

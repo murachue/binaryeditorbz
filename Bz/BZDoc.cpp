@@ -409,7 +409,7 @@ void CBZDoc::OnUpdateEditReadOnlyOpen(CCmdUI* pCmdUI)
 	pCmdUI->SetCheck(options.bReadOnlyOpen);	
 }
 
-BOOL CBZDoc::CopyToClipboard(DWORD dwPtr, DWORD dwSize)	// ###1.5
+BOOL CBZDoc::CopyToClipboard(DWORD dwPtr, DWORD dwSize, BOOL bHexString)	// ###1.5
 {
 #ifdef FILE_MAPPING
 	QueryMapView(m_pData, dwPtr);
@@ -418,20 +418,44 @@ BOOL CBZDoc::CopyToClipboard(DWORD dwPtr, DWORD dwSize)	// ###1.5
 		return FALSE;
 	}
 #endif //FILE_MAPPING
-	HGLOBAL hMemTxt = ::GlobalAlloc(GMEM_MOVEABLE, dwSize + 1);
-	HGLOBAL hMemBin = ::GlobalAlloc(GMEM_MOVEABLE, dwSize + sizeof(dwSize));
-	LPBYTE pMemTxt  = (LPBYTE)::GlobalLock(hMemTxt);
-	LPBYTE pMemBin  = (LPBYTE)::GlobalLock(hMemBin);
-	memcpy(pMemTxt, m_pData + dwPtr, dwSize);
-	*(pMemTxt + dwSize) = '\0';
-	*((DWORD*)(pMemBin)) = dwSize;
-	memcpy(pMemBin + sizeof(dwSize), m_pData + dwPtr, dwSize);
+	HGLOBAL hMemTxt, hMemBin;
+	LPBYTE pMemTxt, pMemBin;
+	if(!bHexString) {
+		hMemTxt = ::GlobalAlloc(GMEM_MOVEABLE, dwSize + 1);
+	} else {
+		// hexstring
+		hMemTxt = ::GlobalAlloc(GMEM_MOVEABLE, dwSize * 2 + 1);
+	}
+	pMemTxt  = (LPBYTE)::GlobalLock(hMemTxt);
+	if(!bHexString) {
+		hMemBin = ::GlobalAlloc(GMEM_MOVEABLE, dwSize + sizeof(dwSize));
+		pMemBin  = (LPBYTE)::GlobalLock(hMemBin);
+	}
+	if(!bHexString) {
+		memcpy(pMemTxt, m_pData + dwPtr, dwSize);
+		*(pMemTxt + dwSize) = '\0';
+	} else {
+		// hexstring
+		LPBYTE s = m_pData + dwPtr;
+		LPBYTE e = s + dwSize;
+		LPBYTE d = pMemTxt;
+		for(; s < e; s++, d += 2) {
+			wsprintf((LPSTR)d, "%02X", *s);
+		}
+		*d = '\0';
+	}
 	::GlobalUnlock(hMemTxt);
-	::GlobalUnlock(hMemBin);
+	if(!bHexString) {
+		*((DWORD*)(pMemBin)) = dwSize;
+		memcpy(pMemBin + sizeof(dwSize), m_pData + dwPtr, dwSize);
+		::GlobalUnlock(hMemBin);
+	}
 	AfxGetMainWnd()->OpenClipboard();
 	::EmptyClipboard();
 	::SetClipboardData(CF_TEXT, hMemTxt);
-	::SetClipboardData(RegisterClipboardFormat("BinaryData2"), hMemBin);
+	if(!bHexString) {
+		::SetClipboardData(RegisterClipboardFormat("BinaryData2"), hMemBin);
+	}
 	::CloseClipboard();
 	return TRUE;
 }

@@ -105,6 +105,7 @@ BEGIN
         MENUITEM "&Copy\tCtrl+C",               ID_EDIT_COPY
         MENUITEM "&Paste\tCtrl+V",              ID_EDIT_PASTE
         MENUITEM "Copy &Dump List\tCtrl+D",     ID_EDIT_COPY_DUMP
+        MENUITEM "Copy as &Hexstring\tCtrl+Shift+C", ID_EDIT_COPY_HEXSTRING
         MENUITEM SEPARATOR
         MENUITEM "Select &All\tCtrl+A",         ID_EDIT_SELECT_ALL
         MENUITEM SEPARATOR
@@ -419,6 +420,7 @@ BEGIN
     "O",            ID_FILE_OPEN,           VIRTKEY, CONTROL, NOINVERT
     "P",            ID_FILE_PRINT,          VIRTKEY, CONTROL, NOINVERT
     "S",            ID_FILE_SAVE,           VIRTKEY, CONTROL, NOINVERT
+    "S",            ID_FILE_SAVE_SELECTION, VIRTKEY, SHIFT, CONTROL, NOINVERT
     VK_F1,          ID_HELP_INDEX,          VIRTKEY, NOINVERT
     VK_END,         ID_JUMP_END,            VIRTKEY, CONTROL, NOINVERT
     "F",            ID_JUMP_FIND,           VIRTKEY, CONTROL, NOINVERT
@@ -429,7 +431,7 @@ BEGIN
     VK_HOME,        ID_JUMP_START,          VIRTKEY, CONTROL, NOINVERT
     VK_F6,          ID_NEXT_PANE,           VIRTKEY, NOINVERT
     VK_F6,          ID_PREV_PANE,           VIRTKEY, SHIFT, NOINVERT
-    "S",            ID_FILE_SAVE_SELECTION, VIRTKEY, SHIFT, CONTROL, NOINVERT
+    "C",            ID_EDIT_COPY_HEXSTRING, VIRTKEY, SHIFT, CONTROL, NOINVERT
 END
 
 
@@ -739,6 +741,11 @@ END
 STRINGTABLE
 BEGIN
     ID_FILE_SAVE_SELECTION  "Save the selected area of the active document\nSave selected"
+END
+
+STRINGTABLE
+BEGIN
+    ID_EDIT_COPY_HEXSTRING  "Copy the selection and convert it to hexstring then put it on the Clipboard\nCopy as Hexstring"
 END
 
 #endif    // âpåÍ (ïƒçë) resources

@@ -259,6 +259,7 @@ BEGIN
         MENUITEM "コピー(&C)\tCtrl+C",             ID_EDIT_COPY
         MENUITEM "貼り付け(&P)\tCtrl+V",            ID_EDIT_PASTE
         MENUITEM "ダンプリストをコピー(&D)\tCtrl+D",      ID_EDIT_COPY_DUMP
+        MENUITEM "16進文字列にしてコピー(&H)\tCtrl+Shift+C", ID_EDIT_COPY_HEXSTRING
         MENUITEM SEPARATOR
         MENUITEM "すべて選択(&A)\tCtrl+A",           ID_EDIT_SELECT_ALL
         MENUITEM SEPARATOR
@@ -383,6 +384,7 @@ BEGIN
     "O",            ID_FILE_OPEN,           VIRTKEY, CONTROL, NOINVERT
     "P",            ID_FILE_PRINT,          VIRTKEY, CONTROL, NOINVERT
     "S",            ID_FILE_SAVE,           VIRTKEY, CONTROL, NOINVERT
+    "S",            ID_FILE_SAVE_SELECTION, VIRTKEY, SHIFT, CONTROL, NOINVERT
     VK_F1,          ID_HELP_INDEX,          VIRTKEY, NOINVERT
     VK_END,         ID_JUMP_END,            VIRTKEY, CONTROL, NOINVERT
     "F",            ID_JUMP_FIND,           VIRTKEY, CONTROL, NOINVERT
@@ -393,7 +395,7 @@ BEGIN
     VK_HOME,        ID_JUMP_START,          VIRTKEY, CONTROL, NOINVERT
     VK_F6,          ID_NEXT_PANE,           VIRTKEY, NOINVERT
     VK_F6,          ID_PREV_PANE,           VIRTKEY, SHIFT, NOINVERT
-    "S",            ID_FILE_SAVE_SELECTION, VIRTKEY, SHIFT, CONTROL, NOINVERT
+    "C",            ID_EDIT_COPY_HEXSTRING, VIRTKEY, SHIFT, CONTROL, NOINVERT
 END
 
 
@@ -738,6 +740,11 @@ END
 STRINGTABLE
 BEGIN
     ID_FILE_SAVE_SELECTION  "現在のドキュメントのうち、選択範囲のみ保存します。\n選択部分を保存"
+END
+
+STRINGTABLE
+BEGIN
+    ID_EDIT_COPY_HEXSTRING  "選択範囲を16進文字列にしてクリップボードにコピーします。\n16進文字列にしてコピー"
 END
 
 #endif    // 日本語 (日本) resources

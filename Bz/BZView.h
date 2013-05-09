@@ -31,7 +31,7 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 class CBZDoc;
 
-enum CutMode { EDIT_COPY, EDIT_CUT, EDIT_DELETE };
+enum CutMode { EDIT_COPY, EDIT_CUT, EDIT_DELETE, EDIT_COPYHEX };
 class CBZView : public CTextView
 {
 protected: // create from serialization only
@@ -202,6 +202,8 @@ protected:
 	afx_msg void OnUpdateEditSelectAll(CCmdUI* pCmdUI);
 	afx_msg void OnEditCopyDump();
 	afx_msg void OnUpdateEditCopyDump(CCmdUI* pCmdUI);
+	afx_msg void OnEditCopyHexstring();
+	afx_msg void OnUpdateEditCopyHexstring(CCmdUI* pCmdUI);
 	afx_msg void OnJumpBase();
 	afx_msg void OnKeyUp(UINT nChar, UINT nRepCnt, UINT nFlags);
 	//}}AFX_MSG
