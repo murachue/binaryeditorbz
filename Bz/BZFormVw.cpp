@@ -38,13 +38,13 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 static char THIS_FILE[] = __FILE__;
 #endif
 
-#define nTypes 15
+#define g_nTypes 15
 
-char* g_datatypes[nTypes] = {
+char* g_datatypes[g_nTypes] = {
 	"char", "byte", "BYTE", "short", "word", "WORD", "long", "dword", "DWORD", "double", "qword", "QWORD", "float", "int64","int"
 };
 
-DWORD g_datasizes[nTypes] = {1,1,1,2,2,2,4,4,4,8,8,8 ,4,8,4
+DWORD g_datasizes[g_nTypes] = {1,1,1,2,2,2,4,4,4,8,8,8 ,4,8,4
 };
 
 static TCHAR *s_MemberColLabel[MBRCOL_MAX] = { _T("+"), _T("Label"), _T("Value") };
@@ -287,145 +287,6 @@ void CBZFormView::OnDblclkListMember(NMHDR* pNMHDR, LRESULT* pResult)
 /////////////////////////////////////////////////////////////////////////////
 // CBZFormView main 
 
-/*BOOL CBZFormView::InitStructList() 
-{
-	CAtlRegExp<CAtlRECharTraitsMB> re;*/
-	//REParseError status = re.Parse((const unsigned char *)"[\\t\\r\\n ]*?struct[\\t\\r\\n ]+?{[^\\t\\r\\n ;\\[\\]]+?}[\\t\\r\\n ]*?\\{{[^\\{\\}]*?}\\}[\\t\\r\\n ]*?{[^\\t\\r\\n ;\\[\\]]*?}[\\t\\r\\n ]*?;[\\t\\r\\n ]*?");
-	//REParseError status = re.Parse((const unsigned char *)"[\t\r\n ]*?struct[\t\r\n ]+?{[^\t\r\n ;\[\]]+?}[\t\r\n ]*?\{{[^{}]*?}\}[\t\r\n ]*?{[^\t\r\n ;\[\]]*?}[\t\r\n ]*?;[\t\r\n ]*?");
-	//REParseError status = re.Parse((const unsigned char *)"{\\a+?}");
-	//REParseError status = re.Parse((const unsigned char *)"[\t\r\n ]*?struct[\t\r\n ]+?{.+?}[\t\r\n ]*?\\{{.*?}\\}[\t\r\n ]*?{.*?}[\t\r\n ]*?;[\t\r\n ]*?");
-//	REParseError status = re.Parse((const unsigned char *)"struct[\t\r\n ]+?{.+?}[\t\r\n ]*?\\{{.*?}\\}[\t\r\n ]*?{.*?}[\t\r\n ]*?;");
-	//REParseError status = re.Parse((const unsigned char *)"struct[\t\r\n ]+?{.+?}([\t\r\n ]*?|(/\\*.*?\\*/)*?|(//.*?[\n\r]+?)*?)*?\\{{.*?}\\}([\t\r\n ]*?|(/\\*.*?\\*/)*?|(//.*?[\n\r]+?)*?)*?{.*?}([\t\r\n ]*?|(/\\*.*?\\*/)*?|(//.*?[\n\r]+?)*?)*?;");
-	//REParseError status = re.Parse((const unsigned char *)"{/\\*.*?\\*/}");
-	//REParseError status = re.Parse((const unsigned char *)"{//.*?\n+?}");
-	//REParseError status = re.Parse((const unsigned char *)"{(/\\*.*?\\*/)|(//.*?\n+?)}");*/
-	//REParseError status = re.Parse((const unsigned char *)"{(/\\*.*?\\*/)*?|(//.*?\n+?)*?}");
-	/*CAtlRegExp<CAtlRECharTraitsMB> re2;
-	REParseError status2 = re2.Parse((const unsigned char *)"{[^,\t\r\n ]+}[\t\r\n ]*(\\[{[0-9]+}\\])?");
-
-
-	if (REPARSE_ERROR_OK != status || REPARSE_ERROR_OK != status2)
-	{
-		// Unexpected error.
-		MessageBox("CBZFormView::InitStructList CAtlRegExp initialize error", "Error");
-		return FALSE;
-	}
-	
-    CAtlREMatchContext<CAtlRECharTraitsMB> matched, matched2;
-	const unsigned char *nextC = (const unsigned char *)m_pDefFile;
-	unsigned int iTag = 0, iMember = 0;
-	while(*nextC!='\0')
-	{
-		if (!re.Match(nextC, &matched, &nextC))
-		{
-			// Unexpected error.
-			//MessageBox("CBZFormView::InitStructList CAtlRegExp matching error", "Error");
-			//return FALSE;
-			break;
-		}
-
-		CString tmp1;
-
-		for (UINT nGroupIndex = 0; nGroupIndex < matched.m_uNumGroups; nGroupIndex++)
-		{
-			const CAtlREMatchContext<CAtlRECharTraitsMB>::RECHAR* szStart = 0;
-			const CAtlREMatchContext<CAtlRECharTraitsMB>::RECHAR* szEnd = 0;
-			matched.GetMatch(nGroupIndex, &szStart, &szEnd);
-
-			ptrdiff_t nLength = szEnd - szStart;
-			unsigned int nMax = nLength;
-
-			unsigned int nStructIndex = nGroupIndex%3;
-			//unsigned int iTag = nGroupIndex/3;
-
-			tmp1.SetString((const char*)szStart, nMax);
-
-			switch(nStructIndex)
-			{
-			case 0:
-				m_tag.Add(CStructTag(tmp1));
-				ATLTRACE("add struct %s\n", tmp1);
-				break;
-			case 1:
-				{
-					ATLTRACE("add struct {%s}\n", tmp1);
-					int curPos = 0;
-					int flagContinue = false;
-					CString memberline;
-					while ((memberline = tmp1.Tokenize(";", curPos))!= _T(""))
-					{
-						int curPos2 = 0;
-						memberline.Trim(" \t\r\n");
-						ATLTRACE("memberline %s(%d)\n", memberline,memberline.GetLength());
-						CString type = memberline.Tokenize(" \t\r\n", curPos2);
-						CString members = memberline.Right(memberline.GetLength() - type.GetLength()).Trim(" \t\r\n");
-						//ATLTRACE("type=%s(%d), members=%s(%d)\n",type,type.GetLength(), members,members.GetLength());
-
-						int i222;
-						for(i222=0; i222<nTypes; i222++)
-							if(!strcmp(type, g_datatypes[i222])) break;
-						int iType = i222;
-						if(type.GetLength()==0 || members.GetLength()==0 || i222 == nTypes)
-						{
-							//flagContinue=true;break;
-							continue;
-						}
-						char * membersBuf = members.GetBuffer();
-						const unsigned char *nextM = (const unsigned char *)membersBuf;
-						if (!re2.Match(nextM, &matched2, &nextM))
-						{
-							ATLTRACE("re2: Match error (%s)\n", membersBuf);
-							continue;
-						}
-						CString tmp2;
-						ATLTRACE("re2: %d\n",matched2.m_uNumGroups);
-
-						for (UINT nGroupIndex2 = 0; nGroupIndex2 < matched2.m_uNumGroups; nGroupIndex2++)
-						{
-							const CAtlREMatchContext<CAtlRECharTraitsMB>::RECHAR* szStart2 = 0;
-							const CAtlREMatchContext<CAtlRECharTraitsMB>::RECHAR* szEnd2 = 0;
-							matched2.GetMatch(nGroupIndex2, &szStart2, &szEnd2);
-
-							ptrdiff_t nLength2 = szEnd2 - szStart2;
-							unsigned int nMax2 = nLength2;
-							tmp2.SetString((const char*)szStart2, nMax2);
-							if(nGroupIndex2==0)
-							{
-								iMember = m_tag[iTag].m_member.Add(CStructMember(tmp2, iType));
-								ATLTRACE("new member: %s(%d)\n", tmp2, iType);
-							} else if(nGroupIndex2==1) {
-								if(tmp2.GetLength()>0)
-								{
-									m_tag[iTag].m_member[iMember].m_len *= atoi(tmp2);
-									ATLTRACE("[%d]\n", atoi(tmp2));
-								}
-							}
-						}
-					}
-					if(flagContinue)continue;
-					break;
-				}
-			case 2:
-				{
-					m_tag[iTag].m_member.Add(CStructMember(" <next>", -1));
-					int curPos = 0;
-					CString ext = tmp1.Tokenize(", \t\r\n", curPos);
-					ATLTRACE("addexts %s\n", tmp1);
-					while (ext != _T(""))
-					{
-						m_tag[iTag].m_sarrFileExt.Add(ext);
-						ATLTRACE("addext %s\n", ext);
-						ext = tmp1.Tokenize(", \t\r\n", curPos);
-					}
-					break;
-				}
-			}
-		}
-		iTag++;
-	}
-
-	return TRUE;
-}*/
 
 void RemoveCommentAll(char *src)
 {
@@ -457,8 +318,72 @@ void RemoveCommentAll(char *src)
 	}
 }
 
+HRESULT CBZFormView::ParseMember(CStringA& member, int iTag, int iType, CString& errMsg)
+{
+	//     m2[43]  
+	const char *seps = "[ \t\r\n";
+	int curPos4 = 0;
+	CStringA memberName = member.Tokenize(seps, curPos4);
+	if(memberName==_T(""))
+	{
+		errMsg.Format(_T("member name not found (in %dth struct"), iTag);
+		return E_FAIL;
+	}
+	int iMember = m_tag[iTag].m_member.Add(CStructMember(memberName, iType));
+	if(curPos4==-1) return S_OK; //name only(not array)
+	CStringA arrayNum = member.Tokenize(seps, curPos4).TrimRight("]");
+	if(arrayNum!=_T(""))
+	{
+		if(atoi(arrayNum)==0)
+		{
+			errMsg.Format(_T("Wrong array: %s"), member);
+			return E_FAIL;//wrong number or member[0]
+		}
+		m_tag[iTag].m_member[iMember].m_len *= atoi(arrayNum);
+	}
+	/*if(curPos4==-1)*/ return S_OK; //with array
+
+	// ‚Ü‚¾—v‘f‚ª‚ ‚é‚Ì‚Í‚¨‚©‚µ‚¢
+/*	errMsg.Format(_T("too many arg: %s"), member);
+	return E_FAIL;*/
+}
+int SearchType(const char *type)
+{
+	int i222;
+	for(i222=0; i222<g_nTypes; i222++)
+		if(!strcmp(type, g_datatypes[i222])) break;
+	return i222;
+}
+HRESULT CBZFormView::ParseMemberLine(CStringA& memberline, int iTag, CString& errMsg)
+{
+	//    DWORD m1,m2[43],m424
+	ATLTRACE("memberline %s(%d)\n", memberline,memberline.GetLength());
+	int curPos2 = 0;
+	CStringA type = memberline.Tokenize(" \t\r\n", curPos2);
+	CStringA members = memberline.Right(memberline.GetLength() - type.GetLength()).Trim(" \t\r\n");
+
+	int iType = SearchType(type);
+	if(iType == g_nTypes || type.GetLength()==0 || members.GetLength()==0)
+	{
+		errMsg.Format(_T("Wrong line: %s"), memberline);
+		return E_FAIL;
+	}
+
+	int curPos3 = 0;
+	CStringA member;
+	while((member = members.Tokenize(",", curPos3))!="")
+	{
+		//     m2[43]  
+		if(FAILED(ParseMember(member, iTag, iType, errMsg)))
+			return E_FAIL;
+	}
+	return S_OK;
+}
+
 BOOL CBZFormView::InitStructList() 
 {
+	CString errMsg;
+
 	RemoveCommentAll(m_pDefFile);
 	ATLTRACE("BZ.def: %s\n", m_pDefFile);
 	char *p = m_pDefFile;
@@ -466,79 +391,60 @@ BOOL CBZFormView::InitStructList()
 	enum TokeMode { TK_STRUCT, TK_TAG, TK_BEGIN } mode;
 	mode = TK_STRUCT;
 	int iTag = 0;
-	int iMember = 0;
 	int type = 0;
 
 	m_tag.RemoveAll();
 	while(p = (char*)_mbstok((UCHAR*)p, (const UCHAR*)seps)) {
 		switch (mode) {
 		case TK_STRUCT:
-			if (strcmp(p, "struct")) goto Error;
+			if (strcmp(p, "struct")) goto ErrorP;
 			mode = TK_TAG;
 			p = NULL;
 			break;
 		case TK_TAG:
-			if (!isalpha(*p)) goto Error;
+			if (!isalpha(*p)) goto ErrorP;
 			iTag = m_tag.Add(CStructTag(p));
 			mode = TK_BEGIN;
 			p = NULL;
 			break;
 		case TK_BEGIN:
 			{
-				if (*p != '{') goto Error;
+				if (*p != '{')
+				{
+					errMsg = _T("'{' not found. struct AAA { <-------");
+					goto Error;
+				}
 				p+=2;
 				char *pEnd = (char *)_mbsstr((UCHAR*)p, (UCHAR*)"}");
-				if(pEnd==NULL) goto Error; // '}' not found
-				CString members;
+				if(pEnd==NULL)
+				{
+					errMsg = _T("'}' not found");
+					goto Error;
+				}
+				CStringA members;
 				members.SetString(p, pEnd - p);
-				CString memberline;
+				CStringA memberline;
 				int curPos=0;
 				while((memberline = members.Tokenize(";", curPos).Trim(" \t\r\n"))!=_T(""))
 				{
 					//    DWORD m1,m2[43],m424
-					ATLTRACE("memberline %s(%d)\n", memberline,memberline.GetLength());
-					int curPos2 = 0;
-					CString type = memberline.Tokenize(" \t\r\n", curPos2);
-					CString members = memberline.Right(memberline.GetLength() - type.GetLength()).Trim(" \t\r\n");
-
-					int i222;
-					for(i222=0; i222<nTypes; i222++)
-						if(!strcmp(type, g_datatypes[i222])) break;
-					int iType = i222;
-					if(type.GetLength()==0 || members.GetLength()==0 || i222 == nTypes)goto Error;
-
-					int curPos3 = 0;
-					CString member;
-					while((member = members.Tokenize(",", curPos3))!=_T(""))
-					{
-						//     m2[43]  
-						int curPos4 = 0;
-						CString memberName = member.Tokenize("[ \t\r\n", curPos4);
-						if(memberName==_T(""))goto Error;
-						iMember = m_tag[iTag].m_member.Add(CStructMember(memberName, iType));
-						if(curPos4==-1)continue;
-						CString arrayNum = member.Tokenize("[ \t\r\n", curPos4).TrimRight("]");
-						if(arrayNum!=_T(""))
-						{
-							if(atoi(arrayNum)==0)goto Error;//wrong number or member[0]
-							m_tag[iTag].m_member[iMember].m_len *= atoi(arrayNum);
-						}
-						if(curPos4==-1)continue;
-						if(member.Tokenize("[] \t\r\n", curPos4)!=_T(""))goto Error;
-					}
+					if(FAILED(ParseMemberLine(memberline, iTag, errMsg)))goto Error;
 				}
-				iMember = m_tag[iTag].m_member.Add(CStructMember(" <next>", -1));
+				m_tag[iTag].m_member.Add(CStructMember(" <next>", -1));
 				p=pEnd+1;
 				char *pExtEnd = (char*)_mbsstr((UCHAR*)p, (UCHAR*)";");
-				if(pExtEnd==NULL) goto Error; // ';' not found
-				CString extall;
+				if(pExtEnd==NULL)
+				{
+					errMsg = _T("';' not found. struct AA{...}; <----");
+					goto Error;
+				}
+				CStringA extall;
 				extall.SetString(p, pExtEnd-p);
 				int curPos11=0;
 				CString ext;
 				while((ext = extall.Tokenize(",", curPos11).Trim(" \t\r\n"))!=_T(""))
 				{
 					m_tag[iTag].m_sarrFileExt.Add(ext);
-					TRACE("addext %s\n", ext);
 				}
 				p = pExtEnd+1;
 				mode = TK_STRUCT;
@@ -546,10 +452,12 @@ BOOL CBZFormView::InitStructList()
 			}
 		}
 	}
-	return TRUE;	
+	return TRUE;
+ErrorP:
+	errMsg = p;
 Error:
 	CString sMsg;
-	sMsg.Format(IDS_ERR_SYNTAX, p);
+	sMsg.Format(IDS_ERR_SYNTAX, errMsg/*p*/);
 	AfxMessageBox(sMsg);
 	return FALSE;	
 }
@@ -627,15 +535,15 @@ void CBZFormView::InitListMember(int iTag)
 		CStructMember& m = m_tag[iTag].m_member[i];
 		CString s;
 
-		s.Format("+%2X", m.m_ofs);
+		s.Format(_T("+%2X"), m.m_ofs);
 		LV_ITEM lvitem;
 		lvitem.mask = LVIF_TEXT;
 		lvitem.iItem = i;
 		lvitem.iSubItem = MBRCOL_OFFSET;
-		lvitem.pszText = (LPSTR)(LPCSTR)s;
+		lvitem.pszText = (LPTSTR)(LPCTSTR)s;
 		lvitem.iItem = m_listMember.InsertItem(&lvitem);
 
-		lvitem.pszText =  (LPSTR)(LPCSTR)m.m_name;
+		lvitem.pszText =  (LPTSTR)(LPCTSTR)m.m_name;
 		lvitem.iSubItem = MBRCOL_LABEL;
 		m_listMember.SetItem(&lvitem);
 
@@ -664,11 +572,11 @@ void CBZFormView::InitListMember(int iTag)
 				sVal = SeparateByComma64(qval, true);
 				break;
 			case 12://float
-				sVal.Format("%f", val);
+				sVal.Format(_T("%f"), val);
 				break;
 			case 9://double
 				qval = m_pView->GetValue64(m_pView->m_dwCaret + m.m_ofs);
-				sVal.Format("%f", qval);
+				sVal.Format(_T("%f"), qval);
 				break;
 			case 1: // byte(unsigned char)
 			case 4: // word(unsigned short)
@@ -681,23 +589,23 @@ void CBZFormView::InitListMember(int iTag)
 				//sVal.Format("%I64u", qval);
 				break;
 			case 2://BYTE(Hex)
-				sVal.Format("0x%02X", val);
+				sVal.Format(_T("0x%02X"), val);
 				break;
 			case 5://WORD(Hex)
-				sVal.Format("0x%04X", val);
+				sVal.Format(_T("0x%04X"), val);
 				break;
 			case 8://DWORD(Hex)
-				sVal.Format("0x%08X", val);
+				sVal.Format(_T("0x%08X"), val);
 				break;
 			case 11://QWORD(hex)
 				qval = m_pView->GetValue64(m_pView->m_dwCaret + m.m_ofs);
-				sVal.Format("0x%016I64X", qval);
+				sVal.Format(_T("0x%016I64X"), qval);
 				break;
 			}
 
 			if(m.m_len != m.m_bytes)
-				sVal += " ...";
-			lvitem.pszText =  (LPSTR)(LPCSTR)sVal;
+				sVal += _T(" ...");
+			lvitem.pszText =  (LPTSTR)(LPCTSTR)sVal;
 			lvitem.iSubItem = MBRCOL_VALUE;
 			m_listMember.SetItem(&lvitem);
 		}
