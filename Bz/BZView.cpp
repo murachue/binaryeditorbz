@@ -2165,11 +2165,11 @@ int CBZView::ConvertCharSet(CharSet charset, LPCSTR sFind, LPBYTE &buffer)
 			nFind = ::MultiByteToWideChar(CP_ACP, 0, sFind, -1, (LPWSTR)buffer, nFind);
 			if(nFind) nFind--;
 			if(charset == CTYPE_UTF8) {			// ### 1.54b
-				// TODO: UTF-8éûÅA1ï∂éöÇµÇ©åüçıÇ≈Ç´Ç»Ç¢ÅB(ïœä∑ÇµÇƒÇ≠ÇÍÇ»Ç¢ÅB)
-				WORD w = *((LPWORD)buffer);
+				LPBYTE converted;
+
+				nFind = ConvertUTF16toUTF8(converted, (LPWSTR)buffer);
 				MemFree(buffer);
-				buffer = (LPBYTE)MemAlloc(4);
-				nFind = convertWCHARtoUTF8(buffer, w);
+				buffer = converted;
 			}
 		}
 	} else {
