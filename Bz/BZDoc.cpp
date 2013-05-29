@@ -518,12 +518,19 @@ DWORD CBZDoc::PasteFromClipboard(DWORD dwPtr, BOOL bIns)
 		dwSize = nchars * 2;
 
 		if(options.charset == CTYPE_UTF8) {
-			// TODO: convert from UTF16 to UTF8 when CTYPE_UTF8
+			// UTF-8なら、UTF-16からUTF-8に変換する。
 			dwSize = ConvertUTF16toUTF8(pWorkMem, (LPCWSTR)pMem); // pWorkMemはMemAllocが返却するポインタで上書きされる。
 
 			pMem = pWorkMem;
+		} else {
+			// UTF-16なら、バイトオーダーを調整する。
+			pWorkMem = (LPBYTE)MemAlloc(dwSize);
+			for(int i = 0; i < nchars; i++) {
+				((LPWORD)pWorkMem)[i] = SwapWord(((LPWORD)pMem)[i]);
+			}
+
+			pMem = pWorkMem;
 		}
-		// TODO: byteorderがmotorolaならwordswap実装
 	} else if(hMem = GetClipboardData(CF_TEXT)) {
 		pMem = (LPBYTE)::GlobalLock(hMem);
 		dwSize = lstrlen((LPCSTR)pMem);

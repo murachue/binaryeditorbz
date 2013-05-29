@@ -77,48 +77,6 @@ BOOL CBZView::m_bHexSize = FALSE;
 LPSTR CBZView::m_pEbcDic = NULL;
 BOOL  CBZView::m_bLoadEbcDic = FALSE;
 
-//inline int SwapWord(int val)
-inline WORD SwapWord(WORD val)
-{
-	if(options.bByteOrder) {
-		 _byteswap_ushort(val);
-/*		_asm {
-			mov eax, val
-			xchg al,ah
-			mov val, eax
-		}*/
-		}
-	return val;
-}
-
-//inline int SwapDword(int val)
-inline DWORD SwapDword(DWORD val)
-{
-	if(options.bByteOrder) {
-		 _byteswap_ulong(val);
-/*		_asm {
-			push val
-			pop ax
-			pop bx
-			xchg al,ah
-			xchg bl,bh
-			push ax
-			push bx
-			pop val
-		}*/
-		}
-	return val;
-}
-
-inline ULONGLONG SwapQword(ULONGLONG val)
-{
-	if(options.bByteOrder) {
-		val = ((val & 0xFF00000000000000ull)>>56) | ((val & 0x00FF000000000000ull)>>40) | ((val & 0x0000FF0000000000ull)>>24) | ((val & 0x000000FF00000000ull)>>8)
-			| ((val & 0x00000000FF000000ull)<<8) | ((val & 0x0000000000FF0000ull)<<24) | ((val & 0x000000000000FF00ull)<<40) | ((val & 0x00000000000000FFull)<<56);
-	}
-	return val;
-}
-
 /////////////////////////////////////////////////////////////////////////////
 // CBZView
 
@@ -2010,8 +1968,10 @@ CBZView* CBZView::GetBrotherView()
 void CBZView::OnByteOrder(UINT nID) 
 {
 	// TODO: Add your command handler code here
-	if(nID != (UINT)options.bByteOrder + ID_BYTEORDER_INTEL)
+	if(nID != (UINT)options.bByteOrder + ID_BYTEORDER_INTEL) {
 		options.bByteOrder = !options.bByteOrder;
+		Invalidate(FALSE);
+	}
 	
 	GetMainFrame()->UpdateInspectViewChecks();
 }

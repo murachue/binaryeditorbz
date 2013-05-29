@@ -32,7 +32,50 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 class CBZDoc;
 
 enum CutMode { EDIT_COPY, EDIT_CUT, EDIT_DELETE, EDIT_COPYHEX };
+
 int ConvertUTF16toUTF8(LPBYTE &dst, LPCWSTR src);
+
+//inline int SwapWord(int val)
+inline WORD SwapWord(WORD val)
+{
+	if(options.bByteOrder) {
+		val = _byteswap_ushort(val);
+/*		_asm {
+			mov eax, val
+			xchg al,ah
+			mov val, eax
+		}*/
+	}
+	return val;
+}
+
+//inline int SwapDword(int val)
+inline DWORD SwapDword(DWORD val)
+{
+	if(options.bByteOrder) {
+		val = _byteswap_ulong(val);
+/*		_asm {
+			push val
+			pop ax
+			pop bx
+			xchg al,ah
+			xchg bl,bh
+			push ax
+			push bx
+			pop val
+		}*/
+	}
+	return val;
+}
+
+inline ULONGLONG SwapQword(ULONGLONG val)
+{
+	if(options.bByteOrder) {
+		val = _byteswap_uint64(val);
+	}
+	return val;
+}
+
 class CBZView : public CTextView
 {
 protected: // create from serialization only
