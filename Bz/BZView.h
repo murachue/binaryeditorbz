@@ -32,6 +32,7 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 class CBZDoc;
 
 enum CutMode { EDIT_COPY, EDIT_CUT, EDIT_DELETE, EDIT_COPYHEX };
+int ConvertUTF16toUTF8(LPBYTE &dst, LPCWSTR src);
 class CBZView : public CTextView
 {
 protected: // create from serialization only

@@ -505,10 +505,25 @@ DWORD CBZDoc::PasteFromClipboard(DWORD dwPtr, BOOL bIns)
 	HGLOBAL hMem;
 	DWORD dwSize;
 	LPBYTE pMem;
+	LPBYTE pWorkMem = NULL;
 	if(hMem = ::GetClipboardData(RegisterClipboardFormat("BinaryData2"))) {
 		pMem = (LPBYTE)::GlobalLock(hMem);
 		dwSize = *((DWORD*)(pMem));
 		pMem += sizeof(DWORD);
+	} else if((options.charset == CTYPE_UTF8 || options.charset == CTYPE_UNICODE) && (hMem = GetClipboardData(CF_UNICODETEXT))) {
+		int nchars;
+
+		pMem = (LPBYTE)::GlobalLock(hMem);
+		nchars = lstrlenW((LPWSTR)pMem);
+		dwSize = nchars * 2;
+
+		if(options.charset == CTYPE_UTF8) {
+			// TODO: convert from UTF16 to UTF8 when CTYPE_UTF8
+			dwSize = ConvertUTF16toUTF8(pWorkMem, (LPCWSTR)pMem); // pWorkMemはMemAllocが返却するポインタで上書きされる。
+
+			pMem = pWorkMem;
+		}
+		// TODO: byteorderがmotorolaならwordswap実装
 	} else if(hMem = GetClipboardData(CF_TEXT)) {
 		pMem = (LPBYTE)::GlobalLock(hMem);
 		dwSize = lstrlen((LPCSTR)pMem);
@@ -530,6 +545,7 @@ DWORD CBZDoc::PasteFromClipboard(DWORD dwPtr, BOOL bIns)
 	if(!dwSize) return 0;
 #ifdef FILE_MAPPING
 	if(IsFileMapping()) {
+		// FileMapping時、貼り付けるとファイルサイズが大きくなってしまうようであれば、事前に張り付けサイズを切り詰める。
 		//int nGlow = dwSize - (m_dwTotal - dwPtr);
 		DWORD nGlow = dwSize - (m_dwTotal - dwPtr);
 		if(nGlow <= dwSize/*overflow check*/ && nGlow > 0)
@@ -544,6 +560,9 @@ DWORD CBZDoc::PasteFromClipboard(DWORD dwPtr, BOOL bIns)
 	memcpy(m_pData+dwPtr, pMem, dwSize);
 	::GlobalUnlock(hMem);
 	::CloseClipboard();
+	if(pWorkMem) {
+		MemFree(pWorkMem);
+	}
 	return dwPtr+dwSize;
 }
 

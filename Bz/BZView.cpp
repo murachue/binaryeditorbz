@@ -2157,6 +2157,44 @@ WORD CBZView::GetCharCode(WORD c, DWORD ofs)
 	return c;
 }
 
+// WCHARな1文字をUTF-8な1文字にする。
+// 第2引数、WCHARと書きたいところだけど、周りと合わせてWORDにしておく。
+// TODO: サロゲートペア対応 (4バイトUTF-8パターン含む) (Note: U+10FFFFまでなら5～6バイトまで行かない。)
+// TODO: BZView.cppよりもっとユーティリティ側に追い出す。それを考慮して、あえてstaticを付けていない。
+// TODO: ASCII側入力もこれを使うようにする。 出力側は? (最後の文字が欠ける)
+int convertWCHARtoUTF8(LPBYTE buffer, WORD w)
+{
+	if(w < 0x80) {
+		*buffer = (BYTE)w;
+		return 1;
+	} else if(w < 0x800) {
+		*buffer = (BYTE)((w >> 6) | 0xC0);
+		*(buffer + 1) = (BYTE)((w & 0x3F) | 0x80);
+		return 2;
+	} else {
+		*buffer = (BYTE)((w >> 12) & 0x0F | 0xE0);
+		*(buffer + 1) = (BYTE)((w >> 6) & 0x3F | 0x80);
+		*(buffer + 2) = (BYTE)(w & 0x3F | 0x80);
+		return 3;
+	}
+}
+
+// TODO: BZView.cppよりもっとユーティリティ側に追い出す。
+int ConvertUTF16toUTF8(LPBYTE &dst, LPCWSTR src)
+{
+	int len = 0;
+
+	dst = (LPBYTE)MemAlloc(lstrlenW(src) * 3 + 1); // 最大サイズを確保しておく。 TODO: 4バイトパターン対応。可変長領域を自分で管理せずstd::stringなど使う?
+	while(*src) {
+		int clen = convertWCHARtoUTF8(dst + len, *src);
+		len += clen;
+		src++;
+	}
+	dst[len] = '\0';
+
+	return len;
+}
+
 int CBZView::ConvertCharSet(CharSet charset, LPCSTR sFind, LPBYTE &buffer)
 {
 	int nFind = 0;
@@ -2167,23 +2205,11 @@ int CBZView::ConvertCharSet(CharSet charset, LPCSTR sFind, LPBYTE &buffer)
 			nFind = ::MultiByteToWideChar(CP_ACP, 0, sFind, -1, (LPWSTR)buffer, nFind);
 			if(nFind) nFind--;
 			if(charset == CTYPE_UTF8) {			// ### 1.54b
+				// TODO: UTF-8時、1文字しか検索できない。(変換してくれない。)
 				WORD w = *((LPWORD)buffer);
 				MemFree(buffer);
 				buffer = (LPBYTE)MemAlloc(4);
-				if(w < 0x80) {
-					*buffer = (BYTE)w;
-					nFind = 1;
-				} else if(w < 0x800) {
-					*buffer = (BYTE)((w >> 6) | 0xC0);
-					*(buffer + 1) = (BYTE)((w & 0x3F) | 0x80);
-					nFind = 2;
-				} else {
-					*buffer = (BYTE)((w >> 12) & 0x0F | 0xE0);
-					*(buffer + 1) = (BYTE)((w >> 6) & 0x3F | 0x80);
-					*(buffer + 2) = (BYTE)(w & 0x3F | 0x80);
-					nFind = 3;
-				}
-
+				nFind = convertWCHARtoUTF8(buffer, w);
 			}
 		}
 	} else {
