@@ -491,7 +491,7 @@ BOOL CBZDoc::CopyToClipboard(DWORD dwPtr, DWORD dwSize, BOOL bHexString)	// ###1
 	}
 	AfxGetMainWnd()->OpenClipboard();
 	::EmptyClipboard();
-	::SetClipboardData(CF_TEXT, hMemTxt);
+	::SetClipboardData(CF_TEXT, hMemTxt); // TODO: 選択されている文字コードに応じてエンコードしてからコピー。場合によってはCF_UNICODETEXTもセットする。
 	if(!bHexString) {
 		::SetClipboardData(RegisterClipboardFormat(_T("BinaryData2")), hMemBin);
 	}

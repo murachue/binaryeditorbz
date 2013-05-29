@@ -1049,23 +1049,44 @@ Error:
 	return;
 }
 
+// CBZView::OnCharより後ろにあるので、ここでプロトタイプ宣言。
+int convertWCHARtoUTF8(LPBYTE buffer, WORD w);
+
 void CBZView::OnChar(UINT nChar, UINT nRepCnt, UINT nFlags) 
 {
 	static UINT preChar = 0;
 	LPBYTE p;
+	DWORD dwSize;
 
 	// TODO: Add your message handler code here and/or call default
-	if(nChar < ' ' || nChar >= 256)
+	// MBCSビルド時は、マルチバイト文字が来た場合2つのWM_CHARに分割され、それぞれのnCharは255以下になる。
+	// 一方Unicodeビルド時は、1文字そのままWM_CHARとして届くため、nCharは256以上の場合もあり得る。
+	if(nChar < ' ' || (m_charset == CTYPE_ASCII && nChar >= 256))
 		return;
 	if(m_pDoc->m_bReadOnly)
 		goto Error;
-	if(!m_bEnterVal && !preChar) {
-		DWORD dwSize = 1;
+	if(!m_bEnterVal && !preChar) {	// hex入力中でもなければ、(MBCSの)2文字目でもない
+		dwSize = 1;
+#ifdef UNICODE
+		if(m_bCaretOnChar && (
+			(m_charset == CTYPE_SJIS || m_charset == CTYPE_JIS) && (nChar < 0xFF61 || nChar > 0xFF9F) || // 半角カナを考慮
+			(m_charset == CTYPE_UNICODE) || // CTYPE_UNICODEはサロゲートペアじゃない限り常に2バイト。
+			(m_charset > CTYPE_UNICODE && m_charset != CTYPE_JIS && nChar >= 128) // (特にUTF-8は)latin-1文字もマルチバイトになる。
+			)) {
+#else
+		// TODO: EUC時半角カナが来ると、dwSize=1に対して実サイズ=2なのでデータ破壊してしまう。
 		if(m_bCaretOnChar && (m_charset == CTYPE_UNICODE || (m_charset > CTYPE_UNICODE) && _ismbblead((BYTE)nChar))) {
-			if(m_charset == CTYPE_UTF8)		// ### 1.54b
-				dwSize = 3;
-			else
+#endif
+			if(m_charset == CTYPE_UTF8) {	// ### 1.54b
+				// TODO: 4バイトパターン対応
+				if(nChar <= 0x7FF)
+					dwSize = 2;
+				else
+					dwSize = 3;
+			} else {
+				// TODO: サロゲートペア対応
 				dwSize = 2;
+			}
 		}
 		if(m_bIns || (m_dwCaret == m_dwTotal)) {
 #ifdef FILE_MAPPING
@@ -1094,6 +1115,62 @@ void CBZView::OnChar(UINT nChar, UINT nRepCnt, UINT nFlags)
 			m_bEnterVal = FALSE;
 		} else
 			m_bEnterVal = TRUE;
+#ifdef UNICODE
+	} else if(m_charset >= CTYPE_SJIS) {
+		if(m_charset == CTYPE_UNICODE) {
+			// バイトオーダーを調整して、そのまま使用
+			*(LPWORD)p = SwapWord(nChar);
+
+			// 後続の処理ではBYTEにキャストしていて使いまわせないので、上で代入したうえでコピペ…。
+			Invalidate(FALSE);
+			if(!m_bEnterVal) {
+				MoveCaretTo(m_dwCaret + 2); // TODO: サロゲートペア対応
+			}
+			return;
+		} else if(m_charset == CTYPE_UTF8) {
+			// UTF-8に変換して使用
+			BYTE buf[4];
+			LPBYTE pb = buf;
+			int len = convertWCHARtoUTF8(buf, nChar);
+			for_to(i, len) *p++ = *pb++;
+
+			Invalidate(FALSE);
+			if(!m_bEnterVal) {
+				MoveCaretTo(m_dwCaret + len);
+			}
+			return;
+		} else { // SJIS, JIS, EUC, ...
+			// TODO: 適当すぎる作りなので、そのうち書き直す。
+			CHAR mbs[4];
+			int bytes;
+
+			// とりあえずSJISにして、後はConvertCharSetに任せる。
+			bytes = WideCharToMultiByte(932, 0, (LPCWCH)&nChar, 1, mbs, sizeof(mbs), "?", NULL);
+			mbs[bytes] = 0;
+
+			// TODO: ほぼコピペなのを何とかする…
+			char *pb = mbs;
+			LPBYTE buffer = NULL;
+			int len;
+			if(m_charset == CTYPE_SJIS) {
+				buffer = (LPBYTE)MemAlloc(bytes);
+				memcpy(buffer, mbs, bytes);
+				len = bytes;
+			} else {
+				len = ConvertCharSet(m_charset, mbs, buffer);
+			}
+			if(len) {
+				//if(m_charset == CTYPE_UNICODE) len *= 2; // ここでは意味ない。
+				pb = (char*)buffer;
+				for_to(i, len) *p++ = *pb++;
+				MemFree(buffer);
+				Invalidate(FALSE);
+				if(!m_bEnterVal) 
+					MoveCaretTo(m_dwCaret + len);
+			}
+			return;
+		}
+#else
 	} else if(m_charset >= CTYPE_UNICODE) {
 		char  mbs[4];
 		char* pb = mbs;
@@ -1118,6 +1195,7 @@ void CBZView::OnChar(UINT nChar, UINT nRepCnt, UINT nFlags)
 				MoveCaretTo(m_dwCaret + len);
 		}
 		return;
+#endif
 	}
 	*p = (BYTE)nChar;
 	Invalidate(FALSE);
@@ -1511,7 +1589,7 @@ void CBZView::OnJumpFindnext()
 
 	CStringA sOrigFind = sFind; // 保存しておかないと、literal find時pCombo->AddTextで間違った文字列が保存されてしまう。
 
-	int c1 = sFind[0];
+	int c1 = sFind[0]; // 検索文字1
 	bool literal = false;
 	if(c1 == '"') {
 		literal = true;
@@ -1522,7 +1600,7 @@ void CBZView::OnJumpFindnext()
 		c1 = sFind[1];
 		sFind.Delete(0, 1);
 	}
-	int c2 = 0;
+	int c2 = 0; // 検索文字2 (case-insensitive時のみ) !=0なら有効
 	if(!literal && c1 == '=') {
 		pCombo->SetText(_T("? "));
 		return;
@@ -1625,7 +1703,7 @@ void CBZView::OnJumpFindnext()
 					p1 = MemScanByte(p, c1, len);
 					if(c2) p2 = MemScanByte(p, c2, len);
 				} else {
-					// TODO: 2バイト以上のnegative find対応時"c2"を考慮する必要があると思う。
+					// negative findはCTYPE_BINARY(case-sensitive)しかありえないので、"c2"を考慮する必要は無い。
 					p1 = MemScanByteNeg(p, c1, len);
 				}
 			}
@@ -2224,6 +2302,8 @@ int ConvertUTF16toUTF8(LPBYTE &dst, LPCWSTR src)
 	return len;
 }
 
+// TODO: MBCSからしか変換できないので、Unicodeビルド時にUnicode入力から変換する時には使えない。関数名を改めるべき。
+// SJISからSJISに変換しようとすると、JISになる。その時は「そもそも呼ばない」という運用でカバー。
 int CBZView::ConvertCharSet(CharSet charset, LPCSTR sFind, LPBYTE &buffer)
 {
 	int nFind = 0;
