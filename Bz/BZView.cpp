@@ -1015,6 +1015,7 @@ void CBZView::OnKeyDown(UINT nChar, UINT nRepCnt, UINT nFlags)
 #endif //FILE_MAPPING
 		if(m_bBlock) {
 			CutOrCopy(EDIT_DELETE);
+			m_bEnterVal = FALSE;
 			return;
 		} else {
 			if(dwNewCaret == m_dwTotal) goto Error;
