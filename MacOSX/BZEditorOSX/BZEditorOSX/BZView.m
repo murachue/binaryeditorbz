@@ -424,7 +424,7 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
                                 c = CHAR_NG;
                                 [self PutStr:@"."/*CHAR_NG*/];
                             }
-                        } else if(c > 0x7E && c < 0xA1 || c > 0xDF)
+                        } else if((c > 0x7E && c < 0xA1) || c > 0xDF)
                         {
                             [self PutStr:@"."/*CHAR_NG*/];
                         } else {
@@ -744,7 +744,15 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
         [bzBrother HideCaret2];
         Document *doc = [self GetDocument];
         [bzWnd setTitle:(doc.fileURL)?doc.fileURL.lastPathComponent : @"Untitled"];
+        
+        [self UpdateToolbar];
     }
+}
+
+-(void)UpdateToolbar
+{
+    BZWindowController* bzwndCon = (BZWindowController*)self.window.windowController;
+    [bzwndCon.m_tbchkReadOnly setState:m_pDoc->m_bReadOnly ? NSOnState : NSOffState];
 }
 
 /*
@@ -900,7 +908,7 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
             
         default:
             //[super keyDown:theEvent];
-            break;
+            return;
     }
 	m_bEnterVal = FALSE;
 	if(!m_bBlock && bShift) {
@@ -943,7 +951,7 @@ Error:
 	if (!m_bEnterVal && !preChar)
     {
 		__uint64_t dwSize = 1;
-	/*if(m_bCaretOnChar && (m_charset == CTYPE_UNICODE || (m_charset > CTYPE_UNICODE) && _ismbblead((BYTE)nChar))) {
+        /*if(m_bCaretOnChar && (m_charset == CTYPE_UNICODE || (m_charset > CTYPE_UNICODE) && _ismbblead((BYTE)nChar))) {
 			if(m_charset == CTYPE_UTF8)		// ### 1.54b
 				dwSize = 3;
 			else
@@ -1001,7 +1009,7 @@ Error:
 		return;
 	}
 	*p = (__uint8_t)nChar;
-	//Invalidate(FALSE);
+	[self setNeedsDisplay:YES];//Invalidate(FALSE);
 	if(!m_bEnterVal) {
 		[self MoveCaretTo:m_dwCaret+1];
 	}
@@ -1198,6 +1206,12 @@ Error:
     BZOptions *bzopt = [BZOptions sharedInstance];
     bzopt->bByteOrder = TRUE;
     //GetMainFrame()->UpdateInspectViewChecks();
+}
+
+- (IBAction)changeCheckBoxState:(id)sender
+{
+    NSButton *check = [sender selectedCell];
+    m_pDoc->m_bReadOnly = [check state]==NSOnState?YES:NO;
 }
 
 
