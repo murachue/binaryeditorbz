@@ -298,7 +298,11 @@ void CBZView::SetColor(TextColor n)
 
 void CBZView::SetHeaderColor()
 {
-	BOOL bNoFocus = GetMainFrame()->m_nSplitView && GetMainFrame()->GetActiveDocument() != m_pDoc;
+	CMainFrame *mainframe = GetMainFrame();
+	BOOL bNoFocus = FALSE;
+	if(mainframe) {
+		bNoFocus = mainframe->m_nSplitView && mainframe->GetActiveDocument() != m_pDoc;
+	}
 	SetColor(bNoFocus ? TCOLOR_ADDRESS2 : TCOLOR_ADDRESS);
 }
 
@@ -2109,7 +2113,11 @@ void CBZView::OnUpdateJumpCompare(CCmdUI* pCmdUI)
 
 CBZView* CBZView::GetBrotherView()
 {
-	return (CBZView*)GetMainFrame()->GetBrotherView(this);
+	CMainFrame *frame= GetMainFrame();
+	if(frame)
+		return (CBZView*)frame->GetBrotherView(this);
+	else
+		return NULL;
 }
 
 void CBZView::OnByteOrder(UINT nID) 

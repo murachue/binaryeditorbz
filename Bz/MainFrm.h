@@ -121,7 +121,10 @@ public:
 
 #define BZ_CLASSNAME "BzEditorClass"
 
-inline CMainFrame* GetMainFrame() { return (CMainFrame*)AfxGetMainWnd(); };
+inline CMainFrame* GetMainFrame() {
+	// AfxGetMainWnd()はCMainFrameを返すとは限らない(起動時4GBを超すファイルを開いた時)
+	return dynamic_cast<CMainFrame*>(AfxGetMainWnd());
+};
 
 /////////////////////////////////////////////////////////////////////////////
 
