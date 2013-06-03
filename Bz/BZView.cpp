@@ -1073,7 +1073,7 @@ void CBZView::OnChar(UINT nChar, UINT nRepCnt, UINT nFlags)
 		dwSize = 1;
 #ifdef UNICODE
 		if(m_bCaretOnChar && (
-			(m_charset == CTYPE_SJIS || m_charset == CTYPE_JIS) && (nChar < 0xFF61 || nChar > 0xFF9F) || // 半角カナを考慮
+			(m_charset == CTYPE_SJIS || m_charset == CTYPE_JIS) && nChar >= 256 && (nChar < 0xFF61 || nChar > 0xFF9F) || // 半角カナを考慮
 			(m_charset == CTYPE_UNICODE) || // CTYPE_UNICODEはサロゲートペアじゃない限り常に2バイト。
 			(m_charset > CTYPE_UNICODE && m_charset != CTYPE_JIS && nChar >= 128) // (特にUTF-8は)latin-1文字もマルチバイトになる。
 			)) {
