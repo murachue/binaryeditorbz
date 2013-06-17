@@ -43,6 +43,8 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 @implementation BZView
 
+@synthesize infobarFilename, infobarMapMode, infobarReadOnly, infobarCharSet;
+
 - (id)initWithFrame:(NSRect)frame
 {
     self = [super initWithFrame:frame];
@@ -117,7 +119,7 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 -(void)OnUpdate
 {
     m_pDoc = [self GetDocument];
-    NSLog(@"OnUpdate: %llX",m_pDoc);
+    NSLog(@"OnUpdate: %llX",(__uint64_t)m_pDoc);
     if (!m_pDoc) return;
     assert(m_pDoc);
     if(m_pDoc)
@@ -161,7 +163,10 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
     [self InitCaret];//InitCaret();
     [self StopCaret];
     [self DrawCaret];// DrawCaret();
+    
+    [self UpdateMiniInfoBar];
 }
+
 
 - (BOOL)DrawCaret
 {
@@ -209,6 +214,36 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
     
 	return bDraw;
 }
+- (BOOL)GotoCaret
+{
+	if([self DrawCaret])//DrawCaret())
+    {
+		//if(m_bBlock) [self setNeedsDisplay:YES];//Invalidate(FALSE);
+		return TRUE;
+	}
+	//POINT pt;
+	//pt.x = 0;
+	//pt.y = m_dwCaret/16 - 1;
+	[self ScrollToPos:m_dwCaret/16-1];//ScrollToPos(pt);
+	//[self setNeedsDisplay:YES];//Invalidate(FALSE);
+	return FALSE;
+}
+-(void)MoveCaretTo:(__uint64_t)dwNewCaret
+{
+	if(dwNewCaret > m_dwTotal) {
+		dwNewCaret = m_dwTotal;
+	}
+    
+    [self setNeedsDisplayInRect:m_caretRect];m_bCaretOn = FALSE;
+	int dy = dwNewCaret/16 - m_dwCaret/16;
+	m_dwCaret = dwNewCaret;
+	if(![self DrawCaret])//DrawCaret())
+    {
+		[self ScrollBy:0 dy:dy bScrl:!m_bBlock];//ScrollBy(0, dy, !m_bBlock);
+	}
+	//if(m_bBlock)Invalidate(FALSE);
+}
+
 
 - (__uint64_t)BlockBegin
 {
@@ -239,8 +274,10 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
     [[NSColor whiteColor] setFill];
     NSRectFill(dirtyRect);
     
+    if (!m_pDoc) return;
+    
     __uint8_t *p = [m_pDoc GetDocPtr];
-    //if(!p) return;//tmp
+    if(!p) return;//tmp
     
     TAMARect rClip;
     __uint64_t ofs;
@@ -892,6 +929,17 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 	__uint64_t dwNewCaret = m_dwCaret;
     
     switch (key) {
+        case NSEnterCharacter:
+        case NSCarriageReturnCharacter:
+            if(bCtrl)
+            {
+                //OnDoubleClick();	// ### 1.62
+            } else {
+                //PostMessage(WM_COMMAND, ID_JUMP_FINDNEXT);
+                BZWindow *bzwin = (BZWindow *)self.window;
+                [self FindNext:bzwin.m_findBox];
+            }
+            return;
         case NSRightArrowFunctionKey:
             if(dwNewCaret<m_dwTotal)dwNewCaret++;
             break;
@@ -943,7 +991,6 @@ Error:
     
 	if (nChar < ' ' || nChar >= 256)
 		return;
-    NSString *strInput = [NSString stringWithFormat: @"%C", nChar];
     
 	if (m_pDoc->m_bReadOnly)
 		goto Error;
@@ -951,7 +998,7 @@ Error:
 	if (!m_bEnterVal && !preChar)
     {
 		__uint64_t dwSize = 1;
-        /*if(m_bCaretOnChar && (m_charset == CTYPE_UNICODE || (m_charset > CTYPE_UNICODE) && _ismbblead((BYTE)nChar))) {
+        if(m_bCaretOnChar && (m_charset == CTYPE_UNICODE || (m_charset > CTYPE_UNICODE && [BZGlobalFunc _ismbbleadSJIS932:(__uint8_t)nChar]))) {
 			if(m_charset == CTYPE_UTF8)		// ### 1.54b
 				dwSize = 3;
 			else
@@ -959,12 +1006,12 @@ Error:
 		}
 		if(m_bIns || (m_dwCaret == m_dwTotal)) {
 			if([m_pDoc IsFileMapping]) goto Error;
-			m_pDoc->StoreUndo(m_dwCaret, dwSize, UNDO_DEL);
-			m_pDoc->InsertData(m_dwCaret, dwSize, TRUE);
+			[m_pDoc StoreUndo:m_dwCaret dwSize:dwSize mode:UNDO_DEL];//m_pDoc->StoreUndo(m_dwCaret, dwSize, UNDO_DEL);
+			[m_pDoc InsertData:m_dwCaret dwSize:dwSize bIns:TRUE];//m_pDoc->InsertData(m_dwCaret, dwSize, TRUE);
 			[self UpdateDocSize];//UpdateDocSize();
 		} else {
-			m_pDoc->StoreUndo(m_dwCaret, dwSize, UNDO_OVR);
-        }*/
+			[m_pDoc StoreUndo:m_dwCaret dwSize:dwSize mode:UNDO_OVR];//m_pDoc->StoreUndo(m_dwCaret, dwSize, UNDO_OVR);
+        }
 	}
 	m_bBlock = FALSE;
 	p  = [m_pDoc GetDocPtr] + m_dwCaret;
@@ -986,30 +1033,35 @@ Error:
 	} else if(m_charset >= CTYPE_UNICODE) {
 		char  mbs[4];
 		char* pb = mbs;
+        NSString *strSrc;
 		if(preChar) {
-			*pb++ = preChar;
+			//*pb++ = preChar;
 			preChar = 0;
-		} /*else if(_ismbblead((BYTE)nChar)) {
+            strSrc = [NSString stringWithFormat:@"%C%C", preChar, nChar];
+		} else if([BZGlobalFunc _ismbbleadSJIS932:(__uint8_t)nChar]/*_ismbblead((BYTE)nChar)*/) {//!!!!!!!!!!!!!!!!!!!!!! koko naosu atode !!!!!!!!!!!!!!!!!!
 			preChar = nChar;
 			return;
-		}*/
-		*pb++ = (char)nChar;
-		*pb++ = 0;
-		__uint8_t* buffer = NULL;
-	/*	int len = ConvertCharSet(m_charset, mbs, buffer);
+		} else {
+            strSrc = [NSString stringWithFormat:@"%C", nChar];
+        }
+		//*pb++ = (char)nChar;
+		//*pb++ = 0;
+		char* buffer = NULL;
+		//int len = ConvertCharSet(m_charset, mbs, buffer);
+        int len = [BZGlobalFunc ConvertCharSet:m_charset strSrc:strSrc retBuffer:&buffer];
 		if(len) {
 			if(m_charset == CTYPE_UNICODE) len *= 2;
-			pb = (char*)buffer;
-			for (int i = 0; i<len; i++) *p++ = *pb++;
-			free(buffer);
-			//Invalidate(FALSE);
+			pb = buffer;
+            memcpy(p, pb, len);//for (int i = 0; i<len; i++) *p++ = *pb++;
+			//free(buffer);
 			if(!m_bEnterVal)
-				MoveCaretTo(m_dwCaret + len);
-		}*/
+				[self MoveCaretTo:m_dwCaret + len];
+            [self setNeedsDisplay:YES];
+		}
 		return;
 	}
 	*p = (__uint8_t)nChar;
-	[self setNeedsDisplay:YES];//Invalidate(FALSE);
+	[self setNeedsDisplay:YES];
 	if(!m_bEnterVal) {
 		[self MoveCaretTo:m_dwCaret+1];
 	}
@@ -1020,36 +1072,6 @@ Error:
 	return;
 }
 
-- (BOOL)GotoCaret
-{
-	if([self DrawCaret])//DrawCaret())
-    {
-		//if(m_bBlock) Invalidate(FALSE);
-		return TRUE;
-	}
-	//POINT pt;
-	//pt.x = 0;
-	//pt.y = m_dwCaret/16 - 1;
-	[self ScrollToPos:m_dwCaret/16-1];//ScrollToPos(pt);
-	//Invalidate(FALSE);
-	return FALSE;
-}
-
--(void)MoveCaretTo:(__uint64_t)dwNewCaret
-{
-	if(dwNewCaret > m_dwTotal) {
-		dwNewCaret = m_dwTotal;
-	}
-    
-    [self setNeedsDisplayInRect:m_caretRect];m_bCaretOn = FALSE;
-	int dy = dwNewCaret/16 - m_dwCaret/16;
-	m_dwCaret = dwNewCaret;
-	if(![self DrawCaret])//DrawCaret())
-    {
-		[self ScrollBy:0 dy:dy bScrl:!m_bBlock];//ScrollBy(0, dy, !m_bBlock);
-	}
-	//if(m_bBlock)Invalidate(FALSE);
-}
 
 /*- (void)openDocument:(id)sender
 {
@@ -1064,7 +1086,6 @@ Error:
 {
     NSLog(@"BZView::validateMenuItem");
     SEL theAction = [menuItem action];
-    BZOptions *bzopt = [BZOptions sharedInstance];
     
     if (theAction == @selector(OnCharmodeAscii:)) {
         [menuItem setState:(m_charset==CTYPE_ASCII)? NSOnState:NSOffState];
@@ -1082,14 +1103,20 @@ Error:
         [menuItem setState:(m_charset==CTYPE_EBCDIC)? NSOnState:NSOffState];
     } else if (theAction == @selector(OnCharmodeEPWING:)) {
         [menuItem setState:(m_charset==CTYPE_EPWING)? NSOnState:NSOffState];
-    } else if (theAction == @selector(OnCharmodeAutoDetect:)) {
-        [menuItem setState:(bzopt->bAutoDetect)? NSOnState:NSOffState];
-    } else if (theAction == @selector(OnByteOrderIntel:)) {
-        [menuItem setState:!(bzopt->bByteOrder)? NSOnState:NSOffState];
-    } else if (theAction == @selector(OnByteOrderMotorola:)) {
-        [menuItem setState:(bzopt->bByteOrder)? NSOnState:NSOffState];
     }
     return YES;
+}
+
+-(void)UpdateCharSet
+{
+    [self setNeedsDisplay:YES];
+    [self UpdateMiniInfoBar];
+	BZView* pView = [self GetBrotherView:self];
+	if(pView) {
+		pView->m_charset = m_charset;
+        [pView setNeedsDisplay:YES];
+        [pView UpdateMiniInfoBar];
+    }
 }
 
 - (IBAction)OnCharmodeAscii:(id)sender
@@ -1097,72 +1124,42 @@ Error:
     BZOptions *bzopt = [BZOptions sharedInstance];
 	m_charset = bzopt->charset = CTYPE_ASCII;
 //	options.Touch();
-    [self setNeedsDisplay:YES];//Invalidate(TRUE);
-	BZView* pView = [self GetBrotherView:self];
-	if(pView) {
-		pView->m_charset = m_charset;
-        [pView setNeedsDisplay:YES];//pView->Invalidate(TRUE);
-	}
+    [self UpdateCharSet];
 }
 - (IBAction)OnCharmodeSJIS:(id)sender
 {
     BZOptions *bzopt = [BZOptions sharedInstance];
 	m_charset = bzopt->charset = CTYPE_SJIS;
     //	options.Touch();
-    [self setNeedsDisplay:YES];//Invalidate(TRUE);
-	BZView* pView = [self GetBrotherView:self];
-	if(pView) {
-		pView->m_charset = m_charset;
-        [pView setNeedsDisplay:YES];//pView->Invalidate(TRUE);
-	}
+    [self UpdateCharSet];
 }
 - (IBAction)OnCharmodeUTF16:(id)sender
 {
     BZOptions *bzopt = [BZOptions sharedInstance];
 	m_charset = bzopt->charset = CTYPE_UNICODE;
     //	options.Touch();
-    [self setNeedsDisplay:YES];//Invalidate(TRUE);
-	BZView* pView = [self GetBrotherView:self];
-	if(pView) {
-		pView->m_charset = m_charset;
-        [pView setNeedsDisplay:YES];//pView->Invalidate(TRUE);
-	}
+    [self UpdateCharSet];
 }
 - (IBAction)OnCharmodeUTF8:(id)sender
 {
     BZOptions *bzopt = [BZOptions sharedInstance];
 	m_charset = bzopt->charset = CTYPE_UTF8;
     //	options.Touch();
-    [self setNeedsDisplay:YES];//Invalidate(TRUE);
-	BZView* pView = [self GetBrotherView:self];
-	if(pView) {
-		pView->m_charset = m_charset;
-        [pView setNeedsDisplay:YES];//pView->Invalidate(TRUE);
-	}
+    [self UpdateCharSet];
 }
 - (IBAction)OnCharmodeJIS:(id)sender
 {
     BZOptions *bzopt = [BZOptions sharedInstance];
 	m_charset = bzopt->charset = CTYPE_JIS;
     //	options.Touch();
-    [self setNeedsDisplay:YES];//Invalidate(TRUE);
-	BZView* pView = [self GetBrotherView:self];
-	if(pView) {
-		pView->m_charset = m_charset;
-        [pView setNeedsDisplay:YES];//pView->Invalidate(TRUE);
-	}
+    [self UpdateCharSet];
 }
 - (IBAction)OnCharmodeEUC:(id)sender
 {
     BZOptions *bzopt = [BZOptions sharedInstance];
 	m_charset = bzopt->charset = CTYPE_EUC;
     //	options.Touch();
-    [self setNeedsDisplay:YES];//Invalidate(TRUE);
-	BZView* pView = [self GetBrotherView:self];
-	if(pView) {
-		pView->m_charset = m_charset;
-        [pView setNeedsDisplay:YES];//pView->Invalidate(TRUE);
-	}
+    [self UpdateCharSet];
 }
 - (IBAction)OnCharmodeEBCDIC:(id)sender
 {
@@ -1170,51 +1167,52 @@ Error:
 	m_charset = bzopt->charset = CTYPE_EBCDIC;
     [[BZEbcDic sharedInstance] LoadEbcDicTable];//LoadEbcDicTable();
     //	options.Touch();
-    [self setNeedsDisplay:YES];//Invalidate(TRUE);
-	BZView* pView = [self GetBrotherView:self];
-	if(pView) {
-		pView->m_charset = m_charset;
-        [pView setNeedsDisplay:YES];//pView->Invalidate(TRUE);
-	}
+    [self UpdateCharSet];
 }
 - (IBAction)OnCharmodeEPWING:(id)sender
 {
     BZOptions *bzopt = [BZOptions sharedInstance];
 	m_charset = bzopt->charset = CTYPE_EPWING;
     //	options.Touch();
-    [self setNeedsDisplay:YES];//Invalidate(TRUE);
-	BZView* pView = [self GetBrotherView:self];
-	if(pView) {
-		pView->m_charset = m_charset;
-        [pView setNeedsDisplay:YES];//pView->Invalidate(TRUE);
-	}
-}
--(void)OnCharmodeAutoDetect:(id)sender
-{
-    BZOptions *bzopt = [BZOptions sharedInstance];
-    bzopt->bAutoDetect = !bzopt->bAutoDetect;
+    [self UpdateCharSet];
 }
 
--(void)OnByteOrderIntel:(id)sender
-{
-    BZOptions *bzopt = [BZOptions sharedInstance];
-    bzopt->bByteOrder = FALSE;
-    //GetMainFrame()->UpdateInspectViewChecks();
-}
--(void)OnByteOrderMotorola:(id)sender
-{
-    BZOptions *bzopt = [BZOptions sharedInstance];
-    bzopt->bByteOrder = TRUE;
-    //GetMainFrame()->UpdateInspectViewChecks();
-}
-
-- (IBAction)changeCheckBoxState:(id)sender
+- (IBAction)OnToolbarReadOnly:(id)sender
 {
     NSButton *check = [sender selectedCell];
     m_pDoc->m_bReadOnly = [check state]==NSOnState?YES:NO;
 }
 
+- (enum CharSet)GetCharSetFromMenuIndex:(NSInteger)menuIndex
+{
+    switch (menuIndex) {
+        case 0:
+            return CTYPE_ASCII;
+        case 1:
+            return CTYPE_SJIS;
+        case 2:
+            return CTYPE_UNICODE;
+        case 3:
+            return CTYPE_UTF8;
+        case 4:
+            return CTYPE_JIS;
+        case 5:
+            return CTYPE_EUC;
+        case 6:
+            return CTYPE_EBCDIC;
+        case 7:
+        default:
+            return CTYPE_EPWING;
+    }
+}
 
+- (IBAction)OnInfobarCharSet:(id)sender
+{
+    NSPopUpButton *popup = (NSPopUpButton*)sender;
+    m_charset = [self GetCharSetFromMenuIndex:[popup indexOfSelectedItem]];
+    [self setNeedsDisplay:YES];
+    [self UpdateMiniInfoBar];
+}
 
 
 -(void)FindNext:(NSComboBox*)findBox
@@ -1234,7 +1232,7 @@ Error:
 	__uint8_t *p = pData + m_dwCaret + 1;
 	/*int*/__uint64_t len = dwFind - m_dwCaret;
     
-	int c1 = [sFind cStringUsingEncoding:NSJapaneseEUCStringEncoding][0];//[sFind substringToIndex:1];
+	unichar c1 = [sFind characterAtIndex:0];//[sFind cStringUsingEncoding:NSJapaneseEUCStringEncoding][0];//[sFind substringToIndex:1];
 	int c2 = 0;
 	if(c1=='=') {
         [findBox setStringValue:@"? "];
@@ -1310,58 +1308,23 @@ Error:
 		c1 = *pFind;
 		charset = CTYPE_BINARY;
 	} else {
-        __uint8_t *pTmp2 = NULL;
         switch (charset) {
             case CTYPE_ASCII:
-                pTmp = [sFind cStringUsingEncoding:NSASCIIStringEncoding];
-                nFind = strlen(pTmp);
+                pTmp = (char *)[sFind cStringUsingEncoding:NSASCIIStringEncoding];
+                nFind = (int)strlen(pTmp);
                 c1 = pTmp[0];
 				if(islower(c1)) c2 = _toupper(c1);
 				else if(isupper(c1)) c2 = _tolower(c1);
                 break;
             case CTYPE_SJIS:
-                pTmp = [sFind cStringUsingEncoding:NSShiftJISStringEncoding];
-                nFind = strlen(pTmp);
-                c1 = pTmp[0];
-                break;
             case CTYPE_UNICODE:
-                if ([BZOptions sharedInstance]->bByteOrder)
-                    pTmp = [sFind cStringUsingEncoding:NSUTF16BigEndianStringEncoding];
-                else
-                    pTmp = [sFind cStringUsingEncoding:NSUTF16LittleEndianStringEncoding];
-                nFind = strlen(pTmp);
-                c1 = pTmp[0];
-                break;
             case CTYPE_JIS:
-                pTmp2 = (__uint8_t *)[sFind cStringUsingEncoding:NSISO2022JPStringEncoding];
-                nFind = strlen(pTmp2);
-                if (nFind>=3)
-                {
-                    __uint32_t dw3 = ((__uint32_t)(pTmp2[0])) << 16 | ((__uint32_t)(pTmp2[1])) << 8 | ((__uint32_t)(pTmp2[2]));
-                    if (dw3 == 0x001B2442 || dw3 == 0x001B2842) {
-                        pTmp2 += 3;
-                        nFind -= 3;
-                    }
-                }
-                if (nFind>=3)
-                {
-                    __uint32_t dw3 = ((__uint32_t)(pTmp2[nFind-3])) << 16 | ((__uint32_t)(pTmp2[nFind-2])) << 8 | ((__uint32_t)(pTmp2[nFind-1]));
-                    if (dw3 == 0x001B2442 || dw3 == 0x001B2842) {
-                        nFind -= 3;
-                    }
-                }
-                pTmp = (char *)pTmp2;
-                if(nFind>0) c1 = pTmp[0];
-                break;
             case CTYPE_EUC:
-                pTmp = [sFind cStringUsingEncoding:NSJapaneseEUCStringEncoding];
-                nFind = strlen(pTmp);
-                c1 = pTmp[0];
-                break;
             case CTYPE_UTF8:
-                pTmp = [sFind cStringUsingEncoding:NSUTF8StringEncoding];
-                nFind = strlen(pTmp);
-                c1 = pTmp[0];
+                //pTmp = (char *)[sFind cStringUsingEncoding:NSShiftJISStringEncoding];
+                //nFind = (int)strlen(pTmp);
+                nFind = [BZGlobalFunc ConvertCharSet:charset strSrc:sFind retBuffer:&pTmp];
+                if(nFind>0) c1 = pTmp[0];
                 break;
             case CTYPE_EBCDIC:
             case CTYPE_EPWING:
@@ -1402,6 +1365,11 @@ Error:
                 case CTYPE_ASCII:
                     r = strncasecmp((const char*)p1, (const char*)pTmp, nFind);//r = _strnicmp((LPCSTR)p1, sFind, nFind);
                     break;
+                case CTYPE_EBCDIC:
+                case CTYPE_EPWING:
+                case CTYPE_COUNT:
+                default:
+                    break;
 			}
 			if(!r) {
 				m_dwOldCaret = m_dwCaret;
@@ -1409,6 +1377,7 @@ Error:
 				m_bCaretOnChar = !pFind;
 				[self GotoCaret];
 				[self SetFocus];//SetFocus();
+                //[self setNeedsDisplay:YES];//Move to self::GotoCaret ... TextView::MoveCaret1/2
 				break;
 			}
 			p1++;
@@ -1446,6 +1415,39 @@ Error:
 	m_dwCaret = [m_pDoc DoUndo];
 	[self GotoCaret];
 	[self UpdateDocSize];
+}
+
+- (NSInteger)GetCharSetMenuIndex
+{
+    switch (m_charset) {
+        case CTYPE_ASCII:
+            return 0;
+        case CTYPE_SJIS:
+            return 1;
+        case CTYPE_UNICODE:
+            return 2;
+        case CTYPE_UTF8:
+            return 3;
+        case CTYPE_JIS:
+            return 4;
+        case CTYPE_EUC:
+            return 5;
+        case CTYPE_EBCDIC:
+            return 6;
+        case CTYPE_EPWING:
+            return 7;
+    }
+    return -1;
+}
+
+- (void)UpdateMiniInfoBar
+{
+    if (m_pDoc) {
+        [infobarFilename setStringValue:m_pDoc.fileURL?[m_pDoc.fileURL path]:@"Untitled"];
+        [infobarMapMode selectItemAtIndex:[m_pDoc IsFileMapping]?0:1];
+        [infobarReadOnly setState:m_pDoc->m_bReadOnly?NSOnState:NSOffState];
+        [infobarCharSet selectItemAtIndex:[self GetCharSetMenuIndex]];
+    }
 }
 
 

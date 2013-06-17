@@ -65,7 +65,7 @@ END_MESSAGE_MAP()
 /////////////////////////////////////////////////////////////////////////////
 // CBZDoc construction/destruction
 
-CBZDoc::CBZDoc()
+CBZDoc::CBZDoc() : m_restoreScroll()
 {
 	// TODO: add one-time construction code here
 	m_pData = NULL;
@@ -89,6 +89,10 @@ CBZDoc::CBZDoc()
 	SYSTEM_INFO sysinfo;
 	GetSystemInfo(&sysinfo);
 	m_dwAllocationGranularity = sysinfo.dwAllocationGranularity;
+
+	//ReCreate restore
+	m_restoreCaret = 0;
+	//m_restoreScroll = {0};
 }
 
 CBZDoc::~CBZDoc()
@@ -712,6 +716,10 @@ void CBZDoc::DuplicateDoc(CBZDoc* pDstDoc)
 	if(!s.IsEmpty())
 		pDstDoc->SetPathName(s);
 //	pDstDoc->UpdateAllViews(NULL);
+
+	//Restore infomation
+	pDstDoc->m_restoreCaret = m_restoreCaret;
+	pDstDoc->m_restoreScroll = m_restoreScroll;
 }
 
 /////////////////////////////////////////////////////////////////////////////
@@ -825,9 +833,13 @@ BOOL CBZDoc::OnOpenDocument(LPCTSTR lpszPathName)
 		if(!m_bReadOnly) {  // Reopen for ReadWrite
 			ReleaseFile(pFile, FALSE);
 			pFile = GetFile(lpszPathName, CFile::modeReadWrite | CFile::shareExclusive, &fe);
-			if(pFile == NULL) {
-				ReportSaveLoadException(lpszPathName, &fe, FALSE, AFX_IDP_INVALID_FILENAME);
-				return FALSE;
+			if(pFile == NULL) { //Retry open (ReadOnly)
+				pFile = GetFile(lpszPathName, CFile::modeRead|CFile::shareDenyWrite, &fe);
+				if(pFile == NULL) { //Failed open
+					ReportSaveLoadException(lpszPathName, &fe, FALSE, AFX_IDP_INVALID_FILENAME);
+					return FALSE;
+				}
+				m_bReadOnly = true;
 			}
 		}
 		m_pFileMapping = pFile;

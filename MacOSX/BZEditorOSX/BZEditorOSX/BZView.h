@@ -89,6 +89,8 @@ enum CharMode { CMODE_ASCII, CMODE_ESC, CMODE_ESC1, CMODE_ESC2, CMODE_ESC3, CMOD
 - (__uint16_t)GetCharCode:(__uint16_t)c ofs:(__uint64_t)ofs;
 
 - (BOOL)DrawCaret;
+- (void)MoveCaretTo:(__uint64_t)dwNewCaret;
+- (BOOL)GotoCaret;
 
 - (void)UpdateToolbar;
 
@@ -100,12 +102,10 @@ enum CharMode { CMODE_ASCII, CMODE_ESC, CMODE_ESC1, CMODE_ESC2, CMODE_ESC3, CMOD
 - (void)OnTimerUp:(NSTimer*)timer;
 - (void)OnTimerDown:(NSTimer*)timer;
 
-
-- (void)MoveCaretTo:(__uint64_t)dwNewCaret;
-- (BOOL)GotoCaret;
-
 - (void)keyDownWithUnichar:(unichar)key bCtrl:(BOOL)bCtrl bShift:(BOOL)bShift;
 - (void)OnCharWithUnichar:(unichar)nChar;
+
+- (void)UpdateCharSet;
 
 - (IBAction)OnCharmodeAscii:(id)sender;
 - (IBAction)OnCharmodeSJIS:(id)sender;
@@ -115,12 +115,11 @@ enum CharMode { CMODE_ASCII, CMODE_ESC, CMODE_ESC1, CMODE_ESC2, CMODE_ESC3, CMOD
 - (IBAction)OnCharmodeEUC:(id)sender;
 - (IBAction)OnCharmodeEBCDIC:(id)sender;
 - (IBAction)OnCharmodeEPWING:(id)sender;
-- (IBAction)OnCharmodeAutoDetect:(id)sender;
 
-- (IBAction)OnByteOrderIntel:(id)sender;
-- (IBAction)OnByteOrderMotorola:(id)sender;
+- (IBAction)OnToolbarReadOnly:(id)sender;
 
-- (IBAction)changeCheckBoxState:(id)sender;
+- (enum CharSet)GetCharSetFromMenuIndex:(NSInteger)menuIndex;
+- (IBAction)OnInfobarCharSet:(id)sender;
 
 - (void)DrawToFile:(NSURL*)outPath;
 
@@ -130,5 +129,13 @@ enum CharMode { CMODE_ASCII, CMODE_ESC, CMODE_ESC1, CMODE_ESC2, CMODE_ESC3, CMOD
 -(void)SetFocus;
 
 -(IBAction)OnUndo:(id)sender;
+
+-(NSInteger)GetCharSetMenuIndex;
+-(void)UpdateMiniInfoBar;
+
+@property (weak) IBOutlet NSTextField *infobarFilename;
+@property (weak) IBOutlet NSPopUpButton *infobarMapMode;
+@property (weak) IBOutlet NSButton *infobarReadOnly;
+@property (weak) IBOutlet NSPopUpButton *infobarCharSet;
 
 @end

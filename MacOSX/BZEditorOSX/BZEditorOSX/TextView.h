@@ -67,6 +67,8 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
     
 @private
     NSInteger m_scrollMin, m_scrollMax;
+    
+    //BOOL m_bScrollH;
 }
 
 @property (assign) IBOutlet id vScroller;
@@ -100,6 +102,8 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 - (void)ShowCaret2;
 - (void)HideCaret2;
+- (void)MoveCaret:(TAMASize)pt;
+- (void)MoveCaret2:(TAMASize)pt;
 
 - (void)SetTextSize:(TAMASize)cTotal;
 
@@ -124,7 +128,5 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 -(void)InitScrollBar;
 
-- (void)MoveCaret:(TAMASize)pt;
-- (void)MoveCaret2:(TAMASize)pt;
 
 @end

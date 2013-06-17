@@ -1079,7 +1079,7 @@ void CBZView::OnChar(UINT nChar, UINT nRepCnt, UINT nFlags)
 			)) {
 #else
 		// TODO: EUC時半角カナが来ると、dwSize=1に対して実サイズ=2なのでデータ破壊してしまう。
-		if(m_bCaretOnChar && (m_charset == CTYPE_UNICODE || (m_charset > CTYPE_UNICODE) && _ismbblead((BYTE)nChar))) {
+		if(m_bCaretOnChar && (m_charset == CTYPE_UNICODE || (m_charset > CTYPE_UNICODE && _ismbblead((BYTE)nChar)))) {
 #endif
 			if(m_charset == CTYPE_UTF8) {	// ### 1.54b
 				// TODO: 4バイトパターン対応
@@ -2557,4 +2557,23 @@ void CBZView::OnUpdateViewGrid1(CCmdUI *pCmdUI)
 {
 	// TODO: ここにコマンド更新 UI ハンドラ コードを追加します。
 	pCmdUI->SetCheck(options.iGrid==1);
+}
+
+void CBZView::ReCreateBackup()
+{
+	if(m_pDoc)
+	{
+		m_pDoc->m_restoreCaret = m_dwCaret;
+		m_pDoc->m_restoreScroll = this->GetScrollPos();
+		m_pDoc->m_restoreScroll.x = 0;
+	}
+}
+void CBZView::ReCreateRestore()
+{
+	if(m_pDoc)
+	{
+		m_dwCaret = m_pDoc->m_restoreCaret;
+		DrawCaret();
+		ScrollToPos(m_pDoc->m_restoreScroll);
+	}
 }
