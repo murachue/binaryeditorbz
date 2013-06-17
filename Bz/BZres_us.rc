@@ -7,8 +7,7 @@
 //
 // Generated from the TEXTINCLUDE 2 resource.
 //
-#include "afxres.h"
-
+#include "afxres.h"
 /////////////////////////////////////////////////////////////////////////////
 #undef APSTUDIO_READONLY_SYMBOLS
 
@@ -106,6 +105,7 @@ BEGIN
         MENUITEM "&Paste\tCtrl+V",              ID_EDIT_PASTE
         MENUITEM "Copy &Dump List\tCtrl+D",     ID_EDIT_COPY_DUMP
         MENUITEM "Copy as &Hexstring\tCtrl+Shift+C", ID_EDIT_COPY_HEXSTRING
+        MENUITEM "Paste He&xstring as binary\tCtrl+Shift+V", ID_EDIT_PASTE_HEXSTRING
         MENUITEM SEPARATOR
         MENUITEM "Select &All\tCtrl+A",         ID_EDIT_SELECT_ALL
         MENUITEM SEPARATOR
@@ -408,6 +408,7 @@ BEGIN
     "C",            ID_EDIT_COPY,           VIRTKEY, CONTROL, NOINVERT
     VK_INSERT,      ID_EDIT_COPY,           VIRTKEY, CONTROL, NOINVERT
     "D",            ID_EDIT_COPY_DUMP,      VIRTKEY, CONTROL, NOINVERT
+    "C",            ID_EDIT_COPY_HEXSTRING, VIRTKEY, SHIFT, CONTROL, NOINVERT
     VK_DELETE,      ID_EDIT_CUT,            VIRTKEY, SHIFT, NOINVERT
     "X",            ID_EDIT_CUT,            VIRTKEY, CONTROL, NOINVERT
     "V",            ID_EDIT_PASTE,          VIRTKEY, CONTROL, NOINVERT
@@ -431,7 +432,7 @@ BEGIN
     VK_HOME,        ID_JUMP_START,          VIRTKEY, CONTROL, NOINVERT
     VK_F6,          ID_NEXT_PANE,           VIRTKEY, NOINVERT
     VK_F6,          ID_PREV_PANE,           VIRTKEY, SHIFT, NOINVERT
-    "C",            ID_EDIT_COPY_HEXSTRING, VIRTKEY, SHIFT, CONTROL, NOINVERT
+    "V",            ID_EDIT_PASTE_HEXSTRING, VIRTKEY, SHIFT, CONTROL, NOINVERT
 END
 
 
@@ -746,6 +747,7 @@ END
 STRINGTABLE
 BEGIN
     ID_EDIT_COPY_HEXSTRING  "Copy the selection and convert it to hexstring then put it on the Clipboard\nCopy as Hexstring"
+    ID_EDIT_PASTE_HEXSTRING "Insert Clipboard contents as binary\nPaste Hexstring as binary"
 END
 
 #endif    // âpåÍ (ïƒçë) resources

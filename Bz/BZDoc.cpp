@@ -577,6 +577,87 @@ DWORD CBZDoc::PasteFromClipboard(DWORD dwPtr, BOOL bIns)
 	return dwPtr+dwSize;
 }
 
+// strの中からhexstringを構成する文字を探しだし、バイナリに変換した後のバッファのポインタを返す。
+// バッファはMemAllocによって確保されているので、MemFreeすること。
+// charsは文字数なことに注意。
+// bytesは実際のバイナリの長さ(バイト数)で置き換えられる。
+// charsとbytesは同じ変数を指定できる。
+// hexstringの長さが奇数の場合、最後の文字は切り捨てられる。
+template<typename T>
+LPBYTE pickupHexstringAndToBinary(T* str, DWORD chars, DWORD &bytes)
+{
+	LPBYTE pMem = (LPBYTE)MemAlloc(sizeof(T) * (chars + 1));
+	LPBYTE p = pMem;
+	int tmp = 0;
+	int nibble = 0;
+	for(DWORD i = 0; i < chars; i++) {
+		int num = -1;
+		if('0' <= str[i] && str[i] <= '9') num = str[i] - '0';
+		if('A' <= str[i] && str[i] <= 'F') num = str[i] - 'A' + 10;
+		if('a' <= str[i] && str[i] <= 'f') num = str[i] - 'a' + 10;
+		if(num != -1) {
+			tmp <<= 4;
+			tmp |= num;
+			nibble++;
+			if(nibble == 2) {
+				*p++ = (BYTE)tmp;
+				tmp = 0;
+				nibble = 0;
+			}
+		}
+	}
+	*p = 0;
+	bytes = p - pMem;
+	return pMem;
+}
+
+DWORD CBZDoc::PasteHexstringFromClipboard(DWORD dwPtr, BOOL bIns)
+{
+	AfxGetMainWnd()->OpenClipboard();
+	HGLOBAL hMem;
+	DWORD dwSize;
+	LPBYTE pMem;
+	LPBYTE pWorkMem = NULL;
+	if(hMem = GetClipboardData(CF_UNICODETEXT)) {
+		int nchars;
+
+		pMem = (LPBYTE)::GlobalLock(hMem);
+		nchars = lstrlenW((LPWSTR)pMem);
+		dwSize = nchars * 2;
+
+		pMem = pWorkMem = (LPBYTE)pickupHexstringAndToBinary((LPWSTR)pMem, nchars, dwSize);
+	} else if(hMem = GetClipboardData(CF_TEXT)) {
+		pMem = (LPBYTE)::GlobalLock(hMem);
+		dwSize = lstrlenA((LPCSTR)pMem);
+
+		pMem = pWorkMem = pickupHexstringAndToBinary((LPBYTE)pMem, dwSize, dwSize);
+	} else {
+		return 0;
+	}
+	if(!dwSize) return 0;
+#ifdef FILE_MAPPING
+	if(IsFileMapping()) {
+		// FileMapping時、貼り付けるとファイルサイズが大きくなってしまうようであれば、事前に張り付けサイズを切り詰める。
+		//int nGlow = dwSize - (m_dwTotal - dwPtr);
+		DWORD nGlow = dwSize - (m_dwTotal - dwPtr);
+		if(nGlow <= dwSize/*overflow check*/ && nGlow > 0)
+			dwSize -= nGlow;
+	}
+#endif //FILE_MAPPING
+	if(bIns || dwPtr == m_dwTotal)
+		StoreUndo(dwPtr, dwSize, UNDO_DEL);
+	else
+		StoreUndo(dwPtr, dwSize, UNDO_OVR);
+	InsertData(dwPtr, dwSize, bIns);
+	memcpy(m_pData+dwPtr, pMem, dwSize);
+	::GlobalUnlock(hMem);
+	::CloseClipboard();
+	if(pWorkMem) {
+		MemFree(pWorkMem);
+	}
+	return dwPtr+dwSize;
+}
+
 void CBZDoc::InsertData(DWORD dwPtr, DWORD dwSize, BOOL bIns)
 {
 	BOOL bGlow = false;

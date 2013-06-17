@@ -69,6 +69,7 @@ public:
 public:
 	BOOL	CopyToClipboard(DWORD dwPtr, DWORD dwSize, BOOL bHexString);
 	DWORD	PasteFromClipboard(DWORD dwPtr, BOOL bIns);
+	DWORD	PasteHexstringFromClipboard(DWORD dwPtr, BOOL bIns);
 	BOOL	isDocumentEditedSelfOnly();
 	void	InsertData(DWORD dwPtr, DWORD dwSize, BOOL bIns);
 	void	DeleteData(DWORD dwPtr, DWORD dwSize);

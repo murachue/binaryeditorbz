@@ -119,6 +119,8 @@ BEGIN_MESSAGE_MAP(CBZView, CTextView)
 	ON_UPDATE_COMMAND_UI(ID_EDIT_COPY_DUMP, OnUpdateEditCopyDump)
 	ON_COMMAND(ID_EDIT_COPY_HEXSTRING, OnEditCopyHexstring)
 	ON_UPDATE_COMMAND_UI(ID_EDIT_COPY_HEXSTRING, OnUpdateEditCopyHexstring)
+	ON_COMMAND(ID_EDIT_PASTE_HEXSTRING, OnEditPasteHexstring)
+	ON_UPDATE_COMMAND_UI(ID_EDIT_PASTE_HEXSTRING, OnUpdateEditPasteHexstring)
 	ON_COMMAND(ID_JUMP_BASE, OnJumpBase)
 	ON_COMMAND(ID_JUMP_MARK, SetMark)
 	ON_COMMAND(ID_JUMP_MARKNEXT, JumpToMark)
@@ -2058,6 +2060,26 @@ void CBZView::OnUpdateEditCopyHexstring(CCmdUI* pCmdUI)
 	// TODO: Add your command update UI handler code here
 	pCmdUI->Enable(m_bBlock);
 }
+
+void CBZView::OnEditPasteHexstring() 
+{
+	// TODO: Add your command handler code here
+	DWORD dwPaste;
+	if(dwPaste = m_pDoc->PasteHexstringFromClipboard(m_dwCaret, m_bIns)) {
+		m_dwOldCaret = m_dwCaret;
+		m_dwCaret = dwPaste;
+		UpdateDocSize();
+	}
+}
+
+void CBZView::OnUpdateEditPasteHexstring(CCmdUI* pCmdUI) 
+{
+	OpenClipboard();
+	UINT cf = EnumClipboardFormats(0);
+	CloseClipboard();
+	pCmdUI->Enable(!m_pDoc->m_bReadOnly && cf);
+}
+
 
 /////////////////////////////////////////////////////////////////////////////
 // CBZView Double View

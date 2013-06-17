@@ -125,6 +125,7 @@
 #define ID_VIEW_ANALYZER                32858
 #define ID_FILE_SAVE_SELECTION          32859
 #define ID_EDIT_COPY_HEXSTRING          32864
+#define ID_EDIT_PASTE_HEXSTRING         32868
 #define ID_INDICATOR_INFO               0xE710
 #define ID_INDICATOR_SIZE               0xE711
 #define ID_INDICATOR_CHAR               0xE712
@@ -160,7 +161,7 @@
 #ifndef APSTUDIO_READONLY_SYMBOLS
 #define _APS_3D_CONTROLS                     1
 #define _APS_NEXT_RESOURCE_VALUE        145
-#define _APS_NEXT_COMMAND_VALUE         32868
+#define _APS_NEXT_COMMAND_VALUE         32871
 #define _APS_NEXT_CONTROL_VALUE         1044
 #define _APS_NEXT_SYMED_VALUE           107
 #endif
