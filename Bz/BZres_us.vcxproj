@@ -179,7 +179,6 @@
   </ItemGroup>
   <ItemGroup>
     <None Include="res\bmppoint.cur" />
-    <None Include="resource" />
   </ItemGroup>
   <ItemGroup>
     <Image Include="res\BZ.ico" />

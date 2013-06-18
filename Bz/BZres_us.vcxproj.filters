@@ -23,7 +23,6 @@
     <None Include="res\bmppoint.cur">
       <Filter>Resource Files</Filter>
     </None>
-    <None Include="resource" />
   </ItemGroup>
   <ItemGroup>
     <Image Include="res\BZ.ico">
