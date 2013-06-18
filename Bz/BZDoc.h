@@ -64,6 +64,8 @@ public:
 
 	DWORD	m_restoreCaret;
 	POINT	m_restoreScroll;
+	DWORD	m_restoredwBlock;
+	BOOL	m_restorebBlock;
 
 // Operations
 public:

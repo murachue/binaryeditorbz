@@ -2586,6 +2586,8 @@ void CBZView::ReCreateBackup()
 	if(m_pDoc)
 	{
 		m_pDoc->m_restoreCaret = m_dwCaret;
+		m_pDoc->m_restoredwBlock = m_dwBlock;
+		m_pDoc->m_restorebBlock = m_bBlock;
 		m_pDoc->m_restoreScroll = this->GetScrollPos();
 		m_pDoc->m_restoreScroll.x = 0;
 	}
@@ -2595,6 +2597,8 @@ void CBZView::ReCreateRestore()
 	if(m_pDoc)
 	{
 		m_dwCaret = m_pDoc->m_restoreCaret;
+		m_dwBlock = m_pDoc->m_restoredwBlock;
+		m_bBlock = m_pDoc->m_restorebBlock;
 		DrawCaret();
 		ScrollToPos(m_pDoc->m_restoreScroll);
 	}

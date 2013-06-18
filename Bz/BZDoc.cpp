@@ -800,6 +800,8 @@ void CBZDoc::DuplicateDoc(CBZDoc* pDstDoc)
 
 	//Restore infomation
 	pDstDoc->m_restoreCaret = m_restoreCaret;
+	pDstDoc->m_restoredwBlock = m_restoredwBlock;
+	pDstDoc->m_restorebBlock = m_restorebBlock;
 	pDstDoc->m_restoreScroll = m_restoreScroll;
 }
 
