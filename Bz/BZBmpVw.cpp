@@ -195,13 +195,6 @@ void CBZBmpView::OnInitialUpdate()
 	pSplit->SetColumnInfo(0, cView.cx, 0);
 	// MemFree(lpbi);
 
-	int nMapMode;
-	SIZE sizeTotal, sizePage, sizeLine;
-	GetDeviceScrollSizes(nMapMode, sizeTotal, sizePage, sizeLine);
-	sizePage.cy = 150;
-	sizeLine.cy = 20;
-	SetScrollSizes(nMapMode, sizeTotal, sizePage, sizeLine);
-
 	if(m_tooltip.m_hWnd!=NULL)m_tooltip.DestroyWindow();
 	m_tooltip.Create(m_hWnd, NULL, NULL, TTS_BALLOON|TTS_NOFADE|TTS_NOANIMATE|TTS_ALWAYSTIP);
 	m_tooltip.SetDelayTime(TTDT_RESHOW, 0);
