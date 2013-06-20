@@ -197,7 +197,7 @@ void CBZBmpView::OnInitialUpdate()
 	// MemFree(lpbi);
 
 	if(m_tooltip.m_hWnd!=NULL)m_tooltip.DestroyWindow();
-	m_tooltip.Create(m_hWnd, NULL, NULL, TTS_BALLOON|TTS_NOFADE|TTS_NOANIMATE|TTS_ALWAYSTIP);
+	m_tooltip.Create(m_hWnd, NULL, NULL, TTS_BALLOON|TTS_NOFADE|TTS_NOANIMATE/*|TTS_ALWAYSTIP*/); // TTS_ALWAYSTIPを指定するとバルーンを閉じれなくなる。
 	m_tooltip.SetDelayTime(TTDT_RESHOW, 0);
 	m_tooltip.SetDelayTime(TTDT_AUTOPOP, 0xffff);
 	m_tooltip.SetDelayTime(TTDT_INITIAL, 0);
@@ -333,7 +333,7 @@ void CBZBmpView::OnMouseMove(UINT nFlags, CPoint point)
 					TCHAR tmp[22];
 					wsprintf(tmp, _T("0x%08X"), currentAddress);
 					WTL::CToolInfo toolinfo(TTF_SUBCLASS|TTF_TRANSPARENT, m_hWnd, 0, 0, tmp);
-					m_tooltip.UpdateTipText(toolinfo);
+					m_tooltip.SetToolInfo(toolinfo);
 					ATLTRACE(_T("UpdateTooltip: %08X, %08X\n"), currentAddress, m_tooltipLastAddress);
 					m_tooltipLastAddress = currentAddress;
 					m_tooltip.Activate(true);
@@ -381,7 +381,7 @@ void CBZBmpView::OnVScroll(UINT nSBCode, UINT nPos, CScrollBar* pScrollBar)
 			TCHAR tmp[22];
 			wsprintf(tmp, _T("0x%08X"), currentAddress);
 			WTL::CToolInfo toolinfo(TTF_SUBCLASS|TTF_TRANSPARENT, m_hWnd, 0, 0, tmp);
-			m_tooltip.UpdateTipText(toolinfo);
+			m_tooltip.SetToolInfo(toolinfo);
 			m_tooltip.Activate(true);
 			m_tooltip.Popup();
 	}
@@ -564,18 +564,15 @@ void CBZBmpView::OnBmpViewGotoCaret()
 	SetCaretPos(CPoint(point.x-2, point.y-2));
 	ShowCaret();
 
-	// TODO: popupしないのを何とかする(WM_MOUSEMOVEが来るからダメ?)
-	/*
+	// TODO: balloonが意図せず閉じてしまうのを何とかする(WM_MOUSEMOVE…)
 	// TODO: CStringとかじゃなくてTCHAR[]?
 	TCHAR tmp[22];
 	wsprintf(tmp, _T("0x%08X"), currentAddress);
-	WTL::CToolInfo toolinfo(TTF_SUBCLASS|TTF_TRANSPARENT, m_hWnd, 0, CRect(point,point), tmp);
-	m_tooltip.UpdateTipText(toolinfo);
-	m_tooltipLastAddress = currentAddress;
+	WTL::CToolInfo toolinfo(TTF_SUBCLASS|TTF_TRANSPARENT|TTF_TRACK, m_hWnd, 0, 0, tmp);
+	m_tooltip.SetToolInfo(toolinfo);
+	m_tooltip.TrackActivate(toolinfo, TRUE);
+	ClientToScreen(&point);
 	m_tooltip.TrackPosition(point.x, point.y);
-	m_tooltip.Activate(true);
-	m_tooltip.Popup();
-	*/
 }
 
 void CBZBmpView::OnKeyDown(UINT nChar, UINT nRepCnt, UINT nFlags)
