@@ -7,7 +7,8 @@
 //
 // Generated from the TEXTINCLUDE 2 resource.
 //
-#include "afxres.h"
+#include "afxres.h"
+
 /////////////////////////////////////////////////////////////////////////////
 #undef APSTUDIO_READONLY_SYMBOLS
 
@@ -76,6 +77,7 @@ BEGIN
         MENUITEM "32bit color",                 ID_BMPVIEW_32BITCOLOR
         MENUITEM SEPARATOR
         MENUITEM "Address Tooltip",             ID_BMPVIEW_ADDRESSTOOLTIP
+        MENUITEM "Goto caret",                  ID_BMPVIEW_GOTOCARET
     END
 END
 

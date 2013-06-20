@@ -360,6 +360,7 @@ BEGIN
         MENUITEM "32bit color",                 ID_BMPVIEW_32BITCOLOR
         MENUITEM SEPARATOR
         MENUITEM "Address Tooltip",             ID_BMPVIEW_ADDRESSTOOLTIP
+        MENUITEM "Goto caret",                  ID_BMPVIEW_GOTOCARET
     END
 END
 

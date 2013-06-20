@@ -73,6 +73,7 @@ BEGIN_MESSAGE_MAP(CBZBmpView, CScrollView)
 	ON_COMMAND_RANGE(ID_BMPVIEW_8BITCOLOR, ID_BMPVIEW_8BITCOLOR_PAT3, OnBmpViewColorWidth)
 	ON_WM_SIZE()
 	ON_COMMAND(ID_BMPVIEW_ADDRESSTOOLTIP, OnBmpViewAddressTooltip)
+	ON_COMMAND(ID_BMPVIEW_GOTOCARET, OnBmpViewGotoCaret)
 	ON_WM_MOUSEWHEEL()
 	ON_WM_KEYDOWN()
 	ON_WM_MOUSEMOVE()
@@ -506,6 +507,75 @@ void CBZBmpView::OnBmpViewColorWidth(UINT nID)
 void CBZBmpView::OnBmpViewAddressTooltip()
 {
 	options.bAddressTooltip = !options.bAddressTooltip;
+}
+
+void CBZBmpView::OnBmpViewGotoCaret()
+{
+	CBZView* pView = (CBZView*)GetNextWindow();
+	DWORD currentAddress = pView->m_dwCaret;
+
+	// ScrollView全体における表示したい座標
+	CPoint point;
+	point.x = (currentAddress % (options.nBmpWidth * options.nBmpColorWidth / 8)) * options.nBmpZoom + BMPSPACE;
+	point.y = (currentAddress / (options.nBmpWidth * options.nBmpColorWidth / 8)) * options.nBmpZoom + BMPSPACE;
+	// ScrollViewで見えている大きさ
+	CRect cr;
+	GetClientRect(cr);
+	CSize client = cr.Size();
+	// ScrollViewで見えている部分のうちで、中心の座標
+	CPoint center = client;
+	center.x /= 2;
+	center.y /= 2;
+	// ScrollView全体の大きさ
+	CSize sz = GetTotalSize();
+	// scrollオフセット
+	CPoint scroll;
+
+	// TODO: あとでmin/max使った式にするかも。
+	if(point.x - center.x < 0)
+	{
+		scroll.x = 0;
+	} else if(sz.cx < point.x + center.x)
+	{
+		scroll.x = sz.cx - client.cx;
+	} else
+	{
+		scroll.x = point.x - center.x;
+	}
+
+	if(point.y - center.y < 0)
+	{
+		scroll.y = 0;
+	} else if(sz.cy < point.y + center.y)
+	{
+		scroll.y = sz.cy - client.cy;
+	} else
+	{
+		scroll.y = point.y - center.y;
+	}
+
+	ScrollToPosition(scroll);
+
+	// pointをポップアップしたい座標に更新
+	point -= scroll;
+
+	// とりあえずcaretでも表示しておく…
+	CreateSolidCaret(5,5);
+	SetCaretPos(CPoint(point.x-2, point.y-2));
+	ShowCaret();
+
+	// TODO: popupしないのを何とかする(WM_MOUSEMOVEが来るからダメ?)
+	/*
+	// TODO: CStringとかじゃなくてTCHAR[]?
+	TCHAR tmp[22];
+	wsprintf(tmp, _T("0x%08X"), currentAddress);
+	WTL::CToolInfo toolinfo(TTF_SUBCLASS|TTF_TRANSPARENT, m_hWnd, 0, CRect(point,point), tmp);
+	m_tooltip.UpdateTipText(toolinfo);
+	m_tooltipLastAddress = currentAddress;
+	m_tooltip.TrackPosition(point.x, point.y);
+	m_tooltip.Activate(true);
+	m_tooltip.Popup();
+	*/
 }
 
 void CBZBmpView::OnKeyDown(UINT nChar, UINT nRepCnt, UINT nFlags)
