@@ -89,6 +89,7 @@ CBZApp theApp;
 BOOL CBZApp::InitInstance()
 {
 #ifdef _DEBUG
+	_CrtSetDbgFlag(_CRTDBG_ALLOC_MEM_DF|_CRTDBG_CHECK_ALWAYS_DF|_CRTDBG_LEAK_CHECK_DF);
 	disableUserModeCallbackExceptionFilter();
 #endif
 
@@ -551,6 +552,8 @@ void CBZOptions::Load()
 		bStructView=false;
 		bAnalyzerView=false;
 	}
+	
+	bAddressTooltip = GetProfileInt(_T("BmpAddressTooltip"), TRUE);
 }
 
 void CBZOptions::Save()
@@ -611,6 +614,8 @@ void CBZOptions::Save()
 
 	WriteProfileInt(_T("InspectView"), bInspectView);
 	WriteProfileInt(_T("AnalyzerView"), bAnalyzerView);
+	
+	WriteProfileInt(_T("BmpAddressTooltip"), bAddressTooltip);
 	
 }
 

@@ -50,6 +50,8 @@ CBZBmpView::CBZBmpView()
 {
 	m_hBmp = NULL;
 	m_lpbi = NULL;
+	m_tooltipLastAddress = 0xffffffff;
+	m_isLButtonDown = false;
 }
 
 CBZBmpView::~CBZBmpView()
@@ -70,7 +72,11 @@ BEGIN_MESSAGE_MAP(CBZBmpView, CScrollView)
 	ON_WM_SETCURSOR()
 	ON_COMMAND_RANGE(ID_BMPVIEW_8BITCOLOR, ID_BMPVIEW_8BITCOLOR_PAT3, OnBmpViewColorWidth)
 	ON_WM_SIZE()
+	ON_COMMAND(ID_BMPVIEW_ADDRESSTOOLTIP, OnBmpViewAddressTooltip)
 	ON_WM_MOUSEWHEEL()
+	ON_WM_KEYDOWN()
+	ON_WM_MOUSEMOVE()
+	ON_WM_LBUTTONUP()
 END_MESSAGE_MAP()
 
 /////////////////////////////////////////////////////////////////////////////
@@ -188,7 +194,24 @@ void CBZBmpView::OnInitialUpdate()
 	cView.cx = options.nBmpWidth * options.nBmpZoom + BMPSPACE*2 + GetSystemMetrics(SM_CXVSCROLL)+1;
 	pSplit->SetColumnInfo(0, cView.cx, 0);
 	// MemFree(lpbi);
+
+	int nMapMode;
+	SIZE sizeTotal, sizePage, sizeLine;
+	GetDeviceScrollSizes(nMapMode, sizeTotal, sizePage, sizeLine);
+	sizePage.cy = 150;
+	sizeLine.cy = 20;
+	SetScrollSizes(nMapMode, sizeTotal, sizePage, sizeLine);
+
+	if(m_tooltip.m_hWnd!=NULL)m_tooltip.DestroyWindow();
+	m_tooltip.Create(m_hWnd, NULL, NULL, TTS_BALLOON|TTS_NOFADE|TTS_NOANIMATE|TTS_ALWAYSTIP);
+	m_tooltip.SetDelayTime(TTDT_RESHOW, 0);
+	m_tooltip.SetDelayTime(TTDT_AUTOPOP, 0xffff);
+	m_tooltip.SetDelayTime(TTDT_INITIAL, 0);
+	m_tooltip.Activate(TRUE);
+	WTL::CToolInfo toolinfo(TTF_SUBCLASS|TTF_TRANSPARENT, m_hWnd, 0, 0, _T(""));
+	m_tooltip.AddTool(toolinfo);
 }
+
 
 BOOL CBZBmpView::OnEraseBkgnd(CDC* pDC)
 {
@@ -275,7 +298,8 @@ void CBZBmpView::Dump(CDumpContext& dc) const
 
 void CBZBmpView::OnLButtonDown(UINT nFlags, CPoint point) 
 {
-	// TODO: Add your message handler code here and/or call default
+	m_isLButtonDown = true;
+
 	point += GetScrollPosition();
 	point.x -= BMPSPACE;
 	point.y -= BMPSPACE;
@@ -293,6 +317,53 @@ void CBZBmpView::OnLButtonDown(UINT nFlags, CPoint point)
 
 //	CScrollView::OnLButtonDown(nFlags, point);
 }
+void CBZBmpView::OnMouseMove(UINT nFlags, CPoint point)
+{
+	point += GetScrollPosition();
+	point.x -= BMPSPACE;
+	point.y -= BMPSPACE;
+	point.x /= options.nBmpZoom;
+	point.y /= options.nBmpZoom;
+	if(point.x >= 0 && point.x < options.nBmpWidth && point.y >= 0) {
+		DWORD currentAddress = point.y*(options.nBmpWidth * (options.nBmpColorWidth/8)) + (point.x * (options.nBmpColorWidth/8));
+		if(currentAddress != m_tooltipLastAddress)
+		{
+			CBZView* pView = (CBZView*)GetNextWindow();
+			if(currentAddress < pView->m_dwTotal) {
+				if(m_isLButtonDown)
+				{
+					pView->m_dwCaret = currentAddress;
+					pView->GotoCaret();
+					//pView->Activate();
+				} else if(options.bAddressTooltip) {
+					TCHAR tmp[22];
+					wsprintf(tmp, _T("0x%08X"), currentAddress);
+					WTL::CToolInfo toolinfo(TTF_SUBCLASS|TTF_TRANSPARENT, m_hWnd, 0, 0, tmp);
+					m_tooltip.UpdateTipText(toolinfo);
+					ATLTRACE(_T("UpdateTooltip: %08X, %08X\n"), currentAddress, m_tooltipLastAddress);
+					m_tooltipLastAddress = currentAddress;
+					m_tooltip.Activate(true);
+					m_tooltip.Popup();
+					//CScrollView::OnMouseMove(nFlags, point);
+					return;
+				}
+			}
+		} else {
+				ATLTRACE(_T("!!!UpdateTooltip: %08X, %08X\n"), currentAddress, m_tooltipLastAddress);
+				return;
+		}
+	}
+
+	m_tooltipLastAddress = 0xffffffff;
+	m_tooltip.Activate(false);
+	m_tooltip.Pop();
+	//CScrollView::OnMouseMove(nFlags, point);
+}
+void CBZBmpView::OnLButtonUp(UINT nFlags, CPoint point)
+{
+	m_isLButtonDown = false;
+	//CScrollView::OnLButtonUp(nFlags, point);
+}
 
 void CBZBmpView::OnVScroll(UINT nSBCode, UINT nPos, CScrollBar* pScrollBar) 
 {
@@ -301,8 +372,28 @@ void CBZBmpView::OnVScroll(UINT nSBCode, UINT nPos, CScrollBar* pScrollBar)
 	if(nSBCode == SB_THUMBTRACK) {		// ### 1.54
 		SCROLLINFO si;
 		GetScrollInfo(SB_VERT, &si, SIF_TRACKPOS);
-		TRACE("nPos, nTrackPos=%d, %d\n", nPos, si.nTrackPos);
+		TRACE("nPos, nTrackPos=%u, %d\n", nPos, si.nTrackPos);
 		nPos = si.nTrackPos;
+		TRACE("nPos, nTrackPos=%u, %d\n", nPos, si.nTrackPos);
+
+		if(options.bAddressTooltip)
+		{
+			CPoint point = GetScrollPosition();
+			point.x = max(point.x-BMPSPACE, 0);
+			point.y = max(point.y-BMPSPACE, 0);
+			point.x /= options.nBmpZoom;
+			point.y /= options.nBmpZoom;
+			DWORD currentAddress = point.y*(options.nBmpWidth * (options.nBmpColorWidth/8)) + (point.x * (options.nBmpColorWidth/8));
+			TCHAR tmp[22];
+			wsprintf(tmp, _T("0x%08X"), currentAddress);
+			WTL::CToolInfo toolinfo(TTF_SUBCLASS|TTF_TRANSPARENT, m_hWnd, 0, 0, tmp);
+			m_tooltip.UpdateTipText(toolinfo);
+			m_tooltip.Activate(true);
+			m_tooltip.Popup();
+	}
+	} else if(nSBCode == SB_THUMBPOSITION) {
+		m_tooltip.Activate(false);
+		m_tooltip.Pop();
 	}
 	
 	CScrollView::OnVScroll(nSBCode, nPos, pScrollBar);
@@ -310,9 +401,7 @@ void CBZBmpView::OnVScroll(UINT nSBCode, UINT nPos, CScrollBar* pScrollBar)
 
 BOOL CBZBmpView::OnMouseWheel(UINT nFlags, short zDelta, CPoint pt)
 {
-	// TODO: ここにメッセージ ハンドラ コードを追加するか、既定の処理を呼び出します。
-
-	this->SendMessage(WM_VSCROLL, zDelta > 0 ? SB_LINEUP : SB_LINEDOWN, 0);
+	this->SendMessage(WM_VSCROLL, zDelta > 0 ? SB_PAGEUP : SB_PAGEDOWN, 0);
 
 	return CScrollView::OnMouseWheel(nFlags, zDelta, pt);
 }
@@ -360,6 +449,8 @@ void CBZBmpView::OnRButtonDown(UINT nFlags, CPoint point)
 		pMenu->CheckMenuItem(ID_BMPVIEW_32BITCOLOR, MF_BYCOMMAND | MF_CHECKED);
 		break;
 	}
+	if(options.bAddressTooltip)
+		pMenu->CheckMenuItem(ID_BMPVIEW_ADDRESSTOOLTIP, MF_BYCOMMAND | MF_CHECKED);
 
 	CPoint pt;
 	GetCursorPos(&pt);
@@ -417,6 +508,38 @@ void CBZBmpView::OnBmpViewColorWidth(UINT nID)
 		break;
 	}
 	GetMainFrame()->CreateClient();
+}
+
+void CBZBmpView::OnBmpViewAddressTooltip()
+{
+	options.bAddressTooltip = !options.bAddressTooltip;
+}
+
+void CBZBmpView::OnKeyDown(UINT nChar, UINT nRepCnt, UINT nFlags)
+{
+	switch(nChar)
+	{
+	case VK_DOWN:
+		this->SendMessage(WM_VSCROLL, SB_LINEDOWN, 0);
+		break;
+	case VK_UP:
+		this->SendMessage(WM_VSCROLL, SB_LINEUP, 0);
+		break;
+	case VK_NEXT://PageDown
+		this->SendMessage(WM_VSCROLL, SB_PAGEDOWN, 0);
+		break;
+	case VK_PRIOR://PageUp
+		this->SendMessage(WM_VSCROLL, SB_PAGEUP, 0);
+		break;
+	case VK_HOME:
+		this->SendMessage(WM_VSCROLL, SB_TOP, 0);
+		break;
+	case VK_END:
+		this->SendMessage(WM_VSCROLL, SB_BOTTOM, 0);
+		break;
+	}
+
+	CScrollView::OnKeyDown(nChar, nRepCnt, nFlags);
 }
 
 void CBZBmpView::OnSize(UINT nType, int cx, int cy)

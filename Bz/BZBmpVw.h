@@ -44,6 +44,9 @@ private:
 	HBITMAP m_hBmp;
 	SIZE	m_cBmp;
 	LPBITMAPINFOHEADER m_lpbi;
+	WTL::CToolTipCtrl m_tooltip;
+	DWORD m_tooltipLastAddress;
+	BOOL m_isLButtonDown;
 public:
 
 // Operations
@@ -77,8 +80,12 @@ protected:
 public:
 	afx_msg BOOL OnSetCursor(CWnd* pWnd, UINT nHitTest, UINT message);
 	afx_msg void OnBmpViewColorWidth(UINT nID);
+	afx_msg void OnBmpViewAddressTooltip();
 	afx_msg void OnSize(UINT nType, int cx, int cy);
 	afx_msg BOOL OnMouseWheel(UINT nFlags, short zDelta, CPoint pt);
+	afx_msg void OnKeyDown(UINT nChar, UINT nRepCnt, UINT nFlags);
+	afx_msg void OnMouseMove(UINT nFlags, CPoint point);
+	afx_msg void OnLButtonUp(UINT nFlags, CPoint point);
 };
 
 /////////////////////////////////////////////////////////////////////////////

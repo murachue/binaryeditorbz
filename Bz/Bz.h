@@ -162,6 +162,7 @@ public:
 	BOOL bInspectView;
 	BOOL bAnalyzerView;
 
+	BOOL bAddressTooltip;
 };
 
 extern CBZOptions options;

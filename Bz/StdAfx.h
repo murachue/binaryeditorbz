@@ -56,6 +56,8 @@ namespace BZ { // TODO:HACK!! avoid conflict with atl
 #include "MemDC.h"
 }
 
+#include <crtdbg.h>
+
 /*
 #ifdef _UNICODE
 #if defined _M_IX86

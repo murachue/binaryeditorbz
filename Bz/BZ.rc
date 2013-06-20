@@ -358,6 +358,8 @@ BEGIN
         MENUITEM "8bit color (red)",            ID_BMPVIEW_8BITCOLOR_PAT3
         MENUITEM "24bit color",                 ID_BMPVIEW_24BITCOLOR
         MENUITEM "32bit color",                 ID_BMPVIEW_32BITCOLOR
+        MENUITEM SEPARATOR
+        MENUITEM "Address Tooltip",             ID_BMPVIEW_ADDRESSTOOLTIP
     END
 END
 
@@ -496,7 +498,7 @@ END
 
 3 TEXTINCLUDE 
 BEGIN
-    "#define _AFX_NO_SPLITTER_RESOURCES\r\n"
+//    "#define _AFX_NO_SPLITTER_RESOURCES\r\n"
     "#define _AFX_NO_OLE_RESOURCES\r\n"
     "#define _AFX_NO_TRACKER_RESOURCES\r\n"
     "#define _AFX_NO_PROPERTY_RESOURCES\r\n"
@@ -760,7 +762,7 @@ END
 //
 // Generated from the TEXTINCLUDE 3 resource.
 //
-#define _AFX_NO_SPLITTER_RESOURCES
+//#define _AFX_NO_SPLITTER_RESOURCES
 #define _AFX_NO_OLE_RESOURCES
 #define _AFX_NO_TRACKER_RESOURCES
 #define _AFX_NO_PROPERTY_RESOURCES
