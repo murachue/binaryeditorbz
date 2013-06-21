@@ -509,15 +509,21 @@ void CBZBmpView::OnBmpViewAddressTooltip()
 	options.bAddressTooltip = !options.bAddressTooltip;
 }
 
-void CBZBmpView::OnBmpViewGotoCaret()
+DWORD CBZBmpView::getCaretPos()
 {
 	CBZView* pView = (CBZView*)GetNextWindow();
-	DWORD currentAddress = pView->m_dwCaret;
+	return pView->m_dwCaret;
+}
 
+static void getBmpPointFromAddr(DWORD currentAddress, CPoint &point)
+{
 	// ScrollView全体における表示したい座標
-	CPoint point;
 	point.x = (currentAddress % (options.nBmpWidth * options.nBmpColorWidth / 8)) * options.nBmpZoom + BMPSPACE;
 	point.y = (currentAddress / (options.nBmpWidth * options.nBmpColorWidth / 8)) * options.nBmpZoom + BMPSPACE;
+}
+
+void CBZBmpView::scrollToCenterOfBmpPoint(CPoint &point)
+{
 	// ScrollViewで見えている大きさ
 	CRect cr;
 	GetClientRect(cr);
@@ -555,21 +561,25 @@ void CBZBmpView::OnBmpViewGotoCaret()
 	}
 
 	ScrollToPosition(scroll);
+}
 
+void CBZBmpView::OnBmpViewGotoCaret()
+{
+	DWORD currentAddress = getCaretPos();
+	CPoint point;
+	getBmpPointFromAddr(currentAddress, point);
+	scrollToCenterOfBmpPoint(point);
 	// pointをポップアップしたい座標に更新
-	point -= scroll;
-
-	// とりあえずcaretでも表示しておく…
-	CreateSolidCaret(5,5);
-	SetCaretPos(CPoint(point.x-2, point.y-2));
-	ShowCaret();
+	point -= GetScrollPosition();
 
 	// TODO: balloonが意図せず閉じてしまうのを何とかする(WM_MOUSEMOVE…)
 	// TODO: CStringとかじゃなくてTCHAR[]?
-	TCHAR tmp[22];
-	wsprintf(tmp, _T("0x%08X"), currentAddress);
-	WTL::CToolInfo toolinfo(TTF_SUBCLASS|TTF_TRANSPARENT|TTF_TRACK, m_hWnd, 0, 0, tmp);
+	CString tmp;
+	tmp.Format(_T("0x%08X"), currentAddress);
+	WTL::CToolInfo toolinfo(TTF_SUBCLASS|TTF_TRANSPARENT|TTF_TRACK, m_hWnd, 0, 0, const_cast<LPTSTR>(tmp.GetString()));
 	m_tooltip.SetToolInfo(toolinfo);
+	m_tooltip.Activate(TRUE);
+	m_tooltip.Popup();
 	m_tooltip.TrackActivate(toolinfo, TRUE);
 	ClientToScreen(&point);
 	m_tooltip.TrackPosition(point.x, point.y);
@@ -624,4 +634,28 @@ void CBZBmpView::OnSize(UINT nType, int cx, int cy)
 	SetScrollSizes(MM_TEXT, cView, sizePage, sizeLine);
 
 	TRACE("cView.cy=%X\n", GetTotalSize().cy);
+}
+
+void CBZBmpView::OnActivateView(BOOL bActivate, CView* pActivateView, CView* pDeactiveView)
+{
+	CScrollView::OnActivateView(bActivate, pActivateView, pDeactiveView);
+
+	if(bActivate)
+	{
+		DWORD currentAddress = getCaretPos();
+		// ScrollView全体における表示したい座標
+		CPoint point;
+		getBmpPointFromAddr(currentAddress, point);
+
+		// pointをcaretを表示するにあたって正しい座標に変換
+		point -= GetScrollPosition();
+
+		// caret表示
+		CreateSolidCaret(5,5);
+		SetCaretPos(CPoint(point.x-2, point.y-2));
+		ShowCaret();
+	} else
+	{
+		HideCaret();
+	}
 }

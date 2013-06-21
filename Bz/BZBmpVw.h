@@ -58,6 +58,7 @@ public:
 	protected:
 	virtual void OnDraw(CDC* pDC);      // overridden to draw this view
 	virtual void OnInitialUpdate();     // first time after construct
+	virtual void OnActivateView(BOOL bActivate, CView* pActivateView, CView* pDeactiveView);
 	//}}AFX_VIRTUAL
 	afx_msg void OnBmpViewMode(UINT nID);
 
@@ -68,6 +69,8 @@ protected:
 	virtual void AssertValid() const;
 	virtual void Dump(CDumpContext& dc) const;
 #endif
+	DWORD CBZBmpView::getCaretPos();
+	void CBZBmpView::scrollToCenterOfBmpPoint(CPoint &point);
 
 	// Generated message map functions
 	//{{AFX_MSG(CBZBmpView)
