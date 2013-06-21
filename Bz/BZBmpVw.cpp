@@ -52,6 +52,7 @@ CBZBmpView::CBZBmpView()
 	m_lpbi = NULL;
 	m_tooltipLastAddress = 0xffffffff;
 	m_isLButtonDown = false;
+	m_isShowingCaretPos = FALSE;
 }
 
 CBZBmpView::~CBZBmpView()
@@ -293,6 +294,7 @@ void CBZBmpView::Dump(CDumpContext& dc) const
 void CBZBmpView::OnLButtonDown(UINT nFlags, CPoint point) 
 {
 	m_isLButtonDown = true;
+	m_isShowingCaretPos = FALSE;
 
 	point += GetScrollPosition();
 	point.x -= BMPSPACE;
@@ -329,7 +331,7 @@ void CBZBmpView::OnMouseMove(UINT nFlags, CPoint point)
 					pView->m_dwCaret = currentAddress;
 					pView->GotoCaret();
 					//pView->Activate();
-				} else if(options.bAddressTooltip) {
+				} else if(options.bAddressTooltip && !m_isShowingCaretPos) {
 					TCHAR tmp[22];
 					wsprintf(tmp, _T("0x%08X"), currentAddress);
 					WTL::CToolInfo toolinfo(TTF_SUBCLASS|TTF_TRANSPARENT, m_hWnd, 0, 0, tmp);
@@ -348,9 +350,12 @@ void CBZBmpView::OnMouseMove(UINT nFlags, CPoint point)
 		}
 	}
 
-	m_tooltipLastAddress = 0xffffffff;
-	m_tooltip.Activate(false);
-	m_tooltip.Pop();
+	if(!m_isShowingCaretPos)
+	{
+		m_tooltipLastAddress = 0xffffffff;
+		m_tooltip.Activate(false);
+		m_tooltip.Pop();
+	}
 	//CScrollView::OnMouseMove(nFlags, point);
 }
 void CBZBmpView::OnLButtonUp(UINT nFlags, CPoint point)
@@ -359,8 +364,18 @@ void CBZBmpView::OnLButtonUp(UINT nFlags, CPoint point)
 	//CScrollView::OnLButtonUp(nFlags, point);
 }
 
+static void getBmpPointFromAddr(DWORD currentAddress, CPoint &point)
+{
+	// ScrollView全体における表示したい座標
+	point.x = (currentAddress % (options.nBmpWidth * options.nBmpColorWidth / 8)) * options.nBmpZoom + BMPSPACE;
+	point.y = (currentAddress / (options.nBmpWidth * options.nBmpColorWidth / 8)) * options.nBmpZoom + BMPSPACE;
+}
+
 void CBZBmpView::OnVScroll(UINT nSBCode, UINT nPos, CScrollBar* pScrollBar) 
 {
+	// 先にOnVScrollを呼ばないと、GetScrollInfoやGetScrollPositionでスクロール前の値が返ってきてしまう。
+	CScrollView::OnVScroll(nSBCode, nPos, pScrollBar);
+
 	ATLTRACE("OnVScroll\n");
 	// TODO: Add your message handler code here and/or call default
 	if(nSBCode == SB_THUMBTRACK) {		// ### 1.54
@@ -370,7 +385,38 @@ void CBZBmpView::OnVScroll(UINT nSBCode, UINT nPos, CScrollBar* pScrollBar)
 		nPos = si.nTrackPos;
 		TRACE("nPos, nTrackPos=%u, %d\n", nPos, si.nTrackPos);
 
-		if(options.bAddressTooltip)
+		if(m_isShowingCaretPos)
+		{
+			DWORD currentAddress = getCaretPos();
+			CPoint point;
+			getBmpPointFromAddr(currentAddress, point);
+			// pointをポップアップしたい座標に更新
+			point -= GetScrollPosition();
+
+			// ScrollViewで見えている大きさ
+			CRect cr;
+			GetClientRect(cr);
+
+			if(cr.PtInRect(point)) // if in area
+			{
+				// スクロールして隠れていた時に備えて表示し直す
+				CString tmp;
+				tmp.Format(_T("0x%08X"), currentAddress);
+				WTL::CToolInfo toolinfo(TTF_SUBCLASS|TTF_TRANSPARENT|TTF_TRACK, m_hWnd, 0, 0, const_cast<LPTSTR>(tmp.GetString()));
+
+				m_tooltip.Activate(TRUE);
+				m_tooltip.Popup();
+				m_tooltip.TrackActivate(toolinfo, TRUE);
+
+				// 適切な位置に移動
+				ClientToScreen(&point);
+				m_tooltip.TrackPosition(point.x, point.y);
+			} else	// if not in area
+			{
+				m_tooltip.Activate(FALSE);
+				m_tooltip.Pop();
+			}
+		} else if(options.bAddressTooltip)
 		{
 			CPoint point = GetScrollPosition();
 			point.x = max(point.x-BMPSPACE, 0);
@@ -384,13 +430,14 @@ void CBZBmpView::OnVScroll(UINT nSBCode, UINT nPos, CScrollBar* pScrollBar)
 			m_tooltip.SetToolInfo(toolinfo);
 			m_tooltip.Activate(true);
 			m_tooltip.Popup();
-	}
+		}
 	} else if(nSBCode == SB_THUMBPOSITION) {
-		m_tooltip.Activate(false);
-		m_tooltip.Pop();
+		if(!m_isShowingCaretPos)
+		{
+			m_tooltip.Activate(false);
+			m_tooltip.Pop();
+		}
 	}
-	
-	CScrollView::OnVScroll(nSBCode, nPos, pScrollBar);
 }
 
 BOOL CBZBmpView::OnMouseWheel(UINT nFlags, short zDelta, CPoint pt)
@@ -515,13 +562,6 @@ DWORD CBZBmpView::getCaretPos()
 	return pView->m_dwCaret;
 }
 
-static void getBmpPointFromAddr(DWORD currentAddress, CPoint &point)
-{
-	// ScrollView全体における表示したい座標
-	point.x = (currentAddress % (options.nBmpWidth * options.nBmpColorWidth / 8)) * options.nBmpZoom + BMPSPACE;
-	point.y = (currentAddress / (options.nBmpWidth * options.nBmpColorWidth / 8)) * options.nBmpZoom + BMPSPACE;
-}
-
 void CBZBmpView::scrollToCenterOfBmpPoint(CPoint &point)
 {
 	// ScrollViewで見えている大きさ
@@ -572,7 +612,6 @@ void CBZBmpView::OnBmpViewGotoCaret()
 	// pointをポップアップしたい座標に更新
 	point -= GetScrollPosition();
 
-	// TODO: balloonが意図せず閉じてしまうのを何とかする(WM_MOUSEMOVE…)
 	// TODO: CStringとかじゃなくてTCHAR[]?
 	CString tmp;
 	tmp.Format(_T("0x%08X"), currentAddress);
@@ -583,6 +622,8 @@ void CBZBmpView::OnBmpViewGotoCaret()
 	m_tooltip.TrackActivate(toolinfo, TRUE);
 	ClientToScreen(&point);
 	m_tooltip.TrackPosition(point.x, point.y);
+
+	m_isShowingCaretPos = TRUE;
 }
 
 void CBZBmpView::OnKeyDown(UINT nChar, UINT nRepCnt, UINT nFlags)
@@ -657,5 +698,11 @@ void CBZBmpView::OnActivateView(BOOL bActivate, CView* pActivateView, CView* pDe
 	} else
 	{
 		HideCaret();
+		m_isShowingCaretPos = FALSE;
+		if(pActivateView != NULL) // ==NULL when closing frame, it cause assertion error in tooltip...
+		{
+			m_tooltip.Activate(false);
+			m_tooltip.Pop();
+		}
 	}
 }

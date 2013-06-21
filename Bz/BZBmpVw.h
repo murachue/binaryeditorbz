@@ -47,6 +47,7 @@ private:
 	WTL::CToolTipCtrl m_tooltip;
 	DWORD m_tooltipLastAddress;
 	BOOL m_isLButtonDown;
+	BOOL m_isShowingCaretPos;
 public:
 
 // Operations
