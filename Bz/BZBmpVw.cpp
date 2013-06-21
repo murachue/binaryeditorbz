@@ -442,7 +442,27 @@ void CBZBmpView::OnVScroll(UINT nSBCode, UINT nPos, CScrollBar* pScrollBar)
 
 BOOL CBZBmpView::OnMouseWheel(UINT nFlags, short zDelta, CPoint pt)
 {
-	this->SendMessage(WM_VSCROLL, zDelta > 0 ? SB_PAGEUP : SB_PAGEDOWN, 0);
+	//*
+	// IMPLEMENT 1: Standard...
+	this->SendMessage(WM_VSCROLL, zDelta > 0 ? SB_LINEUP : SB_LINEDOWN, 0);
+	//*/
+
+	/*
+	// IMPLEMENT 2: Too many move
+	WPARAM wParam = zDelta > 0 ? SB_LINEUP : SB_LINEDOWN;
+	short delta = abs(zDelta / WHEEL_DELTA);
+	for(int i = 0; i < delta; i++)
+	{
+		this->SendMessage(WM_VSCROLL, wParam, 0);
+	}
+	//*/
+
+	/*
+	// IMPLEMENT 3: Many move
+	CRect rect;
+	GetClientRect(rect);
+	ScrollToPosition(GetScrollPosition() + CPoint(0, static_cast<int>((double)-zDelta / WHEEL_DELTA * rect.Size().cy)));
+	//*/
 
 	return CScrollView::OnMouseWheel(nFlags, zDelta, pt);
 }
