@@ -582,26 +582,40 @@ DWORD CBZBmpView::getCaretPos()
 	return pView->m_dwCaret;
 }
 
-void CBZBmpView::scrollToCenterOfBmpPoint(CPoint &point)
+void CBZBmpView::scrollToCenterOfBmpPoint(CPoint &point, BOOL force)
 {
-	// ScrollViewで見えている大きさ
+	// ScrollViewの枠の大きさ
 	CRect cr;
 	GetClientRect(cr);
 	CSize client = cr.Size();
-	// ScrollViewで見えている部分のうちで、中心の座標
-	CPoint center = client;
-	center.x /= 2;
-	center.y /= 2;
-	// ScrollView全体の大きさ
+	// ScrollViewの枠の中心座標
+	CPoint center = cr.CenterPoint();
+	// ScrollViewの中身全体の大きさ
 	CSize sz = GetTotalSize();
 	// scrollオフセット
 	CPoint scroll;
 
-	// TODO: あとでmin/max使った式にするかも。
+	// forceでない時、すでにpointが見えていたらスクロールしない。
+	if(!force)
+	{
+		CPoint soff = GetScrollPosition();
+		if(CRect(soff, soff + client).PtInRect(point))
+		{
+			return;
+		}
+	}
+
+	// 0 <= point.* - center.* <= sz.c* - client.c*
+	scroll.x = max(0, min(point.x - center.x, sz.cx - client.cx));
+	scroll.y = max(0, min(point.y - center.y, sz.cy - client.cy));
+
+	// min-maxの方が速いっぽいけど、一応前の実装も残しておく。
+	// (Debug時は速いけど、Release時は変わらなそう。)
+	/*
 	if(point.x - center.x < 0)
 	{
 		scroll.x = 0;
-	} else if(sz.cx < point.x + center.x)
+	} else if(sz.cx - center.x < point.x)
 	{
 		scroll.x = sz.cx - client.cx;
 	} else
@@ -619,6 +633,7 @@ void CBZBmpView::scrollToCenterOfBmpPoint(CPoint &point)
 	{
 		scroll.y = point.y - center.y;
 	}
+	//*/
 
 	ScrollToPosition(scroll);
 }
@@ -628,7 +643,7 @@ void CBZBmpView::OnBmpViewGotoCaret()
 	DWORD currentAddress = getCaretPos();
 	CPoint point;
 	getBmpPointFromAddr(currentAddress, point);
-	scrollToCenterOfBmpPoint(point);
+	scrollToCenterOfBmpPoint(point, FALSE);
 	// pointをポップアップしたい座標に更新
 	point -= GetScrollPosition();
 

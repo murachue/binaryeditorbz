@@ -71,7 +71,7 @@ protected:
 	virtual void Dump(CDumpContext& dc) const;
 #endif
 	DWORD CBZBmpView::getCaretPos();
-	void CBZBmpView::scrollToCenterOfBmpPoint(CPoint &point);
+	void CBZBmpView::scrollToCenterOfBmpPoint(CPoint &point, BOOL force);
 
 	// Generated message map functions
 	//{{AFX_MSG(CBZBmpView)
