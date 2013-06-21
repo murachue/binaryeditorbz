@@ -378,6 +378,41 @@ void CBZBmpView::OnVScroll(UINT nSBCode, UINT nPos, CScrollBar* pScrollBar)
 
 	ATLTRACE("OnVScroll\n");
 	// TODO: Add your message handler code here and/or call default
+
+	if(m_isShowingCaretPos)
+	{
+		DWORD currentAddress = getCaretPos();
+		CPoint point;
+		getBmpPointFromAddr(currentAddress, point);
+		// pointをポップアップしたい座標に更新
+		point -= GetScrollPosition();
+
+		// ScrollViewで見えている大きさ
+		CRect cr;
+		GetClientRect(cr);
+
+		if(cr.PtInRect(point)) // if in area
+		{
+			// スクロールして隠れていた時に備えて表示し直す
+			CString tmp;
+			tmp.Format(_T("0x%08X"), currentAddress);
+			WTL::CToolInfo toolinfo(TTF_SUBCLASS|TTF_TRANSPARENT|TTF_TRACK, m_hWnd, 0, 0, const_cast<LPTSTR>(tmp.GetString()));
+
+			m_tooltip.Activate(TRUE);
+			m_tooltip.Popup();
+			m_tooltip.TrackActivate(toolinfo, TRUE);
+
+			// 適切な位置に移動
+			ClientToScreen(&point);
+			m_tooltip.TrackPosition(point.x, point.y);
+		} else	// if not in area
+		{
+			m_tooltip.Activate(FALSE);
+			m_tooltip.Pop();
+		}
+		return;
+	}
+
 	if(nSBCode == SB_THUMBTRACK) {		// ### 1.54
 		SCROLLINFO si;
 		GetScrollInfo(SB_VERT, &si, SIF_TRACKPOS);
@@ -385,38 +420,7 @@ void CBZBmpView::OnVScroll(UINT nSBCode, UINT nPos, CScrollBar* pScrollBar)
 		nPos = si.nTrackPos;
 		TRACE("nPos, nTrackPos=%u, %d\n", nPos, si.nTrackPos);
 
-		if(m_isShowingCaretPos)
-		{
-			DWORD currentAddress = getCaretPos();
-			CPoint point;
-			getBmpPointFromAddr(currentAddress, point);
-			// pointをポップアップしたい座標に更新
-			point -= GetScrollPosition();
-
-			// ScrollViewで見えている大きさ
-			CRect cr;
-			GetClientRect(cr);
-
-			if(cr.PtInRect(point)) // if in area
-			{
-				// スクロールして隠れていた時に備えて表示し直す
-				CString tmp;
-				tmp.Format(_T("0x%08X"), currentAddress);
-				WTL::CToolInfo toolinfo(TTF_SUBCLASS|TTF_TRANSPARENT|TTF_TRACK, m_hWnd, 0, 0, const_cast<LPTSTR>(tmp.GetString()));
-
-				m_tooltip.Activate(TRUE);
-				m_tooltip.Popup();
-				m_tooltip.TrackActivate(toolinfo, TRUE);
-
-				// 適切な位置に移動
-				ClientToScreen(&point);
-				m_tooltip.TrackPosition(point.x, point.y);
-			} else	// if not in area
-			{
-				m_tooltip.Activate(FALSE);
-				m_tooltip.Pop();
-			}
-		} else if(options.bAddressTooltip)
+		if(options.bAddressTooltip)
 		{
 			CPoint point = GetScrollPosition();
 			point.x = max(point.x-BMPSPACE, 0);
