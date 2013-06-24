@@ -550,8 +550,15 @@ DWORD CBZDoc::PasteFromClipboard(DWORD dwPtr, BOOL bIns)
 		return 0;
 */		if(!(hMem = ::GetClipboardData(::EnumClipboardFormats(0))))
 			return 0;
-		pMem = (LPBYTE)::GlobalLock(hMem);
-		dwSize = ::GlobalSize(hMem);
+		// HBITMAPで(デバッグ時は問題ないがリリースだと)例外発生して落ちるので、__tryで囲む。
+		__try
+		{
+			pMem = (LPBYTE)::GlobalLock(hMem);
+			dwSize = ::GlobalSize(hMem);
+		} __except(EXCEPTION_CONTINUE_EXECUTION)
+		{
+			// Do nothing
+		}
 	}
 	if(!dwSize) return 0;
 #ifdef FILE_MAPPING
