@@ -452,11 +452,12 @@ void CBZDoc::OnUpdateEditReadOnlyOpen(CCmdUI* pCmdUI)
 	pCmdUI->SetCheck(options.bReadOnlyOpen);	
 }
 
-BOOL CBZDoc::CopyToClipboard(DWORD dwPtr, DWORD dwSize, BOOL bHexString)	// ###1.5
+BOOL CBZDoc::CopyToClipboard(DWORD dwOffset, DWORD dwSize, BOOL bHexString)	// ###1.5
 {
 #ifdef FILE_MAPPING
-	QueryMapView(m_pData, dwPtr);
-	if(dwSize >= options.dwMaxMapSize || IsOutOfMap(m_pData + dwPtr + dwSize)) {
+	LPBYTE lpStart = QueryMapViewTama2(dwOffset, dwSize); //QueryMapView(m_pData, dwPtr);
+	if(GetMapRemain(dwOffset) < dwSize) //if(dwSize >= options.dwMaxMapSize || IsOutOfMap(m_pData + dwPtr + dwSize))
+	{
 		AfxMessageBox(IDS_ERR_COPY);
 		return FALSE;
 	}
@@ -475,11 +476,11 @@ BOOL CBZDoc::CopyToClipboard(DWORD dwPtr, DWORD dwSize, BOOL bHexString)	// ###1
 		pMemBin  = (LPBYTE)::GlobalLock(hMemBin);
 	}
 	if(!bHexString) {
-		memcpy(pMemTxt, m_pData + dwPtr, dwSize);
+		memcpy(pMemTxt, lpStart, dwSize);
 		*(pMemTxt + dwSize) = '\0';
 	} else {
 		// hexstring
-		LPBYTE s = m_pData + dwPtr;
+		LPBYTE s = lpStart;
 		LPBYTE e = s + dwSize;
 		LPBYTE d = pMemTxt;
 		for(; s < e; s++, d += 2) {
@@ -490,7 +491,7 @@ BOOL CBZDoc::CopyToClipboard(DWORD dwPtr, DWORD dwSize, BOOL bHexString)	// ###1
 	::GlobalUnlock(hMemTxt);
 	if(!bHexString) {
 		*((DWORD*)(pMemBin)) = dwSize;
-		memcpy(pMemBin + sizeof(dwSize), m_pData + dwPtr, dwSize);
+		memcpy(pMemBin + sizeof(dwSize), lpStart, dwSize);
 		::GlobalUnlock(hMemBin);
 	}
 	AfxGetMainWnd()->OpenClipboard();
@@ -718,13 +719,18 @@ void CBZDoc::OnUpdateEditUndo(CCmdUI* pCmdUI)
 //dwPtr-4byte(file-offset), mode(byte), data(? byte), dwBlock-4byte(これも含めた全部のバイト)
 //dwSizeはdwBlock-9。つまりdataのサイズ
 
-void CBZDoc::StoreUndo(DWORD dwPtr, DWORD dwSize, UndoMode mode)
+BOOL CBZDoc::StoreUndo(DWORD dwOffset, DWORD dwSize, UndoMode mode)
 {
-	if(mode == UNDO_OVR && dwPtr+dwSize >= m_dwTotal)
-		dwSize = m_dwTotal - dwPtr;
-	if(dwSize == 0) return;
+	if(mode == UNDO_OVR && dwOffset+dwSize >= m_dwTotal)
+		dwSize = m_dwTotal - dwOffset;
+	if(dwSize == 0) return FALSE;
 #ifdef FILE_MAPPING
-	QueryMapView(m_pData, dwPtr);
+	LPBYTE lpStart = QueryMapViewTama2(dwOffset, dwSize); //QueryMapView(m_pData, dwPtr);
+	if(GetMapRemain(dwOffset) < dwSize)
+	{
+		AfxMessageBox(IDS_ERR_COPY);
+		return FALSE;
+	}
 #endif //FILE_MAPPING
 	DWORD dwBlock = dwSize + 9;
 	if(mode == UNDO_DEL)
@@ -736,12 +742,12 @@ void CBZDoc::StoreUndo(DWORD dwPtr, DWORD dwSize, UndoMode mode)
 		m_pUndo = (LPBYTE)MemReAlloc(m_pUndo, m_dwUndo+dwBlock);
 	ASSERT(m_pUndo != NULL);
 	LPBYTE p = m_pUndo + m_dwUndo;
-	*((DWORD*&)p)++ = dwPtr;
+	*((DWORD*&)p)++ = dwOffset;
 	*p++ = mode;
 	if(mode == UNDO_DEL) {
 		*((DWORD*&)p)++ = dwSize;
 	} else {
-		memcpy(p, m_pData+dwPtr, dwSize);
+		memcpy(p, m_pData+dwOffset, dwSize);
 		p+=dwSize;
 	}
 	*((DWORD*&)p)++ = dwBlock;
@@ -749,6 +755,7 @@ void CBZDoc::StoreUndo(DWORD dwPtr, DWORD dwSize, UndoMode mode)
 	ASSERT(m_dwUndo >= dwBlock && m_dwUndo != 0xFFffFFff);//Overflow check
 	ASSERT(p == m_pUndo+m_dwUndo);
 	TouchDoc();
+	return TRUE;
 }
 
 DWORD CBZDoc::DoUndo()

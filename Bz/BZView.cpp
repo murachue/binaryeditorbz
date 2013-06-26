@@ -1105,7 +1105,7 @@ void CBZView::OnChar(UINT nChar, UINT nRepCnt, UINT nFlags)
 			m_pDoc->StoreUndo(m_dwCaret, dwSize, UNDO_OVR);
 	}
 	m_bBlock = FALSE;
-	p  = m_pDoc->GetDocPtr() + m_dwCaret;
+	p = m_pDoc->QueryMapViewTama2(m_dwCaret, 4); //p  = m_pDoc->GetDocPtr() + m_dwCaret;
 	if(!m_bCaretOnChar) {
 		if(nChar >= '0' && nChar <= '9')
 			nChar -= '0';
@@ -1428,58 +1428,46 @@ void CBZView::OnStatusChar()
 	OnCharMode(m_charset + ID_CHAR_ASCII);
 }
 
-int CBZView::GetValue(DWORD ofs, int bytes)
+int CBZView::GetValue(DWORD dwOffset, int bytes)
 {
-	LPBYTE p  = m_pDoc->GetDocPtr();
+	LPBYTE lpStart = m_pDoc->QueryMapViewTama2(dwOffset, bytes); //LPBYTE p  = m_pDoc->GetDocPtr();
 	int val = 0;
-	if(p) {
-#ifdef FILE_MAPPING
-		if(m_pDoc->IsOutOfMap(p + ofs)) return 0;
-#endif //FILE_MAPPING
-		if(ofs + bytes > m_dwTotal)
-			val = 0;
-		else {
-			p += ofs;
-			switch(bytes) {
-				case 1: val = *p; break;
-				case 2: val = SwapWord(*(WORD*)p); break;
-				case 4: val = SwapDword(*(DWORD*)p); break;
-			}
+	if(!lpStart || m_pDoc->GetMapRemain(dwOffset) < bytes)return 0;
+	if(dwOffset + bytes > m_dwTotal)
+		val = 0;
+	else {
+		switch(bytes) {
+			case 1: val = *lpStart; break;
+			case 2: val = SwapWord(*(WORD*)lpStart); break;
+			case 4: val = SwapDword(*(DWORD*)lpStart); break;
 		}
 	}
 	return val;
 }
 
-ULONGLONG CBZView::GetValue64(DWORD ofs)
+ULONGLONG CBZView::GetValue64(DWORD dwOffset)
 {
-	LPBYTE p  = m_pDoc->GetDocPtr();
+	LPBYTE lpStart = m_pDoc->QueryMapViewTama2(dwOffset, 8); //LPBYTE p  = m_pDoc->GetDocPtr();
 	ULONGLONG val = 0;
-	if(p) {
-#ifdef FILE_MAPPING
-		if(m_pDoc->IsOutOfMap(p + ofs)) return 0;
-#endif //FILE_MAPPING
-		if(ofs + 8 > m_dwTotal)
-			val = 0;
-		else {
-			p += ofs;
-			val = SwapQword(*(ULONGLONG*)p);
-		}
+	if(!lpStart || m_pDoc->GetMapRemain(dwOffset) < 8)return 0;
+	if(dwOffset + 8 > m_dwTotal)
+		val = 0;
+	else {
+		val = SwapQword(*(ULONGLONG*)lpStart);
 	}
 	return val;
 }
 
-void CBZView::SetValue(DWORD ofs, int bytes, int val)
+void CBZView::SetValue(DWORD dwOffset, int bytes, int val)
 {
-	LPBYTE p  = m_pDoc->GetDocPtr();
-	if(p && ofs + bytes <= m_dwTotal) {
-		p += ofs;
-		m_pDoc->StoreUndo(ofs, bytes, UNDO_OVR);
-		SetValue(p, bytes, val);
-		Invalidate(FALSE);
-		if(m_dwStruct) {
-			CBZFormView* pView = (CBZFormView*)GetWindow(GW_HWNDFIRST);
-			pView->OnSelchangeListTag();
-		}
+	LPBYTE lpStart = m_pDoc->QueryMapViewTama2(dwOffset, bytes); //LPBYTE p  = m_pDoc->GetDocPtr();
+	if(!lpStart || m_pDoc->GetMapRemain(dwOffset) < bytes /*|| dwOffset + bytes > m_dwTotal*/)return;
+	m_pDoc->StoreUndo(dwOffset, bytes, UNDO_OVR);
+	SetValue(lpStart, bytes, val);
+	Invalidate(FALSE);
+	if(m_dwStruct) {
+		CBZFormView* pView = (CBZFormView*)GetWindow(GW_HWNDFIRST);
+		pView->OnSelchangeListTag();
 	}
 }
 
@@ -1967,14 +1955,17 @@ void CBZView::CutOrCopy(CutMode mode)
 
 void CBZView::FillValue(int val)
 {
-	DWORD dwPtr  = BlockBegin();
-	DWORD dwSize = BlockEnd() - dwPtr;
-	m_pDoc->StoreUndo(dwPtr, dwSize, UNDO_OVR);
-	LPBYTE p  = m_pDoc->GetDocPtr() + dwPtr;
-	LPBYTE pEnd = p + dwSize;
-	while(p < pEnd) {
+	DWORD dwStart  = BlockBegin();
+	DWORD dwEnd = BlockEnd();
+	DWORD dwSize = dwEnd - dwStart;
+	m_pDoc->StoreUndo(dwStart, dwSize, UNDO_OVR);
+	
+	DWORD dwCurrent = dwStart;
+	while(dwCurrent < dwEnd) {
+		LPBYTE p = m_pDoc->QueryMapViewTama2(dwCurrent, m_nBytes);
+		if(!p || m_pDoc->GetMapRemain(dwCurrent) < m_nBytes)return;
 		SetValue(p, m_nBytes, val);
-		p += m_nBytes;
+		dwCurrent += m_nBytes;
 	}
 	Invalidate(FALSE);
 }
@@ -2391,7 +2382,7 @@ CharSet CBZView::AutoDetectCharSet()
 	if(!p) return options.charset;
 	DWORD dwSize = m_dwTotal;
 	if(dwSize > options.dwDetectMax) dwSize = options.dwDetectMax;
-	CharSet charset = DetectCodeType(p, p + dwSize);
+	CharSet charset = DetectCodeType(0, dwSize);//(p, p + dwSize);
 	if(charset == CTYPE_BINARY)
 		charset = options.charset;
 	return charset;
@@ -2403,9 +2394,11 @@ CharSet CBZView::AutoDetectCharSet()
 #define DT_EUC 8
 #define DT_UTF8 16		// ### 1.54b
 
-CharSet CBZView::DetectCodeType(LPBYTE p, LPBYTE pEnd)
+CharSet CBZView::DetectCodeType(DWORD dwStart, DWORD dwMaxSize)//(LPBYTE p, LPBYTE pEnd)
 {
-	if(pEnd - p < 2) return CTYPE_BINARY;	// ### 1.54b
+	LPBYTE p = m_pDoc->QueryMapViewTama2(dwStart, dwMaxSize); //LPBYTE p  = m_pDoc->GetDocPtr();
+	DWORD dwRemain = m_pDoc->GetMapRemain(dwStart);
+	if(!p || dwRemain < 2)return CTYPE_BINARY;
 
 	if(*(WORD*)p == 0xFEFF) {
 		options.bByteOrder = FALSE;		// ### 1.54a
@@ -2415,13 +2408,17 @@ CharSet CBZView::DetectCodeType(LPBYTE p, LPBYTE pEnd)
 		options.bByteOrder = TRUE;
 		return CTYPE_UNICODE;
 	}
-	if(*(WORD*)p == 0xBBEF && (pEnd - p) > 3 && *(p+2) == 0xBF) {
+	if(*(WORD*)p == 0xBBEF && dwRemain > 3 && *(p+2) == 0xBF) {
 		return CTYPE_UTF8;
 	}
 
+	DWORD dwCurrent = dwStart;
 	DWORD flag = DT_SJIS | DT_JIS | DT_EUC | DT_UTF8;
-	while(p < pEnd) {
-		BYTE c = (BYTE)*p++;
+	while(dwCurrent < dwStart + dwMaxSize)//(p < pEnd)
+	{
+		p = m_pDoc->QueryMapViewTama2(dwCurrent, 2);
+		dwRemain = m_pDoc->GetMapRemain(dwCurrent);
+		BYTE c = (BYTE)*p++; dwCurrent++;//BYTE c = (BYTE)*p++;
 		if(c == '\n') {
 			if(flag == DT_SJIS || flag == DT_EUC || flag & DT_UNICODE) break;
 		}
@@ -2432,15 +2429,38 @@ CharSet CBZView::DetectCodeType(LPBYTE p, LPBYTE pEnd)
 					flag &= ~DT_EUC;
 			}
 			if(flag & DT_UTF8) {	// ### 1.54b
-				if(c >= 0xC0 && p < pEnd) {
-					if((*p & 0xC0) != 0x80)
-						flag &= ~DT_UTF8;
+				if(c >= 0xC0)
+				{
+					if     ((c & 0xE0) == 0xC0 && dwRemain >= 2) { //UTF-8: 110yyy yx, 10xx xxxx
+						if((*p & 0xC0/*1100 0000*/) != 0x80/*1000 0000*/) // check 10xx xxxx
+							flag &= ~DT_UTF8;
+					}
+					else if((c & 0xF0) == 0xE0 && dwRemain >= 3) { //UTF-8: 1110yyyy, 10yxxx xx, 10xx xxxx
+						if((*p & 0xC0/*1100 0000*/) != 0x80/*1000 0000*/ || (*(p+1) & 0xC0/*1100 0000*/) != 0x80/*1000 0000*/) // check 10xxxxxx
+							flag &= ~DT_UTF8;
+					}
+					else if((c & 0xF8) == 0xF0 && dwRemain >= 4) { //UTF-8: 11110y yy, 10yy xxxx, 10xxxx xx, 10xx xxxx
+						if((*p & 0xC0/*1100 0000*/) != 0x80/*1000 0000*/ || (*(p+1) & 0xC0/*1100 0000*/) != 0x80/*1000 0000*/ || (*(p+2) & 0xC0/*1100 0000*/) != 0x80/*1000 0000*/) // check 10xxxxxx
+							flag &= ~DT_UTF8;
+					}
+				}
+				else if(flag == (DT_UTF8 | DT_SJIS) && dwRemain >= 5) // c == [0x80-0xBF]
+				{
+					int i=0;
+					for(;i < 3;i++)
+					{
+						if((*(p+i) & 0xC0) != 0x80)break;
+					}
+					if(i==3 || ((*(p+i)) >= 0x80 && (*(p+i)) < 0xC0))
+					{
+						return CTYPE_SJIS;
+					}
 				}
 			}
 		}
 		if((c >= 0x08 && c <= 0x0D) || (c >= 0x20 && c <= 0x7E) || (c >= 0x81 && c <= 0xFC)) {
 			if(_ismbblead(c)) {
-				c = (BYTE)*p++;
+				c = *p++; dwCurrent++;//c = (BYTE)*p++;
 				if(!_ismbbtrail(c)) {
 					flag &= ~DT_SJIS;
 					if((c == 0 || c == 0xFF) && ((DWORD)p & 1) == 0)

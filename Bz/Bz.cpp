@@ -251,6 +251,10 @@ CString SeparateByComma(int num, BOOL bSigned)
 	int n = sSrc.GetLength();
 	LPCTSTR src = sSrc;
 	LPTSTR dst = sDst;
+	if(*src=='-' && n >= 2)
+	{
+		*dst++ = *src++; n--;
+	}
 	do {
 		*dst++ = *src++; n--;
 		if(!(n % 3) && n) *dst++ = ',';
@@ -267,6 +271,10 @@ CString SeparateByComma64(ULONGLONG num, BOOL bSigned)
 	int n = sSrc.GetLength();
 	LPCTSTR src = sSrc;
 	LPTSTR dst = sDst;
+	if(*src=='-' && n >= 2)
+	{
+		*dst++ = *src++; n--;
+	}
 	do {
 		*dst++ = *src++; n--;
 		if(!(n % 3) && n) *dst++ = ',';
