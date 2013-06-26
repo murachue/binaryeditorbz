@@ -373,6 +373,16 @@ static void getBmpPointFromAddr(DWORD currentAddress, CPoint &point)
 
 void CBZBmpView::OnVScroll(UINT nSBCode, UINT nPos, CScrollBar* pScrollBar) 
 {
+	// SB_THUMBTRACKの場合、CScrollView::OnVScrollを呼ぶ前にnPosを加工しないと16bitなママなので、スクロールが吹っ飛ぶ…
+	// 引数UINT=32bitだし、それMFCの仕事だろう常識的に考えて…
+	if(nSBCode == SB_THUMBTRACK) {
+		SCROLLINFO si;
+		GetScrollInfo(SB_VERT, &si, SIF_TRACKPOS);
+		TRACE("nPos, nTrackPos=%u, %d\n", nPos, si.nTrackPos);
+		nPos = si.nTrackPos;
+		TRACE("nPos, nTrackPos=%u, %d\n", nPos, si.nTrackPos);
+	}
+
 	// 先にOnVScrollを呼ばないと、GetScrollInfoやGetScrollPositionでスクロール前の値が返ってきてしまう。
 	CScrollView::OnVScroll(nSBCode, nPos, pScrollBar);
 
@@ -414,12 +424,6 @@ void CBZBmpView::OnVScroll(UINT nSBCode, UINT nPos, CScrollBar* pScrollBar)
 	}
 
 	if(nSBCode == SB_THUMBTRACK) {		// ### 1.54
-		SCROLLINFO si;
-		GetScrollInfo(SB_VERT, &si, SIF_TRACKPOS);
-		TRACE("nPos, nTrackPos=%u, %d\n", nPos, si.nTrackPos);
-		nPos = si.nTrackPos;
-		TRACE("nPos, nTrackPos=%u, %d\n", nPos, si.nTrackPos);
-
 		if(options.bAddressTooltip)
 		{
 			CPoint point = GetScrollPosition();
