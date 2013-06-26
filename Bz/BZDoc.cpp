@@ -726,7 +726,8 @@ BOOL CBZDoc::StoreUndo(DWORD dwOffset, DWORD dwSize, UndoMode mode)
 	if(dwSize == 0) return FALSE;
 #ifdef FILE_MAPPING
 	LPBYTE lpStart = QueryMapViewTama2(dwOffset, dwSize); //QueryMapView(m_pData, dwPtr);
-	if(GetMapRemain(dwOffset) < dwSize)
+	// 末尾にデータを追加する(=UNDO_DEL)時は、GetMapRemain()が0でも問題ない。
+	if(mode != UNDO_DEL && GetMapRemain(dwOffset) < dwSize)
 	{
 		AfxMessageBox(IDS_ERR_COPY);
 		return FALSE;
