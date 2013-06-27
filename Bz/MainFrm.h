@@ -49,6 +49,7 @@ public:
 	BOOL m_bStructView;
 	BOOL m_bInspectView;
 	BOOL m_bAnalyzerView;
+	BOOL m_bScriptView;
 	UINT m_nSplitView;
 	UINT m_nSplitView0;
 	BOOL m_bCompare;
@@ -117,6 +118,8 @@ public:
 	afx_msg void OnViewAnalyzer();
 	afx_msg void OnUpdateViewAnalyzer(CCmdUI *pCmdUI);
 	afx_msg void OnHelpIndex();
+	afx_msg void OnViewScript();
+	afx_msg void OnUpdateViewScript(CCmdUI *pCmdUI);
 };
 
 #define BZ_CLASSNAME "BzEditorClass"

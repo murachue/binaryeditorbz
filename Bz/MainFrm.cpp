@@ -37,6 +37,7 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "BZFormVw.h"
 #include "BZInspectView.h"
 #include "BZAnalyzerView.h"
+#include "BZScriptView.h"
 #include "SettingDlg.h"
 
 #ifdef _DEBUG
@@ -82,6 +83,8 @@ BEGIN_MESSAGE_MAP(CMainFrame, CFrameWnd)
 	ON_COMMAND(ID_VIEW_ANALYZER, &CMainFrame::OnViewAnalyzer)
 	ON_UPDATE_COMMAND_UI(ID_VIEW_ANALYZER, &CMainFrame::OnUpdateViewAnalyzer)
 	ON_COMMAND(ID_HELP_INDEX, &CMainFrame::OnHelpIndex)
+	ON_COMMAND(ID_VIEW_SCRIPT, &CMainFrame::OnViewScript)
+	ON_UPDATE_COMMAND_UI(ID_VIEW_SCRIPT, &CMainFrame::OnUpdateViewScript)
 END_MESSAGE_MAP()
 
 static UINT indicators[] =
@@ -104,6 +107,7 @@ CMainFrame::CMainFrame()
 	m_bStructView = FALSE;
 	m_bInspectView = FALSE;
 	m_bAnalyzerView= FALSE;
+	m_bScriptView= FALSE;
 	m_nSplitView = m_nSplitView0 = 0;
 	m_bDisableStatusInfo = FALSE;
 
@@ -203,6 +207,7 @@ BOOL CMainFrame::OnCreateClient(LPCREATESTRUCT lpcs, CCreateContext* pContext)
 	m_bStructView = options.bStructView;
 	m_bInspectView = options.bInspectView;
 	m_bAnalyzerView = options.bAnalyzerView;
+	//TODO:m_bScriptView = options.bScriptView;
 	CreateClient(pContext);
 	return TRUE; //CFrameWnd::OnCreateClient(lpcs, pContext);
 }
@@ -240,7 +245,7 @@ BOOL CMainFrame::CreateClient(CCreateContext* pContext)
 	CDocument *pDoc;
 	CDocument *pDoc2 = NULL;
 
-	BOOL bSubView = (m_bBmpView || m_bStructView || m_bInspectView || m_bAnalyzerView);
+	BOOL bSubView = (m_bBmpView || m_bStructView || m_bInspectView || m_bAnalyzerView || m_bScriptView);
 
 	if(m_nSplitView && m_nSplitView0) {
 		pDoc  = ((CView*)m_pSplitter->GetPane(0, 0))->GetDocument();
@@ -308,8 +313,12 @@ BOOL CMainFrame::CreateClient(CCreateContext* pContext)
 					m_pSplitter->CreateView(r, c, RUNTIME_CLASS(CBZInspectView), CSize(0,0), pContext);
 				else if(m_bAnalyzerView)
 					m_pSplitter->CreateView(r, c, RUNTIME_CLASS(CBZAnalyzerView), CSize(0,0), pContext);
-				else
+				else if(m_bScriptView)
+					m_pSplitter->CreateView(r, c, RUNTIME_CLASS(CBZScriptView), CSize(0,0), pContext);
+				else if(m_bStructView)
 					m_pSplitter->CreateView(r, c, RUNTIME_CLASS(CBZFormView), CSize(0,0), pContext);
+				else
+					ASSERT(FALSE); // panic
 				m_pSplitter->CreateView(r, c + 1, RUNTIME_CLASS(CBZView), CSize(0,0), pContext);
 				bzViewNew[i] = dynamic_cast<CBZView *>(m_pSplitter->GetPane(r, c + 1));
 				((CView*)m_pSplitter->GetPane(r, c))->OnInitialUpdate();
@@ -350,8 +359,12 @@ BOOL CMainFrame::CreateClient(CCreateContext* pContext)
 				m_pSplitter->CreateView(0, 0, RUNTIME_CLASS(CBZInspectView), CSize(0,0), pContext);
 			else if(m_bAnalyzerView)
 				m_pSplitter->CreateView(0, 0, RUNTIME_CLASS(CBZAnalyzerView), CSize(0,0), pContext);
-			else
+			else if(m_bScriptView)
+				m_pSplitter->CreateView(0, 0, RUNTIME_CLASS(CBZScriptView), CSize(0,0), pContext);
+			else if(m_bStructView)
 				m_pSplitter->CreateView(0, 0, RUNTIME_CLASS(CBZFormView), CSize(0,0), pContext);
+			else
+				ASSERT(FALSE); // panic
 			m_pSplitter->CreateView(0, 1, RUNTIME_CLASS(CBZView), CSize(0,0), pContext);
 			((CView*)m_pSplitter->GetPane(0, 0))->OnInitialUpdate();
 			pActiveView = (CView*)m_pSplitter->GetPane(0, 1);
@@ -363,7 +376,7 @@ BOOL CMainFrame::CreateClient(CCreateContext* pContext)
 		}
 		pActiveView->OnInitialUpdate();
 	}
-	if((m_bStructView||m_bInspectView||m_bAnalyzerView) && m_nSplitView != ID_VIEW_SPLIT_V) {
+	if((m_bStructView||m_bInspectView||m_bAnalyzerView||m_bScriptView) && m_nSplitView != ID_VIEW_SPLIT_V) {
 		m_pSplitter->SetColumnInfo(0, options.xSplitStruct, 0);
 	}
 
@@ -454,6 +467,7 @@ void CMainFrame::OnViewBitmap()
 	m_bStructView = FALSE;
 	m_bInspectView = FALSE;
 	m_bAnalyzerView = FALSE;
+	m_bScriptView = FALSE;
 	CreateClient();
 }
 
@@ -465,6 +479,7 @@ void CMainFrame::OnViewStruct()
 	m_bStructView = !m_bStructView;
 	m_bInspectView = FALSE;
 	m_bAnalyzerView = FALSE;
+	m_bScriptView = FALSE;
 	CreateClient();
 }
 
@@ -476,6 +491,7 @@ void CMainFrame::OnViewInspect()
 	m_bStructView = FALSE;
 	m_bInspectView = !m_bInspectView;
 	m_bAnalyzerView = FALSE;
+	m_bScriptView = FALSE;
 	CreateClient();
 }
 
@@ -486,6 +502,18 @@ void CMainFrame::OnViewAnalyzer()
 	m_bStructView = FALSE;
 	m_bInspectView = FALSE;
 	m_bAnalyzerView = !m_bAnalyzerView;
+	m_bScriptView = FALSE;
+	CreateClient();
+}
+
+void CMainFrame::OnViewScript()
+{
+	GetSplitInfo();
+	m_bBmpView = FALSE;
+	m_bStructView = FALSE;
+	m_bInspectView = FALSE;
+	m_bAnalyzerView = FALSE;
+	m_bScriptView = !m_bScriptView;
 	CreateClient();
 }
 
@@ -599,6 +627,11 @@ void CMainFrame::OnUpdateViewInspect(CCmdUI *pCmdUI)
 void CMainFrame::OnUpdateViewAnalyzer(CCmdUI *pCmdUI)
 {
 	pCmdUI->SetCheck(m_bAnalyzerView);
+}
+
+void CMainFrame::OnUpdateViewScript(CCmdUI *pCmdUI)
+{
+	pCmdUI->SetCheck(m_bScriptView);
 }
 
 
@@ -728,7 +761,7 @@ void CMainFrame::GetSplitInfo()
 		options.cxFrame2 = rFrame.Width();
 		m_pSplitter->GetColumnInfo(0, nCur, nMin);
 		options.xSplit = nCur;
-		if(m_bBmpView || m_bStructView || m_bInspectView || m_bAnalyzerView) {
+		if(m_bBmpView || m_bStructView || m_bInspectView || m_bAnalyzerView || m_bScriptView) {
 			m_pSplitter->GetColumnInfo(1, nCur, nMin);
 			options.xSplit += nCur;
 		}
@@ -737,7 +770,8 @@ void CMainFrame::GetSplitInfo()
 	options.bStructView = m_bStructView;
 	options.bInspectView = m_bInspectView;
 	options.bAnalyzerView = m_bAnalyzerView;
-	if(m_bStructView || m_bInspectView || m_bAnalyzerView) {
+	//TODO:options.bScriptView = m_bScriptView;
+	if(m_bStructView || m_bInspectView || m_bAnalyzerView || m_bScriptView) {
 		m_pSplitter->GetColumnInfo(0, nCur, nMin);
 		options.xSplitStruct = nCur;
 	}

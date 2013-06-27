@@ -7,8 +7,7 @@
 //
 // Generated from the TEXTINCLUDE 2 resource.
 //
-#include "afxres.h"
-
+#include "afxres.h"
 /////////////////////////////////////////////////////////////////////////////
 #undef APSTUDIO_READONLY_SYMBOLS
 
@@ -151,6 +150,14 @@ BEGIN
     LTEXT           "解析中",IDC_STATIC,70,19,22,8
 END
 
+IDD_BZSCRIPTVIEW DIALOGEX 0, 0, 100, 305
+STYLE DS_SETFONT | WS_CHILD
+FONT 9, "ＭＳ Ｐゴシック", 0, 0, 0x0
+BEGIN
+    EDITTEXT        IDC_SCRIPT_RESULT,7,7,86,272,ES_MULTILINE | ES_AUTOVSCROLL | ES_AUTOHSCROLL | ES_READONLY | WS_VSCROLL | WS_HSCROLL
+    EDITTEXT        IDC_SCRIPT_INPUT,7,286,86,12,ES_AUTOHSCROLL | ES_WANTRETURN
+END
+
 
 /////////////////////////////////////////////////////////////////////////////
 //
@@ -223,6 +230,14 @@ BEGIN
         TOPMARGIN, 7
         BOTTOMMARGIN, 52
     END
+
+    IDD_BZSCRIPTVIEW, DIALOG
+    BEGIN
+        LEFTMARGIN, 7
+        RIGHTMARGIN, 93
+        TOPMARGIN, 7
+        BOTTOMMARGIN, 298
+    END
 END
 #endif    // APSTUDIO_INVOKED
 
@@ -294,6 +309,7 @@ BEGIN
         MENUITEM "構造体表示(&U)",                   ID_VIEW_STRUCT
         MENUITEM "インスペクタ表示(&I)",                ID_VIEW_INSPECT
         MENUITEM "アナライザー表示(&A)",                ID_VIEW_ANALYZER
+        MENUITEM "スクリプト表示(&Z)",                 ID_VIEW_SCRIPT
         MENUITEM SEPARATOR
         MENUITEM "上下に分割(&H)",                   ID_VIEW_SPLIT_H
         MENUITEM "左右に分割(&V)",                   ID_VIEW_SPLIT_V
@@ -499,7 +515,6 @@ END
 
 3 TEXTINCLUDE 
 BEGIN
-//    "#define _AFX_NO_SPLITTER_RESOURCES\r\n"
     "#define _AFX_NO_OLE_RESOURCES\r\n"
     "#define _AFX_NO_TRACKER_RESOURCES\r\n"
     "#define _AFX_NO_PROPERTY_RESOURCES\r\n"
@@ -763,7 +778,6 @@ END
 //
 // Generated from the TEXTINCLUDE 3 resource.
 //
-//#define _AFX_NO_SPLITTER_RESOURCES
 #define _AFX_NO_OLE_RESOURCES
 #define _AFX_NO_TRACKER_RESOURCES
 #define _AFX_NO_PROPERTY_RESOURCES
