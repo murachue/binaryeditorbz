@@ -388,7 +388,7 @@ BOOL CMainFrame::CreateClient(CCreateContext* pContext)
 		}
 		pActiveView->OnInitialUpdate();
 	}
-	if((m_bStructView||m_bInspectView||m_bAnalyzerView||m_bScriptView) && m_nSplitView != ID_VIEW_SPLIT_V) {
+	if((m_bStructView||m_bInspectView||m_bAnalyzerView/*||m_bScriptView*/) && m_nSplitView != ID_VIEW_SPLIT_V) {
 		m_pSplitter->SetColumnInfo(0, options.xSplitStruct, 0);
 	}
 

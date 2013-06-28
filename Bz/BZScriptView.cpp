@@ -248,33 +248,12 @@ void CBZScriptView::ClearAll(void)
 {
 	m_editResult.SetWindowText(_T(""));
 	m_editInput.SetWindowText(_T(""));
-	//ruby_show_version();
+	//ruby_show_version(); // uses stdio (not $stdout.write)...
 
 	VALUE value;
 	int state;
-	/*
-	wchar_t *wstr;
-	char *cstr;
-	int wstrlen, cstrlen;
-	CString rstr;
-	*/
 
 	value = rb_eval_string_protect("puts RUBY_DESCRIPTION", &state);
-
-	/*
-	value = rb_obj_as_string(value);
-	cstr = RSTRING_PTR(value);
-	cstrlen = RSTRING_LEN(value);
-	wstrlen = MultiByteToWideChar(CP_THREAD_ACP, 0, cstr, cstrlen, NULL, 0);
-	wstr = new wchar_t[wstrlen + 1];
-	MultiByteToWideChar(CP_THREAD_ACP, 0, cstr, cstrlen, wstr, wstrlen + 1);
-
-	m_editResult.GetWindowText(rstr);
-	rstr.AppendFormat(_T("#=> %s\r\n"), CString(wstr, wstrlen));
-	m_editResult.SetWindowText(rstr);
-
-	delete wstr;
-	*/
 
 	PyRun_SimpleString("print('Python ' + sys.version)");
 }
@@ -345,15 +324,19 @@ sys.stderr = catchOutErr\n\
 
 	if(py_result == NULL || PyErr_Occurred())
 	{
+		PyObject *t,*v,*b;
+		PyErr_Fetch(&t,&v,&b);
 		PyErr_Print();
 		return _T("");
 	}
 	if(py_result != Py_None)
 	{
-		char *cstr = PyString_AsString(py_result);
+		PyObject *pystr = PyObject_Str(py_result);
+		Py_DECREF(py_result);
+		char *cstr = PyString_AsString(pystr);
 		int cstrlen = strlen(cstr);
 		CStringA csresult(cstr, cstrlen);
-		Py_DECREF(py_result);
+		Py_DECREF(pystr);
 		CString csnative(csresult);
 		CString ostr;
 
@@ -371,26 +354,21 @@ sys.stderr = catchOutErr\n\
 CString run_ruby(const char *cmdstr)
 {
 	CString ostr;
-	wchar_t *wstr;
-	int wstrlen;
-	char *cstr;
-	int cstrlen;
 
 	VALUE value;
 	int state;
 
 	value = rb_eval_string_protect(cmdstr, &state);
 
-	CStringA csvalue;
 	if(state == 0)
 	{
-		ostr.SetString(_T("#=> "));
 		value = rb_obj_as_string(value);
-		cstr = RSTRING_PTR(value);
-		cstrlen = RSTRING_LEN(value);
+		CStringA csvalue(RSTRING_PTR(value), RSTRING_LEN(value));
+		CString pstr(csvalue);
+		pstr.Replace(_T("\n"), _T("\r\n"));
+		ostr.Format(_T("#=> %s\r\n"), pstr);
 	} else
 	{
-		ostr.Format(_T("Error: state=%d\r\n"), state);
 		value = rb_errinfo();
 		VALUE klass = rb_obj_as_string(rb_funcall(value, rb_intern("class"), 0));
 		VALUE messg = rb_obj_as_string(value);
@@ -398,18 +376,12 @@ CString run_ruby(const char *cmdstr)
 		CStringA csklass(RSTRING_PTR(klass), RSTRING_LEN(klass));
 		CStringA csmessg(RSTRING_PTR(messg), RSTRING_LEN(messg));
 		CStringA cstrace(RSTRING_PTR(trace), RSTRING_LEN(trace));
-		csvalue.Format("%s: %s\n%s\n", csklass, csmessg, cstrace); // "\n" is ok. (converted later)
-		cstr = csvalue.GetBuffer();
-		cstrlen = csvalue.GetLength() + 1;
+		CStringA csvalue;
+		csvalue.Format("%s: %s\n%s", csklass, csmessg, cstrace); // "\n" is ok. (converted later)
+		CString pstr(csvalue);
+		pstr.Replace(_T("\n"), _T("\r\n"));
+		ostr.Format(_T("Error: state=%d\r\n%s\r\n"), state, pstr);
 	}
-
-	wstrlen = MultiByteToWideChar(CP_THREAD_ACP, 0, cstr, cstrlen, NULL, 0);
-	wstr = new wchar_t[wstrlen + 1];
-	MultiByteToWideChar(CP_THREAD_ACP, 0, cstr, cstrlen, wstr, wstrlen + 1);
-	CString pstr(wstr, wstrlen);
-	pstr.Replace(_T("\n"), _T("\r\n"));
-	ostr.AppendFormat(_T("%s\r\n"), pstr);
-	delete wstr;
 
 	return ostr;
 }
@@ -425,21 +397,12 @@ void CBZScriptView::OnKeyDown(UINT nChar, UINT nRepCnt, UINT nFlags)
 		if((GetAsyncKeyState(VK_CONTROL) & 0x8000) == 0)
 		{
 			CString istr, rstr, ostr;
-			wchar_t *wstr;
-			int wstrlen;
-			char *cstr;
-			int cstrlen;
-			int state = 0;
 
 			m_editInput.GetWindowText(istr);
 
 			// TODO: XXX Unicodeビルド時しか考慮していない。
-			wstr = istr.GetBuffer();
-			wstrlen = istr.GetLength();
-			cstrlen = WideCharToMultiByte(CP_THREAD_ACP, 0, wstr, wstrlen, NULL, 0, NULL, NULL);
-			cstr = new char[cstrlen + 1];
-			WideCharToMultiByte(CP_THREAD_ACP, 0, wstr, wstrlen, cstr, cstrlen + 1, NULL, NULL);
-			cstr[cstrlen] = '\0';
+			CStringA zstr(istr);
+			//zstr.AppendChar('\0'); // not need?
 
 			m_editInput.SetWindowText(_T(""));
 
@@ -448,15 +411,14 @@ void CBZScriptView::OnKeyDown(UINT nChar, UINT nRepCnt, UINT nFlags)
 			m_editResult.SetWindowText(rstr);
 
 			if((GetAsyncKeyState(VK_SHIFT) & 0x8000) == 0)
-				ostr = run_ruby(cstr);
+				ostr = run_ruby(zstr);
 			else
-				ostr = run_python(cstr);
-
-			delete cstr;
+				ostr = run_python(zstr);
 
 			m_editResult.GetWindowText(rstr);
 			rstr.Append(ostr);
 			m_editResult.SetWindowText(rstr);
+			m_editResult.SetSel(rstr.GetLength(),rstr.GetLength());
 		}
 	}
 }
@@ -499,4 +461,16 @@ UINT CBZScriptView::OnGetDlgCode()
 	if (lpMsg && lpMsg->message == WM_KEYDOWN && lpMsg->wParam == VK_RETURN)
 		result |= DLGC_WANTMESSAGE;
 	return result;
+}
+
+
+BOOL CBZScriptView::PreTranslateMessage(MSG* pMsg)
+{
+	// TODO: ここに特定なコードを追加するか、もしくは基本クラスを呼び出してください。
+	if(pMsg->hwnd == m_editInput.m_hWnd && pMsg->message == WM_KEYDOWN && pMsg->wParam == VK_RETURN)
+	{
+		return TRUE;
+	}
+
+	return CFormView::PreTranslateMessage(pMsg);
 }
