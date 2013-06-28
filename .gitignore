@@ -12,3 +12,5 @@ Bz/ipch/
 *.opensdf
 *.suo
 *.vcxproj.user
+*.ncb
+*.opt
