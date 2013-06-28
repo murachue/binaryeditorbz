@@ -72,6 +72,7 @@ IMPLEMENT_DYNCREATE(CBZScriptView, CFormView)
 
 
 static CBZScriptView *cbzsv; // TODO: YES GLOBAL AS RUBY DO!!!
+static CString outbuf;
 
 static VALUE ruby_write(VALUE self, VALUE str)
 {
@@ -79,12 +80,22 @@ static VALUE ruby_write(VALUE self, VALUE str)
 
 	str = rb_obj_as_string(str);
 	CString cstr(RSTRING_PTR(str), RSTRING_LEN(str));
+	cstr.Replace(_T("\n"), _T("\r\n"));
 
 	CString rstr;
-	cbzsv->m_editResult.GetWindowText(rstr);
-	cstr.Replace(_T("\n"), _T("\r\n"));
-	rstr.Append(cstr);
-	cbzsv->m_editResult.SetWindowText(rstr);
+	if(cbzsv->m_editResult.m_hWnd != NULL)
+	{
+		cbzsv->m_editResult.GetWindowText(rstr);
+		// append output buf if there are
+		rstr.Append(outbuf);
+		outbuf.SetString(_T(""));
+		// then append current str
+		rstr.Append(cstr);
+		cbzsv->m_editResult.SetWindowText(rstr);
+	} else
+	{
+		outbuf.Append(cstr);
+	}
 
 	return Qnil;
 }
@@ -302,7 +313,6 @@ static void init_ruby(void)
 {
 	rb_io_init_std = 0;
 	ruby_init(); // ruby_init WORK ONLY ONCE.
-	ruby_init_loadpath();
 
 	// remap stdio
 	rb_stdout = rb_obj_alloc(rb_cIO);
@@ -311,6 +321,8 @@ static void init_ruby(void)
 	rb_define_singleton_method(rb_stderr, "write", reinterpret_cast<VALUE(*)(...)>(ruby_write), 1);
 	rb_stdin = rb_obj_alloc(rb_cIO);
 	rb_define_singleton_method(rb_stdin, "read", reinterpret_cast<VALUE(*)(...)>(ruby_read), -1);
+
+	ruby_init_loadpath();
 
 	// export Bz remoting
 	VALUE mBz = rb_define_module("BZ");
@@ -342,8 +354,9 @@ static void init_ruby(void)
 	rb_define_module_function(mBz, "filename", reinterpret_cast<VALUE(*)(...)>(ruby_filename), 0);
 	//rb_define_module_function(mBz, "setfilename", reinterpret_cast<VALUE(*)(...)>(ruby_setfilename), 1);
 	//rb_define_module_function(mBz, "open", reinterpret_cast<VALUE(*)(...)>(ruby_open), 1);
-	//rb_define_module_function(mBz, "save", reinterpret_cast<VALUE(*)(...)>(ruby_save), 1);
-	//rb_define_module_function(mBz, "new", reinterpret_cast<VALUE(*)(...)>(ruby_new), 1);
+	//rb_define_module_function(mBz, "save", reinterpret_cast<VALUE(*)(...)>(ruby_save), 0);
+	//rb_define_module_function(mBz, "saveas", reinterpret_cast<VALUE(*)(...)>(ruby_saveas), 1);
+	//rb_define_module_function(mBz, "new", reinterpret_cast<VALUE(*)(...)>(ruby_new), 0);
 }
 
 static PyObject* python_write(PyObject *self, PyObject *args)
