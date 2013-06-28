@@ -200,25 +200,6 @@ void CBZScriptView::Dump(CDumpContext& dc) const
 
 // CBZScriptView メッセージ ハンドラ
 
-static WNDPROC origeditwndproc;
-static LRESULT CALLBACK editinputsubproc(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam)
-{
-	// TODO: stop beep when hit return key.
-	//*
-	if(msg == WM_KEYDOWN && wParam == VK_RETURN)
-		PostMessage(GetParent(hWnd), msg, wParam, lParam);
-	//*/
-	//*
-	if(msg == WM_GETDLGCODE)
-	{
-		LPMSG lmsg = (LPMSG)lParam;
-		if(lmsg && lmsg->message == WM_KEYDOWN && lmsg->wParam == VK_RETURN)
-			return DLGC_WANTMESSAGE;
-	}
-	//*/
-	return /*((WNDPROC)GetWindowLong(hWnd, GWL_USERDATA))*/origeditwndproc(hWnd, msg, wParam, lParam);
-}
-
 int CBZScriptView::OnCreate(LPCREATESTRUCT lpCreateStruct)
 {
 	if (CFormView::OnCreate(lpCreateStruct) == -1)
@@ -238,10 +219,6 @@ void CBZScriptView::OnInitialUpdate()
 
 	m_pView = (CBZView*)GetNextWindow();
 	ClearAll();
-
-	//SetWindowLong(m_editInput.m_hWnd, GWL_USERDATA, GetWindowLong(m_editInput.m_hWnd, GWL_WNDPROC));
-	origeditwndproc = (WNDPROC)GetWindowLong(m_editInput.m_hWnd, GWL_WNDPROC);
-	SetWindowLong(m_editInput.m_hWnd, GWL_WNDPROC, (LONG)editinputsubproc);
 }
 
 void CBZScriptView::ClearAll(void)
@@ -386,44 +363,6 @@ CString run_ruby(const char *cmdstr)
 	return ostr;
 }
 
-void CBZScriptView::OnKeyDown(UINT nChar, UINT nRepCnt, UINT nFlags)
-{
-	// TODO: ここにメッセージ ハンドラー コードを追加するか、既定の処理を呼び出します。
-
-	CFormView::OnKeyDown(nChar, nRepCnt, nFlags);
-
-	if(nChar == VK_RETURN)
-	{
-		if((GetAsyncKeyState(VK_CONTROL) & 0x8000) == 0)
-		{
-			CString istr, rstr, ostr;
-
-			m_editInput.GetWindowText(istr);
-
-			// TODO: XXX Unicodeビルド時しか考慮していない。
-			CStringA zstr(istr);
-			//zstr.AppendChar('\0'); // not need?
-
-			m_editInput.SetWindowText(_T(""));
-
-			m_editResult.GetWindowText(rstr);
-			rstr.AppendFormat(_T(">%s\r\n"), istr);
-			m_editResult.SetWindowText(rstr);
-
-			if((GetAsyncKeyState(VK_SHIFT) & 0x8000) == 0)
-				ostr = run_ruby(zstr);
-			else
-				ostr = run_python(zstr);
-
-			m_editResult.GetWindowText(rstr);
-			rstr.Append(ostr);
-			m_editResult.SetWindowText(rstr);
-			m_editResult.SetSel(rstr.GetLength(),rstr.GetLength());
-		}
-	}
-}
-
-
 void CBZScriptView::OnSize(UINT nType, int cx, int cy)
 {
 	CFormView::OnSize(nType, cx, cy);
@@ -453,22 +392,38 @@ void CBZScriptView::OnSize(UINT nType, int cx, int cy)
 }
 
 
-UINT CBZScriptView::OnGetDlgCode()
-{
-	UINT result = CFormView::OnGetDlgCode(); // __super::OnGetDlgCode();
-	const MSG* lpMsg = CWnd::GetCurrentMessage();
-	lpMsg = (LPMSG)lpMsg->lParam;
-	if (lpMsg && lpMsg->message == WM_KEYDOWN && lpMsg->wParam == VK_RETURN)
-		result |= DLGC_WANTMESSAGE;
-	return result;
-}
-
-
 BOOL CBZScriptView::PreTranslateMessage(MSG* pMsg)
 {
 	// TODO: ここに特定なコードを追加するか、もしくは基本クラスを呼び出してください。
 	if(pMsg->hwnd == m_editInput.m_hWnd && pMsg->message == WM_KEYDOWN && pMsg->wParam == VK_RETURN)
 	{
+		if((GetAsyncKeyState(VK_CONTROL) & 0x8000) == 0)
+		{
+			CString istr, rstr, ostr;
+
+			m_editInput.GetWindowText(istr);
+
+			// TODO: XXX Unicodeビルド時しか考慮していない。
+			CStringA zstr(istr);
+			//zstr.AppendChar('\0'); // not need?
+
+			m_editInput.SetWindowText(_T(""));
+
+			m_editResult.GetWindowText(rstr);
+			rstr.AppendFormat(_T(">%s\r\n"), istr);
+			m_editResult.SetWindowText(rstr);
+
+			if((GetAsyncKeyState(VK_SHIFT) & 0x8000) == 0)
+				ostr = run_ruby(zstr);
+			else
+				ostr = run_python(zstr);
+
+			m_editResult.GetWindowText(rstr);
+			rstr.Append(ostr);
+			m_editResult.SetWindowText(rstr);
+			m_editResult.SetSel(rstr.GetLength(),rstr.GetLength());
+		}
+
 		return TRUE;
 	}
 

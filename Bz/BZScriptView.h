@@ -65,9 +65,7 @@ public:
 	void ClearAll(void);
 	CEdit m_editResult;
 	CEdit m_editInput;
-	afx_msg void OnKeyDown(UINT nChar, UINT nRepCnt, UINT nFlags);
 	afx_msg void OnSize(UINT nType, int cx, int cy);
-	afx_msg UINT OnGetDlgCode();
 	virtual BOOL PreTranslateMessage(MSG* pMsg);
 };
 
