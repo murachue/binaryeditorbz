@@ -72,7 +72,6 @@ IMPLEMENT_DYNCREATE(CBZScriptView, CFormView)
 
 static CBZScriptView *cbzsv; // TODO: YES GLOBAL AS RUBY DO!!!
 
-extern "C"
 static VALUE ruby_write(VALUE self, VALUE str)
 {
 	Check_Type(str, T_STRING);
@@ -87,6 +86,21 @@ static VALUE ruby_write(VALUE self, VALUE str)
 	cbzsv->m_editResult.SetWindowText(rstr);
 
 	return Qnil;
+}
+
+extern "C" RUBY_EXTERN int rb_io_init_std;
+
+static void init_ruby(void)
+{
+	rb_io_init_std = 0;
+	ruby_init(); // ruby_init WORK ONLY ONCE.
+	ruby_init_loadpath();
+
+	rb_stdout = rb_obj_alloc(rb_cObject);
+	rb_define_singleton_method(rb_stdout, "write", reinterpret_cast<VALUE(*)(...)>(ruby_write), 1);
+	// rb_define_global_function("p", f_p, -1);
+	//rb_stdin;
+	//rb_stderr;
 }
 
 //*
@@ -123,30 +137,8 @@ static PyMethodDef pythonMethods[] =
 };
 //*/
 
-extern "C" RUBY_EXTERN int rb_io_init_std;
-
-CBZScriptView::CBZScriptView()
-	: CFormView(CBZScriptView::IDD)
-	//, m_bSigned(true)
+static void init_python(void)
 {
-	rb_io_init_std = 0;
-	/*
-	DWORD *ioinitstd = (DWORD*)GetProcAddress(LoadLibrary(_T("msvcr110-ruby200")),"rb_io_init_std");
-	if(ioinitstd)
-	{
-		*ioinitstd = 0; // TODO: I USE BLACK MAGIC!
-	}
-	//*/
-	ruby_init(); // ruby_init WORK ONLY ONCE.
-	ruby_init_loadpath();
-
-	cbzsv = this;
-	rb_stdout = rb_obj_alloc(rb_cObject);
-	rb_define_singleton_method(rb_stdout, "write", reinterpret_cast<VALUE(*)(...)>(ruby_write), 1);
-	// rb_define_global_function("p", f_p, -1);
-	//rb_stdin;
-	//rb_stderr;
-
 	Py_SetProgramName("BZ");
 	Py_Initialize();
 	PyObject *name = PyString_FromString("sys");
@@ -158,6 +150,14 @@ CBZScriptView::CBZScriptView()
 	PyObject_SetAttr(mod, name, mymodule);
 	Py_DECREF(name);
 	Py_DECREF(mod);
+}
+
+CBZScriptView::CBZScriptView()
+	: CFormView(CBZScriptView::IDD)
+{
+	cbzsv = this;
+	init_ruby();
+	init_python();
 }
 
 CBZScriptView::~CBZScriptView()
@@ -298,9 +298,9 @@ sys.stderr = catchOutErr\n\
     //Py_Initialize();
     PyObject *pModule = PyImport_AddModule("__main__"); //create main module
     //PyRun_SimpleString(stdOutErr); //invoke code to redirect
-    PyRun_SimpleString(cmdstr);
+//    PyRun_SimpleString(cmdstr);
     //PyObject *catcher = PyObject_GetAttrString(pModule,"catchOutErr"); //get our catchOutErr created above
-    PyErr_Print(); //make python print any errors
+//    PyErr_Print(); //make python print any errors
 
     //PyObject *output = PyObject_GetAttrString(catcher,"value"); //get the stdout and stderr from our catchOutErr object
 	//Py_DECREF(catcher);
@@ -321,6 +321,49 @@ sys.stderr = catchOutErr\n\
 	ostr.Format(_T("==> %s\r\n"), pstr);
 	delete wstr;
 	//*/
+
+
+	// referring IDAPython PythonEvalOrExec..
+	PyCompilerFlags cf = {0};
+	PyObject *py_code = Py_CompileStringFlags(cmdstr, "<string>", Py_eval_input, &cf);
+	if(py_code == NULL || PyErr_Occurred())
+	{
+		// Not an expression?
+		PyErr_Clear();
+
+		// Run as a string
+		PyRun_SimpleString(cmdstr);
+		return _T("");
+	}
+
+	PyObject *module = PyImport_AddModule("__main__");
+	PyObject *py_globals = (module == NULL) ? NULL : PyModule_GetDict(module);
+	//PYW_GIL_ENSURE;
+	PyObject *py_result = PyEval_EvalCode((PyCodeObject*)py_code, py_globals, py_globals);
+	//PYW_GIL_RELEASE;
+	Py_DECREF(py_code);
+
+	if(py_result == NULL || PyErr_Occurred())
+	{
+		PyErr_Print();
+		return _T("");
+	}
+	if(py_result != Py_None)
+	{
+		char *cstr = PyString_AsString(py_result);
+		int cstrlen = strlen(cstr);
+		CStringA csresult(cstr, cstrlen);
+		Py_DECREF(py_result);
+		CString csnative(csresult);
+		CString ostr;
+
+		csnative.Replace(_T("\n"), _T("\r\n"));
+		ostr.Format(_T("==> %s\r\n"), csnative);
+
+		return ostr;
+	}
+
+	Py_DECREF(py_result);
 
 	return _T("");//ostr;
 }
