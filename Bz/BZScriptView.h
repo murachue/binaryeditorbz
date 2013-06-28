@@ -57,7 +57,8 @@ protected:
 
 	DECLARE_MESSAGE_MAP()
 
-private:
+//private:
+public: // for scripting...
 	CBZView* m_pView;
 public:
 	afx_msg int OnCreate(LPCREATESTRUCT lpCreateStruct);

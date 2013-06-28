@@ -30,6 +30,7 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "stdafx.h"
 #include "BZ.h"
 #include "BZView.h"
+#include "BZDoc.h"
 #include "BZScriptView.h"
 #include "MainFrm.h"
 
@@ -109,6 +110,192 @@ static VALUE ruby_read(int argc, VALUE *argv, VALUE self)
 	return emptystr;
 }
 
+static VALUE ruby_caret(VALUE self) { return UINT2NUM(cbzsv->m_pView->m_dwCaret); }
+
+static VALUE ruby_careteq(VALUE self, VALUE val)
+{
+	Check_Type(val, T_FIXNUM);
+	VALUE orgcaret = UINT2NUM(cbzsv->m_pView->m_dwCaret); // ‚¨‚Ü‚¯
+	cbzsv->m_pView->MoveCaretTo(FIX2ULONG(val)); // TODO: 4GB‰z‚¦‘Î‰
+	return orgcaret;
+}
+
+static VALUE ruby_data(VALUE self, VALUE idx_range)
+{
+	rb_exc_raise(rb_exc_new2(rb_eNotImpError, "Sorry!"));
+}
+static VALUE ruby_dataeq(VALUE self, VALUE idx_range, VALUE val)
+{
+	rb_exc_raise(rb_exc_new2(rb_eNotImpError, "Sorry!"));
+}
+static VALUE ruby_value(VALUE self, VALUE voff, VALUE vsize)
+{
+	ULONG off; // TODO: 4GB‰z‚¦‘Î‰(ULONGLONG/rb_big2ull)
+	int size;
+
+	Check_Type(voff, T_FIXNUM);
+	Check_Type(vsize, T_FIXNUM);
+
+	off = FIX2ULONG(voff);
+	size = FIX2INT(vsize);
+
+	if(size == 8)
+	{
+		return rb_ull2inum(cbzsv->m_pView->GetValue64(off));
+	} else if(size == 1 || size == 2 || size == 4)
+	{
+		return UINT2NUM(cbzsv->m_pView->GetValue(off, size));
+	} else
+	{
+		rb_exc_raise(rb_exc_new2(rb_eArgError, "size must be 1, 2, 4 or 8"));
+	}
+}
+static VALUE ruby_valueeq(VALUE self, VALUE voff, VALUE vsize, VALUE vval)
+{
+	ULONG off; // TODO: 4GB‰z‚¦‘Î‰(ULONGLONG/rb_big2ull)
+	int size;
+	int val;
+
+	Check_Type(voff, T_FIXNUM);
+	Check_Type(vsize, T_FIXNUM);
+	Check_Type(vval, T_FIXNUM);
+
+	off = FIX2ULONG(voff);
+	size = FIX2INT(vsize);
+	val = FIX2INT(vval);
+
+	if(size == 1 || size == 2 || size == 4)
+	{
+		cbzsv->m_pView->SetValue(off, size, val);
+		return vval; // Qnil‚Å‚à‰Â
+	} else
+	{
+		rb_exc_raise(rb_exc_new2(rb_eArgError, "size must be 1, 2 or 4"));
+	}
+}
+static VALUE ruby_blockbegin(VALUE self) { return UINT2NUM(cbzsv->m_pView->BlockBegin()); } // TODO: 4GB‰z‚¦‘Î‰(ULONGLONG/rb_big2ull)
+static VALUE ruby_blockend(VALUE self) { return UINT2NUM(cbzsv->m_pView->BlockEnd()); } // TODO: 4GB‰z‚¦‘Î‰(ULONGLONG/rb_big2ull)
+static VALUE ruby_block(VALUE self) { return rb_funcall(rb_cRange, rb_intern("new"), 3, UINT2NUM(cbzsv->m_pView->BlockBegin()), UINT2NUM(cbzsv->m_pView->BlockEnd()), rb_cFalseClass); } // TODO: 4GB‰z‚¦‘Î‰(ULONGLONG/rb_big2ull)
+// BZ.setblock(begin, end) 2 Fixnums
+// BZ.setblock(begin...end) 1 Range
+static VALUE ruby_setblock(int argc, VALUE *argv, VALUE self)
+{
+	// TODO: 4GB‰z‚¦‘Î‰(ULONGLONG/rb_big2ull)
+	ULONG begin, end;
+
+	VALUE v1, v2;
+	int trueargc = rb_scan_args(argc, argv, "11", &v1, &v2);
+
+	if(trueargc == 1)
+	{
+		if(CLASS_OF(v1) != rb_cRange)
+			rb_exc_raise(rb_exc_new2(rb_eArgError, "arguments must be 2 fixnums or 1 range"));
+		VALUE rbegin = rb_funcall(v1, rb_intern("begin"), 0);
+		VALUE rend = rb_funcall(v1, rb_intern("end"), 0);
+		VALUE reexc = rb_funcall(v1, rb_intern("exclude_end?"), 0);
+
+		Check_Type(rbegin, T_FIXNUM);
+		Check_Type(rend, T_FIXNUM);
+		BOOL eexc;
+		if(CLASS_OF(reexc) == rb_cTrueClass)
+			eexc = TRUE;
+		else if(CLASS_OF(reexc) == rb_cFalseClass)
+			eexc = FALSE;
+		else
+			rb_exc_raise(rb_exc_new2(rb_eArgError, "Range#exclude_end? returns not true nor end!!"));
+
+		begin = FIX2ULONG(rbegin);
+		end = FIX2ULONG(rend) + (eexc ? 0 : 1);
+	} else if(trueargc == 2)
+	{
+		Check_Type(v1, T_FIXNUM);
+		Check_Type(v2, T_FIXNUM);
+
+		begin = FIX2ULONG(v1);
+		end = FIX2ULONG(v2);
+	} else
+	{
+		ASSERT(FALSE); // panic
+	}
+
+	cbzsv->m_pView->setBlock(begin, end);
+
+	return Qnil; // TODO: range‚Å‚à•Ô‚·?
+}
+static VALUE ruby_setmark(VALUE self, VALUE voff)
+{
+	// TODO: 4GB‰z‚¦‘Î‰(ULONGLONG/rb_big2ull)
+	ULONG off;
+
+	Check_Type(voff, T_FIXNUM);
+
+	off = FIX2ULONG(voff);
+
+	if(cbzsv->m_pView->GetDocument()->CheckMark(off) == FALSE)
+		cbzsv->m_pView->GetDocument()->SetMark(off);
+
+	return Qtrue;
+}
+static VALUE ruby_unsetmark(VALUE self, VALUE voff)
+{
+	// TODO: 4GB‰z‚¦‘Î‰(ULONGLONG/rb_big2ull)
+	ULONG off;
+
+	Check_Type(voff, T_FIXNUM);
+
+	off = FIX2ULONG(voff);
+
+	if(cbzsv->m_pView->GetDocument()->CheckMark(off) == FALSE)
+		cbzsv->m_pView->GetDocument()->SetMark(off);
+
+	return Qfalse;
+}
+static VALUE ruby_togglemark(VALUE self, VALUE voff)
+{
+	// TODO: 4GB‰z‚¦‘Î‰(ULONGLONG/rb_big2ull)
+	ULONG off;
+
+	Check_Type(voff, T_FIXNUM);
+
+	off = FIX2ULONG(voff);
+
+	cbzsv->m_pView->GetDocument()->SetMark(off);
+	return cbzsv->m_pView->GetDocument()->CheckMark(off) ? Qtrue : Qfalse;
+}
+static VALUE ruby_ismarked(VALUE self, VALUE voff)
+{
+	// TODO: 4GB‰z‚¦‘Î‰(ULONGLONG/rb_big2ull)
+	ULONG off;
+
+	Check_Type(voff, T_FIXNUM);
+
+	off = FIX2ULONG(voff);
+
+	return cbzsv->m_pView->GetDocument()->CheckMark(off) ? Qtrue : Qfalse;
+}
+static VALUE ruby_isfilemapping(VALUE self) { return cbzsv->m_pView->GetDocument()->IsFileMapping() ? Qtrue : Qfalse; }
+static VALUE ruby_invalidate(VALUE self) { cbzsv->m_pView->Invalidate(); return Qnil; }
+static VALUE ruby_endianess(VALUE self) { return UINT2NUM(options.bByteOrder); } // “K“–
+static VALUE ruby_setendianess(VALUE self, VALUE vendian)
+{
+	BOOL endian;
+
+	// bool‚Èclass‚È‚ç==‚Å–â‘è‚È‚³‚»‚¤B
+	if(CLASS_OF(vendian) == rb_cTrueClass)
+		endian = TRUE;
+	else if(CLASS_OF(vendian) == rb_cFalseClass)
+		endian = FALSE;
+	else
+		rb_exc_raise(rb_exc_new2(rb_eArgError, "an argument must be true or false"));
+
+	options.bByteOrder = endian;
+
+	return UINT2NUM(options.bByteOrder); // ‚¨‚Ü‚¯
+}
+static VALUE ruby_isle(VALUE self) { return options.bByteOrder == 0 ? Qtrue : Qfalse; }
+static VALUE ruby_isbe(VALUE self) { return options.bByteOrder != 0 ? Qtrue : Qfalse; }
+static VALUE ruby_filename(VALUE self) { return rb_str_new2(CStringA(cbzsv->m_pView->GetDocument()->GetPathName())); }
+
 extern "C" RUBY_EXTERN int rb_io_init_std;
 
 static void init_ruby(void)
@@ -117,18 +304,50 @@ static void init_ruby(void)
 	ruby_init(); // ruby_init WORK ONLY ONCE.
 	ruby_init_loadpath();
 
+	// remap stdio
 	rb_stdout = rb_obj_alloc(rb_cIO);
 	rb_define_singleton_method(rb_stdout, "write", reinterpret_cast<VALUE(*)(...)>(ruby_write), 1);
 	rb_stderr = rb_obj_alloc(rb_cIO);
 	rb_define_singleton_method(rb_stderr, "write", reinterpret_cast<VALUE(*)(...)>(ruby_write), 1);
 	rb_stdin = rb_obj_alloc(rb_cIO);
 	rb_define_singleton_method(rb_stdin, "read", reinterpret_cast<VALUE(*)(...)>(ruby_read), -1);
+
+	// export Bz remoting
+	VALUE mBz = rb_define_module("BZ");
+	rb_define_module_function(mBz, "caret", reinterpret_cast<VALUE(*)(...)>(ruby_caret), 0);
+	rb_define_module_function(mBz, "caret=", reinterpret_cast<VALUE(*)(...)>(ruby_careteq), 1);
+	rb_define_module_function(mBz, "[]", reinterpret_cast<VALUE(*)(...)>(ruby_data), 1);
+	rb_define_module_function(mBz, "[]=", reinterpret_cast<VALUE(*)(...)>(ruby_dataeq), 2);
+	rb_define_module_function(mBz, "value", reinterpret_cast<VALUE(*)(...)>(ruby_value), 2);
+	rb_define_module_function(mBz, "setvalue", reinterpret_cast<VALUE(*)(...)>(ruby_valueeq), 3);
+	//rb_define_module_function(mBz, "fill", reinterpret_cast<VALUE(*)(...)>(NULL), 0); // TODO: À‘•‚·‚é?
+	rb_define_module_function(mBz, "blockbegin", reinterpret_cast<VALUE(*)(...)>(ruby_blockbegin), 0);
+	rb_define_module_function(mBz, "blockend", reinterpret_cast<VALUE(*)(...)>(ruby_blockend), 0);
+	rb_define_module_function(mBz, "block", reinterpret_cast<VALUE(*)(...)>(ruby_block), 0);
+	rb_define_module_function(mBz, "setblock", reinterpret_cast<VALUE(*)(...)>(ruby_setblock), -1);
+	rb_define_module_function(mBz, "setmark", reinterpret_cast<VALUE(*)(...)>(ruby_setmark), 1);
+	rb_define_module_function(mBz, "unsetmark", reinterpret_cast<VALUE(*)(...)>(ruby_unsetmark), 1);
+	rb_define_module_function(mBz, "togglemark", reinterpret_cast<VALUE(*)(...)>(ruby_togglemark), 1);
+	rb_define_module_function(mBz, "ismarked", reinterpret_cast<VALUE(*)(...)>(ruby_ismarked), 1);
+	rb_define_module_function(mBz, "ismarked?", reinterpret_cast<VALUE(*)(...)>(ruby_ismarked), 1);
+	rb_define_module_function(mBz, "isfilemapping", reinterpret_cast<VALUE(*)(...)>(ruby_isfilemapping), 0);
+	rb_define_module_function(mBz, "isfilemapping?", reinterpret_cast<VALUE(*)(...)>(ruby_isfilemapping), 0);
+	rb_define_module_function(mBz, "invalidate", reinterpret_cast<VALUE(*)(...)>(ruby_invalidate), 0);
+	rb_define_module_function(mBz, "setendianess", reinterpret_cast<VALUE(*)(...)>(ruby_setendianess), 0);
+	rb_define_module_function(mBz, "endianess", reinterpret_cast<VALUE(*)(...)>(ruby_endianess), 0);
+	rb_define_module_function(mBz, "isle", reinterpret_cast<VALUE(*)(...)>(ruby_isle), 0);
+	rb_define_module_function(mBz, "isle?", reinterpret_cast<VALUE(*)(...)>(ruby_isle), 0);
+	rb_define_module_function(mBz, "isbe", reinterpret_cast<VALUE(*)(...)>(ruby_isbe), 0);
+	rb_define_module_function(mBz, "isbe?", reinterpret_cast<VALUE(*)(...)>(ruby_isbe), 0);
+	rb_define_module_function(mBz, "filename", reinterpret_cast<VALUE(*)(...)>(ruby_filename), 0);
+	//rb_define_module_function(mBz, "setfilename", reinterpret_cast<VALUE(*)(...)>(ruby_setfilename), 1);
+	//rb_define_module_function(mBz, "open", reinterpret_cast<VALUE(*)(...)>(ruby_open), 1);
+	//rb_define_module_function(mBz, "save", reinterpret_cast<VALUE(*)(...)>(ruby_save), 1);
+	//rb_define_module_function(mBz, "new", reinterpret_cast<VALUE(*)(...)>(ruby_new), 1);
 }
 
-//*
 static PyObject* python_write(PyObject *self, PyObject *args)
 {
-	// TODO: 1‚Â‚ß‚Ìobject‚ğæ‚Á‚Ä‚«‚ÄAstr‚ğ‚È‚ñ‚Æ‚©‚µ‚Äcstring‚É’¼‚µ‚Äappend.
 	int ok;
 	char *str;
 	int len;
@@ -157,7 +376,6 @@ static PyMethodDef pythonMethods[] =
 	{"write", python_write, METH_VARARGS, ""},
 	{NULL, NULL, 0, NULL}
 };
-//*/
 
 static void init_python(void)
 {
@@ -422,6 +640,7 @@ void CBZScriptView::OnSize(UINT nType, int cx, int cy)
 }
 
 
+// TODO: ctrl-c/ctrl-v‚ªscript view‚És‚«‚Â‚©‚È‚¢‚¯‚ÇA‚±‚±‚Å‰½‚Æ‚©‚Å‚«‚È‚¢‚©?
 BOOL CBZScriptView::PreTranslateMessage(MSG* pMsg)
 {
 	// TODO: ‚±‚±‚É“Á’è‚ÈƒR[ƒh‚ğ’Ç‰Á‚·‚é‚©A‚à‚µ‚­‚ÍŠî–{ƒNƒ‰ƒX‚ğŒÄ‚Ño‚µ‚Ä‚­‚¾‚³‚¢B
