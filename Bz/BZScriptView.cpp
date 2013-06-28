@@ -88,6 +88,27 @@ static VALUE ruby_write(VALUE self, VALUE str)
 	return Qnil;
 }
 
+static VALUE ruby_read(int argc, VALUE *argv, VALUE self)
+{
+	VALUE vsize;
+	long lsize;
+
+	if(rb_scan_args(argc, argv, "01", &vsize) == 0)
+	{
+		lsize = 0;
+	} else
+	{
+		Check_Type(vsize, T_FIXNUM);
+		lsize = FIX2LONG(vsize);
+	}
+
+	// TODO: stdinの扱いをどうするか。Dialog出す?
+	// とりあえずEOF的な感じにしておく。
+	VALUE emptystr = rb_str_new("", 0);
+
+	return emptystr;
+}
+
 extern "C" RUBY_EXTERN int rb_io_init_std;
 
 static void init_ruby(void)
@@ -96,11 +117,12 @@ static void init_ruby(void)
 	ruby_init(); // ruby_init WORK ONLY ONCE.
 	ruby_init_loadpath();
 
-	rb_stdout = rb_obj_alloc(rb_cObject);
+	rb_stdout = rb_obj_alloc(rb_cIO);
 	rb_define_singleton_method(rb_stdout, "write", reinterpret_cast<VALUE(*)(...)>(ruby_write), 1);
-	// rb_define_global_function("p", f_p, -1);
-	//rb_stdin;
-	//rb_stderr;
+	rb_stderr = rb_obj_alloc(rb_cIO);
+	rb_define_singleton_method(rb_stderr, "write", reinterpret_cast<VALUE(*)(...)>(ruby_write), 1);
+	rb_stdin = rb_obj_alloc(rb_cIO);
+	rb_define_singleton_method(rb_stdin, "read", reinterpret_cast<VALUE(*)(...)>(ruby_read), -1);
 }
 
 //*
@@ -141,9 +163,16 @@ static void init_python(void)
 {
 	Py_SetProgramName("BZ");
 	Py_Initialize();
-	PyObject *name = PyString_FromString("sys");
-	PyObject *mod = PyImport_Import(name);
-	Py_DECREF(name);
+	PyObject *name;
+	//name = PyString_FromString("sys");
+	//PyObject *mod = PyImport_ImportModule("sys");
+	//PyObject *mod = PyImport_Import(name);
+	//Py_DECREF(name);
+
+	PyObject *module = PyImport_AddModule("__main__");
+	PyObject *py_globals = (module == NULL) ? NULL : PyModule_GetDict(module);
+	PyObject *mod = PyImport_ImportModuleEx("sys", py_globals, py_globals, NULL);
+
 	// TODO: sys.stdout/stdin/stderrを自作関数に置き換える
 	PyObject *mymodule = Py_InitModule("mywriter", pythonMethods);
 	name = PyString_FromString("write");
@@ -335,6 +364,7 @@ CString run_ruby(const char *cmdstr)
 	VALUE value;
 	int state;
 
+	// TODO: 環境が呼び出しごとにリセットされるのをなんとかする。
 	value = rb_eval_string_protect(cmdstr, &state);
 
 	if(state == 0)
