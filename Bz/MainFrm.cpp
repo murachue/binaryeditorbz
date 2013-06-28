@@ -350,7 +350,19 @@ BOOL CMainFrame::CreateClient(CCreateContext* pContext)
 			}
 		}
 	} else {
-		if(bSubView) {
+		if(bSubView && m_bScriptView) {
+			// TODO: Yes this is ad-hoc! support only 1-document view.
+			m_pSplitter = new CSplitterWnd;
+			m_pSplitter->CreateStatic(this, 2, 1);
+			if(m_bScriptView)
+				m_pSplitter->CreateView(1, 0, RUNTIME_CLASS(CBZScriptView), CSize(0,0), pContext);
+			else
+				ASSERT(FALSE); // panic
+			m_pSplitter->CreateView(0, 0, RUNTIME_CLASS(CBZView), CSize(0,0), pContext);
+			((CView*)m_pSplitter->GetPane(1, 0))->OnInitialUpdate();
+			pActiveView = (CView*)m_pSplitter->GetPane(0, 0);
+			bzViewNew[0] = dynamic_cast<CBZView *>(pActiveView);
+		} else if(bSubView) {
 			m_pSplitter = new CSplitterWnd;
 			m_pSplitter->CreateStatic(this, 1, 2);
 			if(m_bBmpView)

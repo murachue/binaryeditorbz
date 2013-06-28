@@ -75,6 +75,8 @@ static CBZScriptView *cbzsv; // TODO: YES GLOBAL AS RUBY DO!!!
 extern "C"
 static VALUE ruby_write(VALUE self, VALUE str)
 {
+	Check_Type(str, T_STRING);
+
 	str = rb_obj_as_string(str);
 	CString cstr(RSTRING_PTR(str), RSTRING_LEN(str));
 
