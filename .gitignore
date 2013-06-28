@@ -4,3 +4,11 @@ build/
 *.DS_Store
 Bz/Release/
 Bz/Debug/
+Bz/Release_*/
+Bz/Debug_*/
+Bz/ipch/
+*.aps
+*.sdf
+*.opensdf
+*.suo
+*.vcxproj.user
