@@ -32,6 +32,9 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "BZView.h"
 #include "BZScriptView.h"
 #include "MainFrm.h"
+
+//#define RUBY_EXPORT // dont dllimport
+#define RUBY_DONT_SUBST // dont substitute snprintf etc.
 #include "ruby.h"
 
 // OMG PYTHON!
@@ -46,13 +49,21 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #undef HAVE_MKTIME
 #undef HAVE_STDARG_PROTOTYPES
 
+#undef ssize_t
 #define ssize_t pyssize_t
-#undef _DEBUG // !!!!!
+
+// !!!!!
+#ifdef _DEBUG
+#define _DEBUG_IS_ON
+#undef _DEBUG
+#endif
 
 #include "python.h"
 
 #undef ssize_t
+#ifdef _DEBUG_IS_ON
 #define _DEBUG
+#endif
 
 // CBZScriptView
 
@@ -76,12 +87,31 @@ static VALUE ruby_write(VALUE self, VALUE str)
 	return Qnil;
 }
 
-/*
+//*
 static PyObject* python_write(PyObject *self, PyObject *args)
 {
 	// TODO: 1‚Â‚ß‚Ìobject‚ðŽæ‚Á‚Ä‚«‚ÄAstr‚ð‚È‚ñ‚Æ‚©‚µ‚Äcstring‚É’¼‚µ‚Äappend.
-	PyArg_ParseTuple(args, "", NULL);
-	return NULL;
+	int ok;
+	char *str;
+	int len;
+
+	ok = PyArg_ParseTuple(args, "s#", &str, &len);
+	if(!ok) // TODO: is it correct?
+	{
+		// TODO: exception
+		PyErr_SetString(PyExc_NotImplementedError, "argument must be like write(str)");
+		return NULL; // must NULL when raising exception?
+	}
+	CString cstr(str, len);
+
+	CString rstr;
+	cbzsv->m_editResult.GetWindowText(rstr);
+	cstr.Replace(_T("\n"), _T("\r\n"));
+	rstr.Append(cstr);
+	cbzsv->m_editResult.SetWindowText(rstr);
+
+	Py_INCREF(Py_None);
+	return Py_None;
 }
 
 static PyMethodDef pythonMethods[] =
@@ -89,21 +119,23 @@ static PyMethodDef pythonMethods[] =
 	{"write", python_write, METH_VARARGS, ""},
 	{NULL, NULL, 0, NULL}
 };
-*/
+//*/
 
-extern "C" int rb_io_init_std;
+extern "C" RUBY_EXTERN int rb_io_init_std;
 
 CBZScriptView::CBZScriptView()
 	: CFormView(CBZScriptView::IDD)
 	//, m_bSigned(true)
 {
-	//rb_io_init_std = 0;
+	rb_io_init_std = 0;
+	/*
 	DWORD *ioinitstd = (DWORD*)GetProcAddress(LoadLibrary(_T("msvcr110-ruby200")),"rb_io_init_std");
 	if(ioinitstd)
 	{
 		*ioinitstd = 0; // TODO: I USE BLACK MAGIC!
 	}
-	ruby_init();
+	//*/
+	ruby_init(); // ruby_init WORK ONLY ONCE.
 	ruby_init_loadpath();
 
 	cbzsv = this;
@@ -113,18 +145,22 @@ CBZScriptView::CBZScriptView()
 	//rb_stdin;
 	//rb_stderr;
 
+	Py_SetProgramName("BZ");
 	Py_Initialize();
 	PyObject *name = PyString_FromString("sys");
 	PyObject *mod = PyImport_Import(name);
-	// TODO: sys.stdout/stdin/stderr‚ðŽ©ìŠÖ”‚É’u‚«Š·‚¦‚é
-	//Py_InitModule("", pythonMethods);
-	Py_DECREF(mod);
 	Py_DECREF(name);
+	// TODO: sys.stdout/stdin/stderr‚ðŽ©ìŠÖ”‚É’u‚«Š·‚¦‚é
+	PyObject *mymodule = Py_InitModule("mywriter", pythonMethods);
+	name = PyString_FromString("write");
+	PyObject_SetAttr(mod, name, mymodule);
+	Py_DECREF(name);
+	Py_DECREF(mod);
 }
 
 CBZScriptView::~CBZScriptView()
 {
-	//ruby_cleanup(0);
+	//ruby_cleanup(0); // DO NOT CALL, ruby_init DO WORK ONLY ONCE!
 	Py_Finalize();
 }
 
@@ -214,13 +250,16 @@ void CBZScriptView::ClearAll(void)
 
 	VALUE value;
 	int state;
+	/*
 	wchar_t *wstr;
 	char *cstr;
 	int wstrlen, cstrlen;
 	CString rstr;
+	*/
 
 	value = rb_eval_string_protect("puts RUBY_DESCRIPTION", &state);
 
+	/*
 	value = rb_obj_as_string(value);
 	cstr = RSTRING_PTR(value);
 	cstrlen = RSTRING_LEN(value);
@@ -233,8 +272,9 @@ void CBZScriptView::ClearAll(void)
 	m_editResult.SetWindowText(rstr);
 
 	delete wstr;
+	*/
 
-	PyRun_SimpleString("print('Hello Python ' + sys.version)");
+	PyRun_SimpleString("print('Python ' + sys.version)");
 }
 
 
@@ -255,14 +295,17 @@ sys.stderr = catchOutErr\n\
 
     //Py_Initialize();
     PyObject *pModule = PyImport_AddModule("__main__"); //create main module
-    PyRun_SimpleString(stdOutErr); //invoke code to redirect
+    //PyRun_SimpleString(stdOutErr); //invoke code to redirect
     PyRun_SimpleString(cmdstr);
-    PyObject *catcher = PyObject_GetAttrString(pModule,"catchOutErr"); //get our catchOutErr created above
+    //PyObject *catcher = PyObject_GetAttrString(pModule,"catchOutErr"); //get our catchOutErr created above
     PyErr_Print(); //make python print any errors
 
-    PyObject *output = PyObject_GetAttrString(catcher,"value"); //get the stdout and stderr from our catchOutErr object
+    //PyObject *output = PyObject_GetAttrString(catcher,"value"); //get the stdout and stderr from our catchOutErr object
+	//Py_DECREF(catcher);
 
+	/*
     char *cstr = PyString_AsString(output);
+	Py_DECREF(output);
 	int cstrlen = strlen(cstr);
 	wchar_t *wstr;
 	int wstrlen;
@@ -273,10 +316,11 @@ sys.stderr = catchOutErr\n\
 	MultiByteToWideChar(CP_THREAD_ACP, 0, cstr, cstrlen, wstr, wstrlen + 1);
 	CString pstr(wstr, wstrlen);
 	pstr.Replace(_T("\n"), _T("\r\n"));
-	ostr.Format(_T("#=> %s\r\n"), pstr);
+	ostr.Format(_T("==> %s\r\n"), pstr);
 	delete wstr;
+	//*/
 
-	return ostr;
+	return _T("");//ostr;
 }
 
 CString run_ruby(const char *cmdstr)
@@ -292,23 +336,35 @@ CString run_ruby(const char *cmdstr)
 
 	value = rb_eval_string_protect(cmdstr, &state);
 
+	CStringA csvalue;
 	if(state == 0)
 	{
+		ostr.SetString(_T("#=> "));
 		value = rb_obj_as_string(value);
 		cstr = RSTRING_PTR(value);
 		cstrlen = RSTRING_LEN(value);
-		wstrlen = MultiByteToWideChar(CP_THREAD_ACP, 0, cstr, cstrlen, NULL, 0);
-		wstr = new wchar_t[wstrlen + 1];
-		MultiByteToWideChar(CP_THREAD_ACP, 0, cstr, cstrlen, wstr, wstrlen + 1);
-		CString pstr(wstr, wstrlen);
-		pstr.Replace(_T("\n"), _T("\r\n"));
-		ostr.Format(_T("#=> %s\r\n"), pstr);
-		delete wstr;
-	}
-	else
+	} else
 	{
 		ostr.Format(_T("Error: state=%d\r\n"), state);
+		value = rb_errinfo();
+		VALUE klass = rb_obj_as_string(rb_funcall(value, rb_intern("class"), 0));
+		VALUE messg = rb_obj_as_string(value);
+		VALUE trace = rb_obj_as_string(rb_funcall(value, rb_intern("backtrace"), 0)); // TODO: already String?
+		CStringA csklass(RSTRING_PTR(klass), RSTRING_LEN(klass));
+		CStringA csmessg(RSTRING_PTR(messg), RSTRING_LEN(messg));
+		CStringA cstrace(RSTRING_PTR(trace), RSTRING_LEN(trace));
+		csvalue.Format("%s: %s\n%s\n", csklass, csmessg, cstrace); // "\n" is ok. (converted later)
+		cstr = csvalue.GetBuffer();
+		cstrlen = csvalue.GetLength() + 1;
 	}
+
+	wstrlen = MultiByteToWideChar(CP_THREAD_ACP, 0, cstr, cstrlen, NULL, 0);
+	wstr = new wchar_t[wstrlen + 1];
+	MultiByteToWideChar(CP_THREAD_ACP, 0, cstr, cstrlen, wstr, wstrlen + 1);
+	CString pstr(wstr, wstrlen);
+	pstr.Replace(_T("\n"), _T("\r\n"));
+	ostr.AppendFormat(_T("%s\r\n"), pstr);
+	delete wstr;
 
 	return ostr;
 }
