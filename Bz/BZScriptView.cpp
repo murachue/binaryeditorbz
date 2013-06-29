@@ -252,16 +252,34 @@ static VALUE bzruby_dataeq(VALUE self, VALUE val)
 
 	rb_exc_raise(rb_exc_new2(rb_eNotImpError, "Sorry!"));
 }
-static VALUE bzruby_value(VALUE self, VALUE voff, VALUE vsize)
+
+static VALUE bzruby_wide(VALUE self);
+// BZ.value(offset = BZ.caret, size = BZ.wide)
+static VALUE bzruby_value(int argc, VALUE *argv, VALUE self)
 {
-	ULONG off; // TODO: 4GBâzÇ¶ëŒâû(ULONGLONG/rb_big2ull)
-	int size;
+	VALUE voff;
+	VALUE vsize;
+
+	switch(rb_scan_args(argc, argv, "02", &voff, &vsize))
+	{
+	case 0:
+		voff = bzruby_caret(self);
+		/* FALLTHROUGH */
+	case 1:
+		vsize = bzruby_wide(self);
+		/* FALLTHROUGH */
+	case 2:
+		// OK
+		break;
+	default:
+		ASSERT(FALSE); // panic
+	}
 
 	Check_Type(voff, T_FIXNUM);
 	Check_Type(vsize, T_FIXNUM);
 
-	off = FIX2ULONG(voff);
-	size = FIX2INT(vsize);
+	ULONG off = FIX2ULONG(voff); // TODO: 4GBâzÇ¶ëŒâû(ULONGLONG/rb_big2ull)
+	int size = FIX2INT(vsize);
 
 	if(size == 8)
 	{
@@ -274,8 +292,38 @@ static VALUE bzruby_value(VALUE self, VALUE voff, VALUE vsize)
 		rb_exc_raise(rb_exc_new2(rb_eArgError, "size must be 1, 2, 4 or 8"));
 	}
 }
-static VALUE bzruby_valueeq(VALUE self, VALUE voff, VALUE vsize, VALUE vval)
+// BZ.value=val
+// BZ.setvalue(val)
+// BZ.setvalue(off, val)
+// BZ.setvalue(off, size, val)
+static VALUE bzruby_valueeq(int argc, VALUE *argv, VALUE self)
 {
+	VALUE voff;
+	VALUE vsize;
+	VALUE vval;
+	VALUE v1, v2, v3;
+
+	switch(rb_scan_args(argc, argv, "12", &v1, &v2, &v3))
+	{
+	case 1:
+		voff = bzruby_caret(self);
+		vsize = bzruby_wide(self);
+		vval = v1;
+		break;
+	case 2:
+		voff = v1;
+		vsize = bzruby_wide(self);
+		vval = v2;
+		break;
+	case 3:
+		voff = v1;
+		vsize = v2;
+		vval = v3;
+		break;
+	default:
+		ASSERT(FALSE); // panic
+	}
+
 	ULONG off; // TODO: 4GBâzÇ¶ëŒâû(ULONGLONG/rb_big2ull)
 	int size;
 	int val;
@@ -484,8 +532,8 @@ static void init_ruby(void)
 	rb_define_module_function(mBz, "[]=", reinterpret_cast<VALUE(*)(...)>(bzruby_bracketeq), 2);
 	rb_define_module_function(mBz, "data", reinterpret_cast<VALUE(*)(...)>(bzruby_data), 0);
 	rb_define_module_function(mBz, "data=", reinterpret_cast<VALUE(*)(...)>(bzruby_dataeq), 1);
-	rb_define_module_function(mBz, "value", reinterpret_cast<VALUE(*)(...)>(bzruby_value), 2);
-	rb_define_module_function(mBz, "setvalue", reinterpret_cast<VALUE(*)(...)>(bzruby_valueeq), 3);
+	rb_define_module_function(mBz, "value", reinterpret_cast<VALUE(*)(...)>(bzruby_value), -1);
+	rb_define_module_function(mBz, "setvalue", reinterpret_cast<VALUE(*)(...)>(bzruby_valueeq), -1);
 	//rb_define_module_function(mBz, "fill", reinterpret_cast<VALUE(*)(...)>(NULL), 0); // TODO: é¿ëïÇ∑ÇÈ?
 	rb_define_module_function(mBz, "blockbegin", reinterpret_cast<VALUE(*)(...)>(bzruby_blockbegin), 0);
 	rb_define_module_function(mBz, "blockend", reinterpret_cast<VALUE(*)(...)>(bzruby_blockend), 0);
@@ -517,7 +565,7 @@ static void init_ruby(void)
 	//rb_define_module_function(mBz, "bmap!", reinterpret_cast<VALUE(*)(...)>(bzruby_bmapx), 0); // BZ.bmap!(){block}; ëIëîÕàÕÇpmap!Ç…ìnÇµÇΩä¥Ç∂ÅAï÷óòä÷êîÅAëIëÇµÇƒÇ¢Ç»ÇØÇÍÇŒâΩÇ‡ÇµÇ»Ç¢
 	// TODO: ìKìñÇ…CBZView->m_nBytesÇÃÇ±Ç∆ÇwideÇ∆åƒèÃÇµÇƒÇ¢ÇÈÇØÇ«ÅAÇ¢Ç¢ÇÃÇ©?
 	rb_define_module_function(mBz, "wide", reinterpret_cast<VALUE(*)(...)>(bzruby_wide), 0);
-	rb_define_module_function(mBz, "wide=", reinterpret_cast<VALUE(*)(...)>(bzruby_wideeq), 0);
+	rb_define_module_function(mBz, "wide=", reinterpret_cast<VALUE(*)(...)>(bzruby_wideeq), 1);
 	//rb_define_module_function(mBz, "auto_invalidate", reinterpret_cast<VALUE(*)(...)>(bzruby_auto_invalidate), 0);
 	//rb_define_module_function(mBz, "auto_invalidate=", reinterpret_cast<VALUE(*)(...)>(bzruby_auto_invalidateeq), 0);
 	//rb_define_module_function(mBz, "setfilename", reinterpret_cast<VALUE(*)(...)>(bzruby_setfilename), 1);
@@ -526,6 +574,9 @@ static void init_ruby(void)
 	//rb_define_module_function(mBz, "saveas", reinterpret_cast<VALUE(*)(...)>(bzruby_saveas), 1);
 	//rb_define_module_function(mBz, "new", reinterpret_cast<VALUE(*)(...)>(bzruby_new), 0);
 	//rb_define_module_function(mBz, "", reinterpret_cast<VALUE(*)(...)>(bzruby_), 0);
+
+	// register_hotkey
+	// key-callback cursor-move-callback fileI/O-callback draw-callback(coloring)
 }
 
 static PyObject* python_write(PyObject *self, PyObject *args)
