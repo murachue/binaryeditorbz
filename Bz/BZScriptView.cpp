@@ -133,7 +133,63 @@ static VALUE ruby_careteq(VALUE self, VALUE val)
 
 static VALUE ruby_data(VALUE self, VALUE idx_range)
 {
-	rb_exc_raise(rb_exc_new2(rb_eNotImpError, "Sorry!"));
+	int64_t ibegin, iend; // [ibegin,iend] (inclusive)
+
+	if(TYPE(idx_range) == T_FIXNUM || TYPE(idx_range) == T_BIGNUM)
+	{
+		ibegin = iend = NUM2LL(idx_range);
+	} else if(rb_funcall(idx_range, rb_intern("is_a?"), 1, rb_cRange))
+	{
+		ibegin = NUM2LL(rb_funcall(idx_range, rb_intern("begin"),0));
+		iend = NUM2LL(rb_funcall(idx_range, rb_intern("end"),0));
+		if(rb_funcall(idx_range, rb_intern("exclude_end?"),0) == Qtrue)
+			iend -= 1;
+	} else
+	{
+		rb_exc_raise(rb_exc_new2(rb_eArgError, "an argument must be Fixnum, Bignum or Range"));
+	}
+
+	CBZDoc *doc = cbzsv->m_pView->GetDocument();
+	DWORD docsize = doc->GetDocSize(); // TODO: 4GB‰z‚¦‘Î‰ž
+
+	if(ibegin < 0) ibegin = (int64_t)docsize - ibegin;
+	if(iend < 0) iend = (int64_t)docsize - iend;
+
+	if(ibegin < 0 || docsize <= ibegin)
+	{
+		if(ibegin == iend) // BZ[1234]
+			rb_exc_raise(rb_exc_new2(rb_eIndexError, "index out of range"));
+		else // BZ[1234..5678]
+			rb_exc_raise(rb_exc_new2(rb_eIndexError, "begin out of range"));
+	}
+	if(iend < 0 || docsize <= iend)
+	{
+		// out of range with "ibegin == iend" is already trappend and never happen.
+		rb_exc_raise(rb_exc_new2(rb_eIndexError, "end out of range"));
+	}
+
+	if(iend - ibegin < 0)
+	{
+		return rb_str_new_cstr("");
+	}
+
+	// do fetch and return it to Ruby world!
+	DWORD begin = static_cast<DWORD>(ibegin), end = static_cast<DWORD>(iend); // TODO: 4GB‰z‚¦‘Î‰ž
+	DWORD remain = end - begin + 1;
+	VALUE rstr = rb_str_new_cstr("");
+	for(;;)
+	{
+		LPBYTE pdata = doc->QueryMapViewTama2(begin, remain);
+		DWORD mappedsize = doc->GetMapRemain(begin); // TODO: 4GB‰z‚¦‘Î‰ž
+		DWORD size = min(mappedsize, remain); // TODO: 4GB‰z‚¦‘Î‰ž
+		rb_str_cat(rstr, (const char*)pdata, size);
+		begin += size;
+		remain -= size;
+		if(remain == 0)
+			break;
+	}
+
+	return rstr;
 }
 static VALUE ruby_dataeq(VALUE self, VALUE idx_range, VALUE val)
 {
@@ -352,6 +408,8 @@ static void init_ruby(void)
 	rb_define_module_function(mBz, "isbe", reinterpret_cast<VALUE(*)(...)>(ruby_isbe), 0);
 	rb_define_module_function(mBz, "isbe?", reinterpret_cast<VALUE(*)(...)>(ruby_isbe), 0);
 	rb_define_module_function(mBz, "filename", reinterpret_cast<VALUE(*)(...)>(ruby_filename), 0);
+	//rb_define_module_function(mBz, "size", reinterpret_cast<VALUE(*)(...)>(ruby_size), 0);
+	//rb_define_module_function(mBz, "length", reinterpret_cast<VALUE(*)(...)>(ruby_size), 0);
 	//rb_define_module_function(mBz, "setfilename", reinterpret_cast<VALUE(*)(...)>(ruby_setfilename), 1);
 	//rb_define_module_function(mBz, "open", reinterpret_cast<VALUE(*)(...)>(ruby_open), 1);
 	//rb_define_module_function(mBz, "save", reinterpret_cast<VALUE(*)(...)>(ruby_save), 0);
