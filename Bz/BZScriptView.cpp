@@ -152,25 +152,27 @@ static VALUE ruby_data(VALUE self, VALUE idx_range)
 	CBZDoc *doc = cbzsv->m_pView->GetDocument();
 	DWORD docsize = doc->GetDocSize(); // TODO: 4GB越え対応
 
-	if(ibegin < 0) ibegin = (int64_t)docsize - ibegin;
-	if(iend < 0) iend = (int64_t)docsize - iend;
-
-	if(ibegin < 0 || docsize <= ibegin)
-	{
-		if(ibegin == iend) // BZ[1234]
-			rb_exc_raise(rb_exc_new2(rb_eIndexError, "index out of range"));
-		else // BZ[1234..5678]
-			rb_exc_raise(rb_exc_new2(rb_eIndexError, "begin out of range"));
-	}
-	if(iend < 0 || docsize <= iend)
-	{
-		// out of range with "ibegin == iend" is already trappend and never happen.
-		rb_exc_raise(rb_exc_new2(rb_eIndexError, "end out of range"));
-	}
+	if(ibegin < 0) ibegin = (int64_t)docsize + ibegin;
+	if(iend < 0) iend = (int64_t)docsize + iend;
 
 	if(iend - ibegin < 0)
 	{
 		return rb_str_new_cstr("");
+	}
+
+	// Stringはこういう動作らしい…
+	if(ibegin == docsize)
+	{
+		return rb_str_new_cstr("");
+	}
+	if(ibegin < 0 || docsize < ibegin)
+	{
+		return Qnil;
+	}
+	if((iend < 0 || docsize <= iend) && iend != ibegin)
+	{
+		// Rangeだったらiendがファイルサイズを超えていた場合に切り詰める
+		iend = docsize - 1;
 	}
 
 	// do fetch and return it to Ruby world!
@@ -362,6 +364,11 @@ static VALUE ruby_setendianess(VALUE self, VALUE vendian)
 static VALUE ruby_isle(VALUE self) { return options.bByteOrder == 0 ? Qtrue : Qfalse; }
 static VALUE ruby_isbe(VALUE self) { return options.bByteOrder != 0 ? Qtrue : Qfalse; }
 static VALUE ruby_filename(VALUE self) { return rb_str_new2(CStringA(cbzsv->m_pView->GetDocument()->GetPathName())); }
+static VALUE ruby_size(VALUE self)
+{
+	// TODO: 4GB越え対応
+	return ULONG2NUM(static_cast<ULONG>(cbzsv->m_pView->GetDocument()->GetDocSize()));
+}
 
 extern "C" RUBY_EXTERN int rb_io_init_std;
 
@@ -408,8 +415,8 @@ static void init_ruby(void)
 	rb_define_module_function(mBz, "isbe", reinterpret_cast<VALUE(*)(...)>(ruby_isbe), 0);
 	rb_define_module_function(mBz, "isbe?", reinterpret_cast<VALUE(*)(...)>(ruby_isbe), 0);
 	rb_define_module_function(mBz, "filename", reinterpret_cast<VALUE(*)(...)>(ruby_filename), 0);
-	//rb_define_module_function(mBz, "size", reinterpret_cast<VALUE(*)(...)>(ruby_size), 0);
-	//rb_define_module_function(mBz, "length", reinterpret_cast<VALUE(*)(...)>(ruby_size), 0);
+	rb_define_module_function(mBz, "size", reinterpret_cast<VALUE(*)(...)>(ruby_size), 0);
+	rb_define_module_function(mBz, "length", reinterpret_cast<VALUE(*)(...)>(ruby_size), 0);
 	//rb_define_module_function(mBz, "setfilename", reinterpret_cast<VALUE(*)(...)>(ruby_setfilename), 1);
 	//rb_define_module_function(mBz, "open", reinterpret_cast<VALUE(*)(...)>(ruby_open), 1);
 	//rb_define_module_function(mBz, "save", reinterpret_cast<VALUE(*)(...)>(ruby_save), 0);
