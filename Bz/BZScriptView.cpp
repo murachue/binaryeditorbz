@@ -74,7 +74,7 @@ IMPLEMENT_DYNCREATE(CBZScriptView, CFormView)
 static CBZScriptView *cbzsv; // TODO: YES GLOBAL AS RUBY DO!!!
 static CString outbuf;
 
-static VALUE ruby_write(VALUE self, VALUE str)
+static VALUE bzruby_write(VALUE self, VALUE str)
 {
 	Check_Type(str, T_STRING);
 
@@ -100,7 +100,7 @@ static VALUE ruby_write(VALUE self, VALUE str)
 	return Qnil;
 }
 
-static VALUE ruby_read(int argc, VALUE *argv, VALUE self)
+static VALUE bzruby_read(int argc, VALUE *argv, VALUE self)
 {
 	VALUE vsize;
 	long lsize;
@@ -121,9 +121,9 @@ static VALUE ruby_read(int argc, VALUE *argv, VALUE self)
 	return emptystr;
 }
 
-static VALUE ruby_caret(VALUE self) { return UINT2NUM(cbzsv->m_pView->m_dwCaret); }
+static VALUE bzruby_caret(VALUE self) { return UINT2NUM(cbzsv->m_pView->m_dwCaret); }
 
-static VALUE ruby_careteq(VALUE self, VALUE val)
+static VALUE bzruby_careteq(VALUE self, VALUE val)
 {
 	Check_Type(val, T_FIXNUM);
 	VALUE orgcaret = UINT2NUM(cbzsv->m_pView->m_dwCaret); // おまけ
@@ -133,7 +133,7 @@ static VALUE ruby_careteq(VALUE self, VALUE val)
 
 // [begin,end] (inclusive)
 // TODO: 4GB越え対応
-static VALUE ruby_data2str(CBZDoc *doc, DWORD begin, DWORD end)
+static VALUE bzruby_data2str(CBZDoc *doc, DWORD begin, DWORD end)
 {
 	DWORD remain = end - begin + 1;
 	VALUE rstr = rb_str_new_cstr("");
@@ -151,7 +151,7 @@ static VALUE ruby_data2str(CBZDoc *doc, DWORD begin, DWORD end)
 
 	return rstr;
 }
-static VALUE ruby_bracket(VALUE self, VALUE idx_range)
+static VALUE bzruby_bracket(VALUE self, VALUE idx_range)
 {
 	int64_t ibegin, iend; // [ibegin,iend] (inclusive)
 
@@ -200,9 +200,9 @@ static VALUE ruby_bracket(VALUE self, VALUE idx_range)
 	DWORD begin = static_cast<DWORD>(ibegin);
 	DWORD end = end = static_cast<DWORD>(iend);
 	
-	return ruby_data2str(doc, begin, end);
+	return bzruby_data2str(doc, begin, end);
 }
-static VALUE ruby_bracketeq(VALUE self, VALUE idx_range, VALUE val)
+static VALUE bzruby_bracketeq(VALUE self, VALUE idx_range, VALUE val)
 {
 	// TODO: BZ[idx/range,wide]=value形式も受け付けるか? (script利用者はendian考えなくていいので楽)
 	int64_t ibegin, iend; // [ibegin,iend] (inclusive)
@@ -232,14 +232,14 @@ static VALUE ruby_bracketeq(VALUE self, VALUE idx_range, VALUE val)
 
 	rb_exc_raise(rb_exc_new2(rb_eNotImpError, "Sorry!"));
 }
-static VALUE ruby_data(VALUE self)
+static VALUE bzruby_data(VALUE self)
 {
 	CBZDoc *doc = cbzsv->m_pView->GetDocument();
 	DWORD docsize = doc->GetDocSize(); // TODO: 4GB越え対応
 
-	return ruby_data2str(doc, 0, docsize - 1);
+	return bzruby_data2str(doc, 0, docsize - 1);
 }
-static VALUE ruby_dataeq(VALUE self, VALUE idx_range, VALUE val)
+static VALUE bzruby_dataeq(VALUE self, VALUE idx_range, VALUE val)
 {
 	// TODO: BZ[idx/range,wide]=value形式も受け付けるか? (script利用者はendian考えなくていいので楽)
 	int64_t ibegin, iend; // [ibegin,iend] (inclusive)
@@ -269,7 +269,7 @@ static VALUE ruby_dataeq(VALUE self, VALUE idx_range, VALUE val)
 
 	rb_exc_raise(rb_exc_new2(rb_eNotImpError, "Sorry!"));
 }
-static VALUE ruby_value(VALUE self, VALUE voff, VALUE vsize)
+static VALUE bzruby_value(VALUE self, VALUE voff, VALUE vsize)
 {
 	ULONG off; // TODO: 4GB越え対応(ULONGLONG/rb_big2ull)
 	int size;
@@ -291,7 +291,7 @@ static VALUE ruby_value(VALUE self, VALUE voff, VALUE vsize)
 		rb_exc_raise(rb_exc_new2(rb_eArgError, "size must be 1, 2, 4 or 8"));
 	}
 }
-static VALUE ruby_valueeq(VALUE self, VALUE voff, VALUE vsize, VALUE vval)
+static VALUE bzruby_valueeq(VALUE self, VALUE voff, VALUE vsize, VALUE vval)
 {
 	ULONG off; // TODO: 4GB越え対応(ULONGLONG/rb_big2ull)
 	int size;
@@ -314,12 +314,12 @@ static VALUE ruby_valueeq(VALUE self, VALUE voff, VALUE vsize, VALUE vval)
 		rb_exc_raise(rb_exc_new2(rb_eArgError, "size must be 1, 2 or 4"));
 	}
 }
-static VALUE ruby_blockbegin(VALUE self) { return UINT2NUM(cbzsv->m_pView->BlockBegin()); } // TODO: 4GB越え対応(ULONGLONG/rb_big2ull)
-static VALUE ruby_blockend(VALUE self) { return UINT2NUM(cbzsv->m_pView->BlockEnd()); } // TODO: 4GB越え対応(ULONGLONG/rb_big2ull)
-static VALUE ruby_block(VALUE self) { return rb_funcall(rb_cRange, rb_intern("new"), 3, UINT2NUM(cbzsv->m_pView->BlockBegin()), UINT2NUM(cbzsv->m_pView->BlockEnd()), rb_cFalseClass); } // TODO: 4GB越え対応(ULONGLONG/rb_big2ull)
+static VALUE bzruby_blockbegin(VALUE self) { return UINT2NUM(cbzsv->m_pView->BlockBegin()); } // TODO: 4GB越え対応(ULONGLONG/rb_big2ull)
+static VALUE bzruby_blockend(VALUE self) { return UINT2NUM(cbzsv->m_pView->BlockEnd()); } // TODO: 4GB越え対応(ULONGLONG/rb_big2ull)
+static VALUE bzruby_block(VALUE self) { return rb_funcall(rb_cRange, rb_intern("new"), 3, UINT2NUM(cbzsv->m_pView->BlockBegin()), UINT2NUM(cbzsv->m_pView->BlockEnd()), rb_cFalseClass); } // TODO: 4GB越え対応(ULONGLONG/rb_big2ull)
 // BZ.setblock(begin, end) 2 Fixnums
 // BZ.setblock(begin...end) 1 Range
-static VALUE ruby_setblock(int argc, VALUE *argv, VALUE self)
+static VALUE bzruby_setblock(int argc, VALUE *argv, VALUE self)
 {
 	// TODO: 4GB越え対応(ULONGLONG/rb_big2ull)
 	ULONG begin, end;
@@ -363,7 +363,7 @@ static VALUE ruby_setblock(int argc, VALUE *argv, VALUE self)
 
 	return Qnil; // TODO: rangeでも返す?
 }
-static VALUE ruby_setmark(VALUE self, VALUE voff)
+static VALUE bzruby_setmark(VALUE self, VALUE voff)
 {
 	// TODO: 4GB越え対応(ULONGLONG/rb_big2ull)
 	ULONG off;
@@ -377,7 +377,7 @@ static VALUE ruby_setmark(VALUE self, VALUE voff)
 
 	return Qtrue;
 }
-static VALUE ruby_unsetmark(VALUE self, VALUE voff)
+static VALUE bzruby_unsetmark(VALUE self, VALUE voff)
 {
 	// TODO: 4GB越え対応(ULONGLONG/rb_big2ull)
 	ULONG off;
@@ -391,7 +391,7 @@ static VALUE ruby_unsetmark(VALUE self, VALUE voff)
 
 	return Qfalse;
 }
-static VALUE ruby_togglemark(VALUE self, VALUE voff)
+static VALUE bzruby_togglemark(VALUE self, VALUE voff)
 {
 	// TODO: 4GB越え対応(ULONGLONG/rb_big2ull)
 	ULONG off;
@@ -403,7 +403,7 @@ static VALUE ruby_togglemark(VALUE self, VALUE voff)
 	cbzsv->m_pView->GetDocument()->SetMark(off);
 	return cbzsv->m_pView->GetDocument()->CheckMark(off) ? Qtrue : Qfalse;
 }
-static VALUE ruby_ismarked(VALUE self, VALUE voff)
+static VALUE bzruby_ismarked(VALUE self, VALUE voff)
 {
 	// TODO: 4GB越え対応(ULONGLONG/rb_big2ull)
 	ULONG off;
@@ -414,10 +414,10 @@ static VALUE ruby_ismarked(VALUE self, VALUE voff)
 
 	return cbzsv->m_pView->GetDocument()->CheckMark(off) ? Qtrue : Qfalse;
 }
-static VALUE ruby_isfilemapping(VALUE self) { return cbzsv->m_pView->GetDocument()->IsFileMapping() ? Qtrue : Qfalse; }
-static VALUE ruby_invalidate(VALUE self) { cbzsv->m_pView->Invalidate(); return Qnil; }
-static VALUE ruby_endianess(VALUE self) { return UINT2NUM(options.bByteOrder); } // 適当
-static VALUE ruby_setendianess(VALUE self, VALUE vendian)
+static VALUE bzruby_isfilemapping(VALUE self) { return cbzsv->m_pView->GetDocument()->IsFileMapping() ? Qtrue : Qfalse; }
+static VALUE bzruby_invalidate(VALUE self) { cbzsv->m_pView->Invalidate(); return Qnil; }
+static VALUE bzruby_endianess(VALUE self) { return UINT2NUM(options.bByteOrder); } // 適当
+static VALUE bzruby_setendianess(VALUE self, VALUE vendian)
 {
 	BOOL endian;
 
@@ -433,10 +433,10 @@ static VALUE ruby_setendianess(VALUE self, VALUE vendian)
 
 	return UINT2NUM(options.bByteOrder); // おまけ
 }
-static VALUE ruby_isle(VALUE self) { return options.bByteOrder == 0 ? Qtrue : Qfalse; }
-static VALUE ruby_isbe(VALUE self) { return options.bByteOrder != 0 ? Qtrue : Qfalse; }
-static VALUE ruby_filename(VALUE self) { return rb_str_new2(CStringA(cbzsv->m_pView->GetDocument()->GetPathName())); }
-static VALUE ruby_size(VALUE self)
+static VALUE bzruby_isle(VALUE self) { return options.bByteOrder == 0 ? Qtrue : Qfalse; }
+static VALUE bzruby_isbe(VALUE self) { return options.bByteOrder != 0 ? Qtrue : Qfalse; }
+static VALUE bzruby_filename(VALUE self) { return rb_str_new2(CStringA(cbzsv->m_pView->GetDocument()->GetPathName())); }
+static VALUE bzruby_size(VALUE self)
 {
 	// TODO: 4GB越え対応
 	return ULONG2NUM(static_cast<ULONG>(cbzsv->m_pView->GetDocument()->GetDocSize()));
@@ -451,57 +451,57 @@ static void init_ruby(void)
 
 	// remap stdio
 	rb_stdout = rb_obj_alloc(rb_cIO);
-	rb_define_singleton_method(rb_stdout, "write", reinterpret_cast<VALUE(*)(...)>(ruby_write), 1);
+	rb_define_singleton_method(rb_stdout, "write", reinterpret_cast<VALUE(*)(...)>(bzruby_write), 1);
 	rb_stderr = rb_obj_alloc(rb_cIO);
-	rb_define_singleton_method(rb_stderr, "write", reinterpret_cast<VALUE(*)(...)>(ruby_write), 1);
+	rb_define_singleton_method(rb_stderr, "write", reinterpret_cast<VALUE(*)(...)>(bzruby_write), 1);
 	rb_stdin = rb_obj_alloc(rb_cIO);
-	rb_define_singleton_method(rb_stdin, "read", reinterpret_cast<VALUE(*)(...)>(ruby_read), -1);
+	rb_define_singleton_method(rb_stdin, "read", reinterpret_cast<VALUE(*)(...)>(bzruby_read), -1);
 
 	ruby_init_loadpath();
 
 	// export Bz remoting
 	// TODO: split-view時、対象ドキュメントを取り違えるのでなんとかする。
 	VALUE mBz = rb_define_module("BZ");
-	rb_define_module_function(mBz, "caret", reinterpret_cast<VALUE(*)(...)>(ruby_caret), 0);
-	rb_define_module_function(mBz, "caret=", reinterpret_cast<VALUE(*)(...)>(ruby_careteq), 1);
-	rb_define_module_function(mBz, "[]", reinterpret_cast<VALUE(*)(...)>(ruby_bracket), 1);
-	rb_define_module_function(mBz, "[]=", reinterpret_cast<VALUE(*)(...)>(ruby_bracketeq), 2);
-	rb_define_module_function(mBz, "data", reinterpret_cast<VALUE(*)(...)>(ruby_data), 1);
-	rb_define_module_function(mBz, "data=", reinterpret_cast<VALUE(*)(...)>(ruby_dataeq), 2);
-	rb_define_module_function(mBz, "value", reinterpret_cast<VALUE(*)(...)>(ruby_value), 2);
-	rb_define_module_function(mBz, "setvalue", reinterpret_cast<VALUE(*)(...)>(ruby_valueeq), 3);
+	rb_define_module_function(mBz, "caret", reinterpret_cast<VALUE(*)(...)>(bzruby_caret), 0);
+	rb_define_module_function(mBz, "caret=", reinterpret_cast<VALUE(*)(...)>(bzruby_careteq), 1);
+	rb_define_module_function(mBz, "[]", reinterpret_cast<VALUE(*)(...)>(bzruby_bracket), 1);
+	rb_define_module_function(mBz, "[]=", reinterpret_cast<VALUE(*)(...)>(bzruby_bracketeq), 2);
+	rb_define_module_function(mBz, "data", reinterpret_cast<VALUE(*)(...)>(bzruby_data), 1);
+	rb_define_module_function(mBz, "data=", reinterpret_cast<VALUE(*)(...)>(bzruby_dataeq), 2);
+	rb_define_module_function(mBz, "value", reinterpret_cast<VALUE(*)(...)>(bzruby_value), 2);
+	rb_define_module_function(mBz, "setvalue", reinterpret_cast<VALUE(*)(...)>(bzruby_valueeq), 3);
 	//rb_define_module_function(mBz, "fill", reinterpret_cast<VALUE(*)(...)>(NULL), 0); // TODO: 実装する?
-	rb_define_module_function(mBz, "blockbegin", reinterpret_cast<VALUE(*)(...)>(ruby_blockbegin), 0);
-	rb_define_module_function(mBz, "blockend", reinterpret_cast<VALUE(*)(...)>(ruby_blockend), 0);
-	rb_define_module_function(mBz, "block", reinterpret_cast<VALUE(*)(...)>(ruby_block), 0);
-	rb_define_module_function(mBz, "setblock", reinterpret_cast<VALUE(*)(...)>(ruby_setblock), -1);
-	rb_define_module_function(mBz, "setmark", reinterpret_cast<VALUE(*)(...)>(ruby_setmark), 1);
-	rb_define_module_function(mBz, "unsetmark", reinterpret_cast<VALUE(*)(...)>(ruby_unsetmark), 1);
-	rb_define_module_function(mBz, "togglemark", reinterpret_cast<VALUE(*)(...)>(ruby_togglemark), 1);
-	rb_define_module_function(mBz, "ismarked", reinterpret_cast<VALUE(*)(...)>(ruby_ismarked), 1);
-	rb_define_module_function(mBz, "ismarked?", reinterpret_cast<VALUE(*)(...)>(ruby_ismarked), 1);
-	rb_define_module_function(mBz, "isfilemapping", reinterpret_cast<VALUE(*)(...)>(ruby_isfilemapping), 0);
-	rb_define_module_function(mBz, "isfilemapping?", reinterpret_cast<VALUE(*)(...)>(ruby_isfilemapping), 0);
-	rb_define_module_function(mBz, "invalidate", reinterpret_cast<VALUE(*)(...)>(ruby_invalidate), 0);
-	rb_define_module_function(mBz, "setendianess", reinterpret_cast<VALUE(*)(...)>(ruby_setendianess), 0);
-	rb_define_module_function(mBz, "endianess", reinterpret_cast<VALUE(*)(...)>(ruby_endianess), 0);
-	rb_define_module_function(mBz, "isle", reinterpret_cast<VALUE(*)(...)>(ruby_isle), 0);
-	rb_define_module_function(mBz, "isle?", reinterpret_cast<VALUE(*)(...)>(ruby_isle), 0);
-	rb_define_module_function(mBz, "isbe", reinterpret_cast<VALUE(*)(...)>(ruby_isbe), 0);
-	rb_define_module_function(mBz, "isbe?", reinterpret_cast<VALUE(*)(...)>(ruby_isbe), 0);
-	rb_define_module_function(mBz, "filename", reinterpret_cast<VALUE(*)(...)>(ruby_filename), 0);
-	rb_define_module_function(mBz, "size", reinterpret_cast<VALUE(*)(...)>(ruby_size), 0);
-	rb_define_module_function(mBz, "length", reinterpret_cast<VALUE(*)(...)>(ruby_size), 0);
-	//rb_define_module_function(mBz, "each_byte", reinterpret_cast<VALUE(*)(...)>(ruby_new), 0); // => Enumerable
-	//rb_define_module_function(mBz, "each_word", reinterpret_cast<VALUE(*)(...)>(ruby_new), 0); // => Enumerable; wordはWORDではなく、byte/word/dwordは現在のステータスバーに依存
+	rb_define_module_function(mBz, "blockbegin", reinterpret_cast<VALUE(*)(...)>(bzruby_blockbegin), 0);
+	rb_define_module_function(mBz, "blockend", reinterpret_cast<VALUE(*)(...)>(bzruby_blockend), 0);
+	rb_define_module_function(mBz, "block", reinterpret_cast<VALUE(*)(...)>(bzruby_block), 0);
+	rb_define_module_function(mBz, "setblock", reinterpret_cast<VALUE(*)(...)>(bzruby_setblock), -1);
+	rb_define_module_function(mBz, "setmark", reinterpret_cast<VALUE(*)(...)>(bzruby_setmark), 1);
+	rb_define_module_function(mBz, "unsetmark", reinterpret_cast<VALUE(*)(...)>(bzruby_unsetmark), 1);
+	rb_define_module_function(mBz, "togglemark", reinterpret_cast<VALUE(*)(...)>(bzruby_togglemark), 1);
+	rb_define_module_function(mBz, "ismarked", reinterpret_cast<VALUE(*)(...)>(bzruby_ismarked), 1);
+	rb_define_module_function(mBz, "ismarked?", reinterpret_cast<VALUE(*)(...)>(bzruby_ismarked), 1);
+	rb_define_module_function(mBz, "isfilemapping", reinterpret_cast<VALUE(*)(...)>(bzruby_isfilemapping), 0);
+	rb_define_module_function(mBz, "isfilemapping?", reinterpret_cast<VALUE(*)(...)>(bzruby_isfilemapping), 0);
+	rb_define_module_function(mBz, "invalidate", reinterpret_cast<VALUE(*)(...)>(bzruby_invalidate), 0);
+	rb_define_module_function(mBz, "setendianess", reinterpret_cast<VALUE(*)(...)>(bzruby_setendianess), 0);
+	rb_define_module_function(mBz, "endianess", reinterpret_cast<VALUE(*)(...)>(bzruby_endianess), 0);
+	rb_define_module_function(mBz, "isle", reinterpret_cast<VALUE(*)(...)>(bzruby_isle), 0);
+	rb_define_module_function(mBz, "isle?", reinterpret_cast<VALUE(*)(...)>(bzruby_isle), 0);
+	rb_define_module_function(mBz, "isbe", reinterpret_cast<VALUE(*)(...)>(bzruby_isbe), 0);
+	rb_define_module_function(mBz, "isbe?", reinterpret_cast<VALUE(*)(...)>(bzruby_isbe), 0);
+	rb_define_module_function(mBz, "filename", reinterpret_cast<VALUE(*)(...)>(bzruby_filename), 0);
+	rb_define_module_function(mBz, "size", reinterpret_cast<VALUE(*)(...)>(bzruby_size), 0);
+	rb_define_module_function(mBz, "length", reinterpret_cast<VALUE(*)(...)>(bzruby_size), 0);
+	//rb_define_module_function(mBz, "each_byte", reinterpret_cast<VALUE(*)(...)>(bzruby_new), 0); // => Enumerable
+	//rb_define_module_function(mBz, "each_word", reinterpret_cast<VALUE(*)(...)>(bzruby_new), 0); // => Enumerable; wordはWORDではなく、byte/word/dwordは現在のステータスバーに依存
 	// とりあえずbyte版だけmap!/pmap!を用意しておく。word版いる?
-	//rb_define_module_function(mBz, "map!", reinterpret_cast<VALUE(*)(...)>(ruby_new), 0);
-	//rb_define_module_function(mBz, "pmap!", reinterpret_cast<VALUE(*)(...)>(ruby_new), 0); // BZ.pmap(begin..end|begin,end){block}
-	//rb_define_module_function(mBz, "setfilename", reinterpret_cast<VALUE(*)(...)>(ruby_setfilename), 1);
-	//rb_define_module_function(mBz, "open", reinterpret_cast<VALUE(*)(...)>(ruby_open), 1);
-	//rb_define_module_function(mBz, "save", reinterpret_cast<VALUE(*)(...)>(ruby_save), 0);
-	//rb_define_module_function(mBz, "saveas", reinterpret_cast<VALUE(*)(...)>(ruby_saveas), 1);
-	//rb_define_module_function(mBz, "new", reinterpret_cast<VALUE(*)(...)>(ruby_new), 0);
+	//rb_define_module_function(mBz, "map!", reinterpret_cast<VALUE(*)(...)>(bzruby_new), 0);
+	//rb_define_module_function(mBz, "pmap!", reinterpret_cast<VALUE(*)(...)>(bzruby_new), 0); // BZ.pmap(begin..end|begin,end){block}
+	//rb_define_module_function(mBz, "setfilename", reinterpret_cast<VALUE(*)(...)>(bzruby_setfilename), 1);
+	//rb_define_module_function(mBz, "open", reinterpret_cast<VALUE(*)(...)>(bzruby_open), 1);
+	//rb_define_module_function(mBz, "save", reinterpret_cast<VALUE(*)(...)>(bzruby_save), 0);
+	//rb_define_module_function(mBz, "saveas", reinterpret_cast<VALUE(*)(...)>(bzruby_saveas), 1);
+	//rb_define_module_function(mBz, "new", reinterpret_cast<VALUE(*)(...)>(bzruby_new), 0);
 }
 
 static PyObject* python_write(PyObject *self, PyObject *args)
