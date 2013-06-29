@@ -360,8 +360,20 @@ BOOL CMainFrame::CreateClient(CCreateContext* pContext)
 				ASSERT(FALSE); // panic
 			m_pSplitter->CreateView(0, 0, RUNTIME_CLASS(CBZView), CSize(0,0), pContext);
 			((CView*)m_pSplitter->GetPane(1, 0))->OnInitialUpdate();
-			pActiveView = (CView*)m_pSplitter->GetPane(0, 0);
-			bzViewNew[0] = dynamic_cast<CBZView *>(pActiveView);
+			// Special: activate script view
+			pActiveView = (CView*)m_pSplitter->GetPane(1, 0);
+			bzViewNew[0] = dynamic_cast<CBZView *>(m_pSplitter->GetPane(0, 0));
+			bzViewNew[0]->OnInitialUpdate();
+			// SetRowInfo(1, ...)は動作しないので、<s>MainFrameのサイズから逆算する…</s>
+			// MainFrameのサイズ(ClientRect)から逆算するとズレていくので、最大サイズになっている(はず)CBZScriptViewのサイズから計算
+			m_bScriptView = FALSE; // RecalcLayout対策: すごくad-hoc...
+			RecalcLayout(); // RecalcLayoutしないとCSplitterWndのサイズが0,0のままなのでm_pSplitter->RecalcLayout()しても意味なくなる。
+			m_bScriptView = TRUE; // RecalcLayout対策: 元に戻す
+			int nCur, nMin;
+			// CMainFrameのRecalcLayoutで自動的にm_pSplitter->RecalcLayout()もしてくれるようだ。
+			m_pSplitter->GetRowInfo(1, nCur, nMin);
+			m_pSplitter->SetRowInfo(0, nCur - options.xSplitStruct, 0); // 逆算
+			m_pSplitter->RecalcLayout(); // SetRowInfo反映
 		} else if(bSubView) {
 			m_pSplitter = new CSplitterWnd;
 			m_pSplitter->CreateStatic(this, 1, 2);
@@ -381,12 +393,13 @@ BOOL CMainFrame::CreateClient(CCreateContext* pContext)
 			((CView*)m_pSplitter->GetPane(0, 0))->OnInitialUpdate();
 			pActiveView = (CView*)m_pSplitter->GetPane(0, 1);
 			bzViewNew[0] = dynamic_cast<CBZView *>(pActiveView);
+			pActiveView->OnInitialUpdate();
 		} else {
 			pContext->m_pNewViewClass = RUNTIME_CLASS(CBZView);
 			pActiveView = (CView*)CreateView(pContext);
 			bzViewNew[0] = dynamic_cast<CBZView *>(pActiveView);
+			pActiveView->OnInitialUpdate();
 		}
-		pActiveView->OnInitialUpdate();
 	}
 	if((m_bStructView||m_bInspectView||m_bAnalyzerView/*||m_bScriptView*/) && m_nSplitView != ID_VIEW_SPLIT_V) {
 		m_pSplitter->SetColumnInfo(0, options.xSplitStruct, 0);
@@ -783,8 +796,11 @@ void CMainFrame::GetSplitInfo()
 	options.bInspectView = m_bInspectView;
 	options.bAnalyzerView = m_bAnalyzerView;
 	//TODO:options.bScriptView = m_bScriptView;
-	if(m_bStructView || m_bInspectView || m_bAnalyzerView || m_bScriptView) {
+	if(m_bStructView || m_bInspectView || m_bAnalyzerView) {
 		m_pSplitter->GetColumnInfo(0, nCur, nMin);
+		options.xSplitStruct = nCur;
+	} else if(m_bScriptView) {
+		m_pSplitter->GetRowInfo(1, nCur, nMin);
 		options.xSplitStruct = nCur;
 	}
 }
@@ -814,4 +830,27 @@ void CMainFrame::UpdateInspectViewChecks()
 void CMainFrame::OnHelpIndex()
 {
 	ShellExecute(NULL, _T("open"), _T("http://devil-tamachan.github.io/BZDoc/"), NULL, NULL, SW_SHOWNORMAL);
+}
+
+
+void CMainFrame::RecalcLayout(BOOL bNotify)
+{
+	// ScriptViewはCMainFrameのリサイズによって拡大縮小しないようにする。
+
+	// ScriptView対応: cyをとっておく
+	int nScrCurOld, nMin;
+	if(m_bScriptView) {
+		m_pSplitter->GetRowInfo(1, nScrCurOld, nMin);
+	}
+
+	CFrameWnd::RecalcLayout(bNotify);
+
+	// ScriptView対応: 差分を元にメインビューのcyを更新してRecalcLayout()
+	if(m_bScriptView) {
+		int nScrCurNew, nMainCurNew; // nMinは使用しないので使いまわし
+		m_pSplitter->GetRowInfo(0, nMainCurNew, nMin);
+		m_pSplitter->GetRowInfo(1, nScrCurNew, nMin);
+		m_pSplitter->SetRowInfo(0, nMainCurNew + (nScrCurNew - nScrCurOld), nMin);
+		m_pSplitter->RecalcLayout();
+	}
 }

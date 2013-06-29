@@ -120,6 +120,7 @@ public:
 	afx_msg void OnHelpIndex();
 	afx_msg void OnViewScript();
 	afx_msg void OnUpdateViewScript(CCmdUI *pCmdUI);
+	virtual void RecalcLayout(BOOL bNotify = TRUE);
 };
 
 #define BZ_CLASSNAME "BzEditorClass"

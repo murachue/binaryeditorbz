@@ -137,7 +137,7 @@ static VALUE bzruby_data2str(CBZDoc *doc, DWORD begin, DWORD end)
 {
 	DWORD remain = end - begin + 1;
 	VALUE rstr = rb_str_new_cstr("");
-	for(;;)
+	while(remain > 0)
 	{
 		LPBYTE pdata = doc->QueryMapViewTama2(begin, remain);
 		DWORD mappedsize = doc->GetMapRemain(begin); // TODO: 4GB越え対応
@@ -145,8 +145,6 @@ static VALUE bzruby_data2str(CBZDoc *doc, DWORD begin, DWORD end)
 		rb_str_cat(rstr, (const char*)pdata, size);
 		begin += size;
 		remain -= size;
-		if(remain == 0)
-			break;
 	}
 
 	return rstr;
@@ -478,6 +476,7 @@ static void init_ruby(void)
 	rb_define_module_function(mBz, "blockend", reinterpret_cast<VALUE(*)(...)>(bzruby_blockend), 0);
 	rb_define_module_function(mBz, "block", reinterpret_cast<VALUE(*)(...)>(bzruby_block), 0);
 	rb_define_module_function(mBz, "setblock", reinterpret_cast<VALUE(*)(...)>(bzruby_setblock), -1);
+	rb_define_module_function(mBz, "block=", reinterpret_cast<VALUE(*)(...)>(bzruby_setblock), -1); // BZ.block=start..end
 	rb_define_module_function(mBz, "setmark", reinterpret_cast<VALUE(*)(...)>(bzruby_setmark), 1);
 	rb_define_module_function(mBz, "unsetmark", reinterpret_cast<VALUE(*)(...)>(bzruby_unsetmark), 1);
 	rb_define_module_function(mBz, "togglemark", reinterpret_cast<VALUE(*)(...)>(bzruby_togglemark), 1);
@@ -628,6 +627,7 @@ void CBZScriptView::OnInitialUpdate()
 
 	// TODO: ここに特定なコードを追加するか、もしくは基本クラスを呼び出してください。
 
+	SetScrollSizes(MM_TEXT, CSize(0, 0));	
 	m_pView = (CBZView*)GetNextWindow();
 	ClearAll();
 }
@@ -841,4 +841,14 @@ BOOL CBZScriptView::PreTranslateMessage(MSG* pMsg)
 	}
 
 	return CFormView::PreTranslateMessage(pMsg);
+}
+
+
+void CBZScriptView::OnActivateView(BOOL bActivate, CView* pActivateView, CView* pDeactiveView)
+{
+	// TODO: ここに特定なコードを追加するか、もしくは基本クラスを呼び出してください。
+
+	CFormView::OnActivateView(bActivate, pActivateView, pDeactiveView);
+	if(bActivate)
+		m_editInput.SetFocus();
 }

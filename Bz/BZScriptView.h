@@ -68,6 +68,7 @@ public:
 	CEdit m_editInput;
 	afx_msg void OnSize(UINT nType, int cx, int cy);
 	virtual BOOL PreTranslateMessage(MSG* pMsg);
+	virtual void OnActivateView(BOOL bActivate, CView* pActivateView, CView* pDeactiveView);
 };
 
 
