@@ -498,11 +498,16 @@ static VALUE bzruby_each_byte(VALUE self)
 	return Qnil;
 }
 static VALUE bzruby_wide(VALUE self) { return UINT2NUM(cbzsv->m_pView->m_nBytes); }
-static VALUE bzruby_wideeq(VALUE self, VALUE val)
+static VALUE bzruby_wideeq(VALUE self, VALUE vval)
 {
-	Check_Type(val, T_FIXNUM);
+	Check_Type(vval, T_FIXNUM);
+	int val = FIX2INT(vval);
+	if(!(val == 1 || val == 2 || val == 4 || val == 8))
+	{
+		rb_exc_raise(rb_exc_new2(rb_eArgError, "wide must be 1, 2, 4 or 8"));
+	}
 	VALUE orgwide = UINT2NUM(cbzsv->m_pView->m_nBytes); // ‚¨‚Ü‚¯
-	cbzsv->m_pView->m_nBytes = FIX2INT(val); // TODO: 4GB‰z‚¦‘Î‰ž
+	cbzsv->m_pView->m_nBytes = val;
 	return orgwide;
 }
 
@@ -816,7 +821,8 @@ CString run_ruby(const char *cmdstr)
 		csvalue.Format("%s: %s\n%s", csklass, csmessg, cstrace); // "\n" is ok. (converted later)
 		CString pstr(csvalue);
 		pstr.Replace(_T("\n"), _T("\r\n"));
-		ostr.Format(_T("Error: state=%d\r\n%s\r\n"), state, pstr);
+		//ostr.Format(_T("Error: state=%d\r\n%s\r\n"), state, pstr);
+		ostr.Format(_T("%s\r\n"), pstr);
 	}
 
 	return ostr;
