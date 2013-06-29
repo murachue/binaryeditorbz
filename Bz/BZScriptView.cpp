@@ -751,7 +751,8 @@ CString run_ruby(const char *cmdstr)
 
 	if(state == 0)
 	{
-		value = rb_obj_as_string(value);
+		//value = rb_obj_as_string(value);
+		value = rb_funcall(value, rb_intern("inspect"), 0); // return value is String, so no need to call rb_obj_as_string()
 		CStringA csvalue(RSTRING_PTR(value), RSTRING_LEN(value));
 		CString pstr(csvalue);
 		pstr.Replace(_T("\n"), _T("\r\n"));
@@ -807,7 +808,7 @@ void CBZScriptView::OnSize(UINT nType, int cx, int cy)
 // TODO: ctrl-c/ctrl-vがscript viewに行きつかないけど、ここで何とかできないか?
 BOOL CBZScriptView::PreTranslateMessage(MSG* pMsg)
 {
-	// TODO: ここに特定なコードを追加するか、もしくは基本クラスを呼び出してください。
+	// 入力窓でEnterが押されたら実行
 	if(pMsg->hwnd == m_editInput.m_hWnd && pMsg->message == WM_KEYDOWN && pMsg->wParam == VK_RETURN)
 	{
 		if((GetAsyncKeyState(VK_CONTROL) & 0x8000) == 0)
@@ -839,6 +840,24 @@ BOOL CBZScriptView::PreTranslateMessage(MSG* pMsg)
 
 		return TRUE;
 	}
+	//*
+	// その他メッセージも必要そうなものを結果窓および入力窓に届ける。
+	// すごく重いかもしれない…
+	// ここでTranslateMessageしてSendMessageとかちょっと具体的すぎる…
+	// TODO: 超ad-hocなので将来的に抹消する
+	if(pMsg->hwnd == m_editResult.m_hWnd && (pMsg->message == WM_KEYDOWN || pMsg->message == WM_KEYUP))
+	{
+		TranslateMessage(pMsg);
+		m_editResult.SendMessage(pMsg->message, pMsg->wParam, pMsg->lParam);
+		return TRUE;
+	}
+	if(pMsg->hwnd == m_editInput.m_hWnd && (pMsg->message == WM_KEYDOWN || pMsg->message == WM_KEYUP))
+	{
+		TranslateMessage(pMsg);
+		m_editInput.SendMessage(pMsg->message, pMsg->wParam, pMsg->lParam);
+		return TRUE;
+	}
+	//*/
 
 	return CFormView::PreTranslateMessage(pMsg);
 }
