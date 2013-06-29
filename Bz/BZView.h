@@ -139,6 +139,7 @@ private:
 	void	JumpToMark();
 //	BOOL	CheckMark(DWORD dwPtr);
 public:
+	BOOL	IsBlockAvailable() { return m_bBlock; };
 	DWORD	BlockBegin() { return m_dwBlock < m_dwCaret ? m_dwBlock : m_dwCaret; };
 	DWORD	BlockEnd() { return m_dwBlock > m_dwCaret ? m_dwBlock : m_dwCaret; } ;
 	void    setBlock(DWORD start, DWORD end) {

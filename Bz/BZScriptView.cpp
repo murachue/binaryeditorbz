@@ -299,9 +299,27 @@ static VALUE bzruby_valueeq(VALUE self, VALUE voff, VALUE vsize, VALUE vval)
 		rb_exc_raise(rb_exc_new2(rb_eArgError, "size must be 1, 2 or 4"));
 	}
 }
-static VALUE bzruby_blockbegin(VALUE self) { return UINT2NUM(cbzsv->m_pView->BlockBegin()); } // TODO: 4GB越え対応(ULONGLONG/rb_big2ull)
-static VALUE bzruby_blockend(VALUE self) { return UINT2NUM(cbzsv->m_pView->BlockEnd()); } // TODO: 4GB越え対応(ULONGLONG/rb_big2ull)
-static VALUE bzruby_block(VALUE self) { return rb_funcall(rb_cRange, rb_intern("new"), 3, UINT2NUM(cbzsv->m_pView->BlockBegin()), UINT2NUM(cbzsv->m_pView->BlockEnd()), rb_cFalseClass); } // TODO: 4GB越え対応(ULONGLONG/rb_big2ull)
+static VALUE bzruby_blockbegin(VALUE self)
+{
+	if(!cbzsv->m_pView->IsBlockAvailable())
+		return Qnil;
+	// TODO: 4GB越え対応(ULONGLONG/rb_big2ull)
+	return UINT2NUM(cbzsv->m_pView->BlockBegin());
+}
+static VALUE bzruby_blockend(VALUE self)
+{
+	if(!cbzsv->m_pView->IsBlockAvailable())
+		return Qnil;
+	// TODO: 4GB越え対応(ULONGLONG/rb_big2ull)
+	return UINT2NUM(cbzsv->m_pView->BlockEnd());
+}
+static VALUE bzruby_block(VALUE self)
+{
+	if(!cbzsv->m_pView->IsBlockAvailable())
+		return Qnil;
+	// TODO: 4GB越え対応(ULONGLONG/rb_big2ull)
+	return rb_funcall(rb_cRange, rb_intern("new"), 3, UINT2NUM(cbzsv->m_pView->BlockBegin()), UINT2NUM(cbzsv->m_pView->BlockEnd()), rb_cFalseClass);
+}
 // BZ.setblock(begin, end) 2 Fixnums
 // BZ.setblock(begin...end) 1 Range
 static VALUE bzruby_setblock(int argc, VALUE *argv, VALUE self)
@@ -477,11 +495,14 @@ static void init_ruby(void)
 	rb_define_module_function(mBz, "filename", reinterpret_cast<VALUE(*)(...)>(bzruby_filename), 0);
 	rb_define_module_function(mBz, "size", reinterpret_cast<VALUE(*)(...)>(bzruby_size), 0);
 	rb_define_module_function(mBz, "length", reinterpret_cast<VALUE(*)(...)>(bzruby_size), 0);
-	//rb_define_module_function(mBz, "each_byte", reinterpret_cast<VALUE(*)(...)>(bzruby_new), 0); // => Enumerable
-	//rb_define_module_function(mBz, "each_word", reinterpret_cast<VALUE(*)(...)>(bzruby_new), 0); // => Enumerable; wordはWORDではなく、byte/word/dwordは現在のステータスバーに依存
+	//rb_define_module_function(mBz, "each_byte", reinterpret_cast<VALUE(*)(...)>(bzruby_each_byte), 0); // => Enumerable
+	//rb_define_module_function(mBz, "each_word", reinterpret_cast<VALUE(*)(...)>(bzruby_each_word), 0); // => Enumerable; wordはWORDではなく、byte/word/dwordは現在のステータスバーに依存
 	// とりあえずbyte版だけmap!/pmap!を用意しておく。word版いる?
-	//rb_define_module_function(mBz, "map!", reinterpret_cast<VALUE(*)(...)>(bzruby_new), 0);
-	//rb_define_module_function(mBz, "pmap!", reinterpret_cast<VALUE(*)(...)>(bzruby_new), 0); // BZ.pmap(begin..end|begin,end){block}
+	//rb_define_module_function(mBz, "map!", reinterpret_cast<VALUE(*)(...)>(bzruby_mapx), 0);
+	//rb_define_module_function(mBz, "pmap!", reinterpret_cast<VALUE(*)(...)>(bzruby_pmapx), 0); // BZ.pmap!(begin..end|begin,end){block}
+	//rb_define_module_function(mBz, "bmap!", reinterpret_cast<VALUE(*)(...)>(bzruby_bmapx), 0); // BZ.bmap!(){block}; 選択範囲をpmap!に渡した感じ、便利関数、選択していなければ何もしない
+	//rb_define_module_function(mBz, "auto_invalidate", reinterpret_cast<VALUE(*)(...)>(bzruby_auto_invalidate), 0);
+	//rb_define_module_function(mBz, "auto_invalidate=", reinterpret_cast<VALUE(*)(...)>(bzruby_auto_invalidateeq), 0);
 	//rb_define_module_function(mBz, "setfilename", reinterpret_cast<VALUE(*)(...)>(bzruby_setfilename), 1);
 	//rb_define_module_function(mBz, "open", reinterpret_cast<VALUE(*)(...)>(bzruby_open), 1);
 	//rb_define_module_function(mBz, "save", reinterpret_cast<VALUE(*)(...)>(bzruby_save), 0);
