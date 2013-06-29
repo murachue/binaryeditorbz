@@ -239,23 +239,8 @@ static VALUE bzruby_data(VALUE self)
 
 	return bzruby_data2str(doc, 0, docsize - 1);
 }
-static VALUE bzruby_dataeq(VALUE self, VALUE idx_range, VALUE val)
+static VALUE bzruby_dataeq(VALUE self, VALUE val)
 {
-	// TODO: BZ[idx/range,wide]=value形式も受け付けるか? (script利用者はendian考えなくていいので楽)
-	int64_t ibegin, iend; // [ibegin,iend] (inclusive)
-	if(TYPE(idx_range) == T_FIXNUM || TYPE(idx_range) == T_BIGNUM)
-	{
-		ibegin = iend = NUM2LL(idx_range);
-	} else if(rb_funcall(idx_range, rb_intern("is_a?"), 1, rb_cRange))
-	{
-		ibegin = NUM2LL(rb_funcall(idx_range, rb_intern("begin"),0));
-		iend = NUM2LL(rb_funcall(idx_range, rb_intern("end"),0));
-		if(rb_funcall(idx_range, rb_intern("exclude_end?"),0) == Qtrue)
-			iend -= 1;
-	} else
-	{
-		rb_exc_raise(rb_exc_new2(rb_eArgError, "an argument must be Fixnum, Bignum or Range"));
-	}
 	Check_Type(val, T_STRING);
 
 	CBZDoc *doc = cbzsv->m_pView->GetDocument();
@@ -466,8 +451,8 @@ static void init_ruby(void)
 	rb_define_module_function(mBz, "caret=", reinterpret_cast<VALUE(*)(...)>(bzruby_careteq), 1);
 	rb_define_module_function(mBz, "[]", reinterpret_cast<VALUE(*)(...)>(bzruby_bracket), 1);
 	rb_define_module_function(mBz, "[]=", reinterpret_cast<VALUE(*)(...)>(bzruby_bracketeq), 2);
-	rb_define_module_function(mBz, "data", reinterpret_cast<VALUE(*)(...)>(bzruby_data), 1);
-	rb_define_module_function(mBz, "data=", reinterpret_cast<VALUE(*)(...)>(bzruby_dataeq), 2);
+	rb_define_module_function(mBz, "data", reinterpret_cast<VALUE(*)(...)>(bzruby_data), 0);
+	rb_define_module_function(mBz, "data=", reinterpret_cast<VALUE(*)(...)>(bzruby_dataeq), 1);
 	rb_define_module_function(mBz, "value", reinterpret_cast<VALUE(*)(...)>(bzruby_value), 2);
 	rb_define_module_function(mBz, "setvalue", reinterpret_cast<VALUE(*)(...)>(bzruby_valueeq), 3);
 	//rb_define_module_function(mBz, "fill", reinterpret_cast<VALUE(*)(...)>(NULL), 0); // TODO: 実装する?
