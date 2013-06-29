@@ -442,6 +442,21 @@ static VALUE bzruby_size(VALUE self)
 	// TODO: 4GB越え対応
 	return ULONG2NUM(static_cast<ULONG>(cbzsv->m_pView->GetDocument()->GetDocSize()));
 }
+static VALUE bzruby_each_byte(VALUE self)
+{
+	VALUE enume;
+	enume = rb_obj_alloc(rb_cObject);
+	rb_define_singleton_method(enume, "", NULL, 0);
+	return Qnil;
+}
+static VALUE bzruby_wide(VALUE self) { return UINT2NUM(cbzsv->m_pView->m_nBytes); }
+static VALUE bzruby_wideeq(VALUE self, VALUE val)
+{
+	Check_Type(val, T_FIXNUM);
+	VALUE orgwide = UINT2NUM(cbzsv->m_pView->m_nBytes); // おまけ
+	cbzsv->m_pView->m_nBytes = FIX2INT(val); // TODO: 4GB越え対応
+	return orgwide;
+}
 
 extern "C" RUBY_EXTERN int rb_io_init_std;
 
@@ -494,12 +509,15 @@ static void init_ruby(void)
 	rb_define_module_function(mBz, "filename", reinterpret_cast<VALUE(*)(...)>(bzruby_filename), 0);
 	rb_define_module_function(mBz, "size", reinterpret_cast<VALUE(*)(...)>(bzruby_size), 0);
 	rb_define_module_function(mBz, "length", reinterpret_cast<VALUE(*)(...)>(bzruby_size), 0);
-	//rb_define_module_function(mBz, "each_byte", reinterpret_cast<VALUE(*)(...)>(bzruby_each_byte), 0); // => Enumerable
+	rb_define_module_function(mBz, "each_byte", reinterpret_cast<VALUE(*)(...)>(bzruby_each_byte), 0); // => Enumerable
 	//rb_define_module_function(mBz, "each_word", reinterpret_cast<VALUE(*)(...)>(bzruby_each_word), 0); // => Enumerable; wordはWORDではなく、byte/word/dwordは現在のステータスバーに依存
-	// とりあえずbyte版だけmap!/pmap!を用意しておく。word版いる?
+	// とりあえずbyte版だけmap!/pmap!/bmap!を用意しておく。word版いる?
 	//rb_define_module_function(mBz, "map!", reinterpret_cast<VALUE(*)(...)>(bzruby_mapx), 0);
 	//rb_define_module_function(mBz, "pmap!", reinterpret_cast<VALUE(*)(...)>(bzruby_pmapx), 0); // BZ.pmap!(begin..end|begin,end){block}
 	//rb_define_module_function(mBz, "bmap!", reinterpret_cast<VALUE(*)(...)>(bzruby_bmapx), 0); // BZ.bmap!(){block}; 選択範囲をpmap!に渡した感じ、便利関数、選択していなければ何もしない
+	// TODO: 適当にCBZView->m_nBytesのことをwideと呼称しているけど、いいのか?
+	rb_define_module_function(mBz, "wide", reinterpret_cast<VALUE(*)(...)>(bzruby_wide), 0);
+	rb_define_module_function(mBz, "wide=", reinterpret_cast<VALUE(*)(...)>(bzruby_wideeq), 0);
 	//rb_define_module_function(mBz, "auto_invalidate", reinterpret_cast<VALUE(*)(...)>(bzruby_auto_invalidate), 0);
 	//rb_define_module_function(mBz, "auto_invalidate=", reinterpret_cast<VALUE(*)(...)>(bzruby_auto_invalidateeq), 0);
 	//rb_define_module_function(mBz, "setfilename", reinterpret_cast<VALUE(*)(...)>(bzruby_setfilename), 1);
@@ -507,6 +525,7 @@ static void init_ruby(void)
 	//rb_define_module_function(mBz, "save", reinterpret_cast<VALUE(*)(...)>(bzruby_save), 0);
 	//rb_define_module_function(mBz, "saveas", reinterpret_cast<VALUE(*)(...)>(bzruby_saveas), 1);
 	//rb_define_module_function(mBz, "new", reinterpret_cast<VALUE(*)(...)>(bzruby_new), 0);
+	//rb_define_module_function(mBz, "", reinterpret_cast<VALUE(*)(...)>(bzruby_), 0);
 }
 
 static PyObject* python_write(PyObject *self, PyObject *args)
@@ -555,6 +574,7 @@ static void init_python(void)
 	PyObject *mod = PyImport_ImportModuleEx("sys", py_globals, py_globals, NULL);
 
 	// TODO: sys.stdout/stdin/stderrを自作関数に置き換える
+	// なぜうごかない…
 	PyObject *mymodule = Py_InitModule("mywriter", pythonMethods);
 	name = PyString_FromString("write");
 	PyObject_SetAttr(mod, name, mymodule);
@@ -650,45 +670,9 @@ void CBZScriptView::ClearAll(void)
 CString run_python(const char *cmdstr)
 {
 	// TODO: Isn't there method that handle write() as Ruby?
-    const char *stdOutErr =
-"import sys\n\
-class CatchOutErr:\n\
-    def __init__(self):\n\
-        self.value = ''\n\
-    def write(self, txt):\n\
-        self.value += txt\n\
-catchOutErr = CatchOutErr()\n\
-sys.stdout = catchOutErr\n\
-sys.stderr = catchOutErr\n\
-"; //this is python code to redirect stdouts/stderr
+    //PyObject *pModule = PyImport_AddModule("__main__"); //create main module
 
-    //Py_Initialize();
-    PyObject *pModule = PyImport_AddModule("__main__"); //create main module
-    //PyRun_SimpleString(stdOutErr); //invoke code to redirect
-//    PyRun_SimpleString(cmdstr);
-    //PyObject *catcher = PyObject_GetAttrString(pModule,"catchOutErr"); //get our catchOutErr created above
-//    PyErr_Print(); //make python print any errors
-
-    //PyObject *output = PyObject_GetAttrString(catcher,"value"); //get the stdout and stderr from our catchOutErr object
-	//Py_DECREF(catcher);
-
-	/*
-    char *cstr = PyString_AsString(output);
-	Py_DECREF(output);
-	int cstrlen = strlen(cstr);
-	wchar_t *wstr;
-	int wstrlen;
-	CString ostr;
-
-	wstrlen = MultiByteToWideChar(CP_THREAD_ACP, 0, cstr, cstrlen, NULL, 0);
-	wstr = new wchar_t[wstrlen + 1];
-	MultiByteToWideChar(CP_THREAD_ACP, 0, cstr, cstrlen, wstr, wstrlen + 1);
-	CString pstr(wstr, wstrlen);
-	pstr.Replace(_T("\n"), _T("\r\n"));
-	ostr.Format(_T("==> %s\r\n"), pstr);
-	delete wstr;
-	//*/
-
+	PyRun_SimpleString("import sys; import mywriter; sys.stdout=mywriter; sys.stderr=mywriter");
 
 	// referring IDAPython PythonEvalOrExec..
 	PyCompilerFlags cf = {0};
@@ -739,6 +723,14 @@ sys.stderr = catchOutErr\n\
 	return _T("");//ostr;
 }
 
+static VALUE bz_ruby_eval_toplevel(VALUE rcmdstr)
+{
+	VALUE binding;
+	//binding = rb_funcall(rb_cObject, rb_intern("binding"), 0); // だめ
+	binding = rb_const_get(rb_cObject, rb_intern("TOPLEVEL_BINDING")); // OK
+	return rb_funcall(rb_mKernel, rb_intern("eval"), 2, rcmdstr, binding);
+}
+
 CString run_ruby(const char *cmdstr)
 {
 	CString ostr;
@@ -746,8 +738,10 @@ CString run_ruby(const char *cmdstr)
 	VALUE value;
 	int state;
 
-	// TODO: 環境が呼び出しごとにリセットされるのをなんとかする。
-	value = rb_eval_string_protect(cmdstr, &state);
+	// rb_eval_string_protect()だと環境が呼び出しごとにリセットされるので、
+	// (少し面倒だけど)bindingが指定できるKernel#evalにObject::TOPLEVEL_BINDINGを渡してやる。
+	//value = rb_eval_string_protect(cmdstr, &state);
+	value = rb_protect(bz_ruby_eval_toplevel, rb_str_new_cstr(cmdstr), &state);
 
 	if(state == 0)
 	{
@@ -760,6 +754,7 @@ CString run_ruby(const char *cmdstr)
 	} else
 	{
 		value = rb_errinfo();
+		rb_set_errinfo(Qnil);
 		VALUE klass = rb_obj_as_string(rb_funcall(value, rb_intern("class"), 0));
 		VALUE messg = rb_obj_as_string(value);
 		VALUE trace = rb_obj_as_string(rb_funcall(value, rb_intern("backtrace"), 0)); // TODO: already String?
