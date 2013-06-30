@@ -131,11 +131,11 @@ static VALUE bzruby_careteq(VALUE self, VALUE val)
 	return orgcaret;
 }
 
-// [begin,end] (inclusive)
+// [begin,end)
 // TODO: 4GB越え対応
 static VALUE bzruby_data2str(CBZDoc *doc, DWORD begin, DWORD end)
 {
-	DWORD remain = end - begin + 1;
+	DWORD remain = end - begin;
 	VALUE rstr = rb_str_new_cstr("");
 	while(remain > 0)
 	{
@@ -149,19 +149,80 @@ static VALUE bzruby_data2str(CBZDoc *doc, DWORD begin, DWORD end)
 
 	return rstr;
 }
+// begin>endやbegin,end<0、begin,end>docsizeなどのチェックはすでに済んでいるとする。
+// TODO: 4GB越え対応
+static VALUE bzruby_setdata(CBZView *view, DWORD begin, DWORD end, VALUE val)
+{
+	CBZDoc *doc = view->GetDocument();
+
+	if(doc->m_bReadOnly)
+	{
+		rb_exc_raise(rb_exc_new2(rb_eRuntimeError, "can't modify read-only file"));
+	}
+
+	DWORD dstsize = end - begin; // TODO: 4GB越え対応
+
+	const char *valptr = RSTRING_PTR(val);
+	DWORD valsize = RSTRING_LEN(val); // TODO: 4GB越え対応
+
+#ifdef FILE_MAPPING
+	if(doc->IsFileMapping() && dstsize != valsize)
+	{
+		rb_exc_raise(rb_exc_new2(rb_eArgError, "can't modify with different size in file-mapping mode"));
+	}
+#endif
+
+	if(dstsize == 0 && valsize == 0)
+		return val;
+
+	if(dstsize == 0) // 単に挿入される
+	{
+		doc->StoreUndo(begin, valsize, UNDO_DEL);
+		doc->InsertData(begin, valsize, TRUE);
+	} else if(dstsize < valsize) // 伸びる
+	{
+		// TODO: このundo操作、atomicの方がいい気がするが仕様的にできない…
+		doc->StoreUndo(begin + dstsize, valsize - dstsize, UNDO_DEL);
+		doc->StoreUndo(begin, dstsize, UNDO_OVR);
+		doc->InsertData(begin + dstsize, valsize - dstsize, TRUE);
+	} else if(dstsize == valsize) // 同じ長さ
+	{
+		doc->StoreUndo(begin, valsize, UNDO_OVR);
+		//doc->InsertData(begin, valsize, FALSE); // 必要ないはず
+	} else // valsize < docsize; 縮む
+	{
+		// TODO: このundo操作、atomicの方がいい気がするが仕様的にできない…
+		doc->StoreUndo(begin + valsize, dstsize - valsize, UNDO_INS);
+		doc->StoreUndo(begin, valsize, UNDO_OVR);
+		doc->DeleteData(begin + valsize, dstsize - valsize);
+	}
+
+	DWORD endi = begin + valsize;
+	for(DWORD i = begin; i < endi; )
+	{
+		LPBYTE pData = doc->QueryMapViewTama2(i, valsize);
+		DWORD remain = doc->GetMapRemain(i);
+		DWORD ovwsize = min(remain, valsize);
+		memcpy(pData, valptr, ovwsize);
+		i += ovwsize;
+		valptr += ovwsize;
+	}
+	view->UpdateDocSize();
+
+	return val; // おまけ: Qnilでも可
+}
 static VALUE bzruby_bracket(VALUE self, VALUE idx_range)
 {
-	int64_t ibegin, iend; // [ibegin,iend] (inclusive)
+	LONGLONG ibegin, iend; // [ibegin,iend)
 
 	if(TYPE(idx_range) == T_FIXNUM || TYPE(idx_range) == T_BIGNUM)
 	{
-		ibegin = iend = NUM2LL(idx_range);
-	} else if(rb_funcall(idx_range, rb_intern("is_a?"), 1, rb_cRange))
+		ibegin = NUM2LL(idx_range);
+		iend = ibegin + 1;
+	} else if(CLASS_OF(idx_range) == rb_cRange)
 	{
 		ibegin = NUM2LL(rb_funcall(idx_range, rb_intern("begin"),0));
-		iend = NUM2LL(rb_funcall(idx_range, rb_intern("end"),0));
-		if(rb_funcall(idx_range, rb_intern("exclude_end?"),0) == Qtrue)
-			iend -= 1;
+		iend = NUM2LL(rb_funcall(idx_range, rb_intern("end"),0)) + (RTEST(rb_funcall(idx_range, rb_intern("exclude_end?"), 0)) ? 0 : 1);
 	} else
 	{
 		rb_exc_raise(rb_exc_new2(rb_eArgError, "an argument must be Fixnum, Bignum or Range"));
@@ -170,10 +231,10 @@ static VALUE bzruby_bracket(VALUE self, VALUE idx_range)
 	CBZDoc *doc = cbzsv->m_pView->GetDocument();
 	DWORD docsize = doc->GetDocSize(); // TODO: 4GB越え対応
 
-	if(ibegin < 0) ibegin = (int64_t)docsize + ibegin;
-	if(iend < 0) iend = (int64_t)docsize + iend;
+	if(ibegin < 0) ibegin = (LONGLONG)docsize + ibegin;
+	if(iend < 0) iend = (LONGLONG)docsize + iend + 1;
 
-	if(iend - ibegin < 0)
+	if(iend - ibegin <= 0)
 	{
 		return rb_str_new_cstr("");
 	}
@@ -187,10 +248,10 @@ static VALUE bzruby_bracket(VALUE self, VALUE idx_range)
 	{
 		return Qnil;
 	}
-	if((iend < 0 || docsize <= iend) && iend != ibegin)
+	if(iend < 0 || docsize < iend) // TODO: iend<0はありえないからチェック不要?
 	{
 		// Rangeだったらiendがファイルサイズを超えていた場合に切り詰める
-		iend = docsize - 1;
+		iend = docsize;
 	}
 
 	// do fetch and return it to Ruby world!
@@ -207,30 +268,24 @@ static VALUE bzruby_bracketeq(VALUE self, VALUE idx_range, VALUE val)
 	if(TYPE(idx_range) == T_FIXNUM || TYPE(idx_range) == T_BIGNUM)
 	{
 		iorgbegin = iorgend = NUM2LL(idx_range);
-	} else if(rb_funcall(idx_range, rb_intern("is_a?"), 1, rb_cRange))
+	} else if(CLASS_OF(idx_range) == rb_cRange)
 	{
 		iorgbegin = NUM2LL(rb_funcall(idx_range, rb_intern("begin"),0));
-		iorgend = NUM2LL(rb_funcall(idx_range, rb_intern("end"),0));
-		if(rb_funcall(idx_range, rb_intern("exclude_end?"),0) == Qtrue)
-			iorgend -= 1;
+		iorgend = NUM2LL(rb_funcall(idx_range, rb_intern("end"),0)) + (RTEST(rb_funcall(idx_range, rb_intern("exclude_end?"), 0)) ? 0 : 1);
 	} else
 	{
 		rb_exc_raise(rb_exc_new2(rb_eArgError, "an argument must be Fixnum, Bignum or Range"));
 	}
 	Check_Type(val, T_STRING);
 
-	CBZDoc *doc = cbzsv->m_pView->GetDocument();
-
-	if(doc->m_bReadOnly)
-	{
-		rb_exc_raise(rb_exc_new2(rb_eRuntimeError, "can't modify read-only file"));
-	}
+	CBZView *view = cbzsv->m_pView;
+	CBZDoc *doc = view->GetDocument();
 
 	DWORD docsize = doc->GetDocSize(); // TODO: 4GB越え対応
 	LONGLONG ibegin = iorgbegin, iend = iorgend;
 
 	if(ibegin < 0) ibegin = (LONGLONG)docsize + ibegin;
-	if(iend < 0) iend = (LONGLONG)docsize + iend;
+	if(iend < 0) iend = (LONGLONG)docsize + iend + 1;
 
 	// Stringはこういう動作らしい…
 	if(ibegin < 0 || docsize < ibegin)
@@ -240,10 +295,9 @@ static VALUE bzruby_bracketeq(VALUE self, VALUE idx_range, VALUE val)
 		rb_exc_raise(rb_exc_new3(rb_eIndexError, rb_str_new_cstr(buf)));
 	}
 
-	// TODO: このあたり怪しいので[begin,end)にするついでに直す
-	if(iend - ibegin < -1)
+	if(iend - ibegin < 0)
 	{
-		iend = ibegin - 1;
+		iend = ibegin;
 	}
 
 	if(docsize < iend)
@@ -254,16 +308,16 @@ static VALUE bzruby_bracketeq(VALUE self, VALUE idx_range, VALUE val)
 	// do fetch and return it to Ruby world!
 	// TODO: 4GB越え対応
 	DWORD begin = static_cast<DWORD>(ibegin);
-	DWORD end = end = static_cast<DWORD>(iend);
+	DWORD end = static_cast<DWORD>(iend);
 	
-	rb_exc_raise(rb_exc_new2(rb_eNotImpError, "Sorry!"));
+	return bzruby_setdata(view, begin, end, val);
 }
 static VALUE bzruby_data(VALUE self)
 {
 	CBZDoc *doc = cbzsv->m_pView->GetDocument();
 	DWORD docsize = doc->GetDocSize(); // TODO: 4GB越え対応
 
-	return bzruby_data2str(doc, 0, docsize - 1);
+	return bzruby_data2str(doc, 0, docsize);
 }
 static VALUE bzruby_dataeq(VALUE self, VALUE val)
 {
@@ -272,55 +326,7 @@ static VALUE bzruby_dataeq(VALUE self, VALUE val)
 	CBZView *view = cbzsv->m_pView;
 	CBZDoc *doc = view->GetDocument();
 
-	if(doc->m_bReadOnly)
-	{
-		rb_exc_raise(rb_exc_new2(rb_eRuntimeError, "can't modify read-only file"));
-	}
-
-	DWORD docsize = doc->GetDocSize(); // TODO: 4GB越え対応
-
-#ifdef FILE_MAPPING
-	if(doc->IsFileMapping() && RSTRING_LEN(val) != docsize)
-	{
-		rb_exc_raise(rb_exc_new2(rb_eArgError, "can't modify with different size in file-mapping mode"));
-	}
-#endif
-
-	const char *valptr = RSTRING_PTR(val);
-	DWORD valsize = RSTRING_LEN(val); // TODO: 4GB越え対応
-
-	if(docsize == 0)
-	{
-		doc->StoreUndo(0, valsize, UNDO_DEL);
-	} else if(docsize < valsize)
-	{
-		// TODO: このundo操作、atomicの方がいい気がするが仕様的にできない…
-		doc->StoreUndo(docsize, valsize - docsize, UNDO_DEL);
-		doc->StoreUndo(0, docsize, UNDO_OVR);
-	} else if(docsize == valsize)
-	{
-		doc->StoreUndo(0, valsize, UNDO_OVR);
-	} else // valsize < docsize
-	{
-		// TODO: このundo操作、atomicの方がいい気がするが仕様的にできない…
-		doc->StoreUndo(valsize, docsize - valsize, UNDO_INS);
-		doc->StoreUndo(0, valsize, UNDO_OVR);
-	}
-	doc->InsertData(0, valsize, FALSE);
-	for(DWORD i = 0; i < valsize; )
-	{
-		LPBYTE pData = doc->QueryMapViewTama2(i, valsize);
-		DWORD remain = doc->GetMapRemain(i);
-		DWORD ovwsize = min(remain, valsize);
-		memcpy(pData, valptr, ovwsize);
-		i += ovwsize;
-		valptr += ovwsize;
-	}
-	if(valsize < docsize)
-		doc->DeleteData(valsize, docsize - valsize);
-	view->UpdateDocSize();
-
-	return val; // おまけ: Qnilでも可
+	return bzruby_setdata(view, 0, doc->GetDocSize(), val);
 }
 
 static VALUE bzruby_wide(VALUE self);
@@ -449,31 +455,11 @@ static VALUE bzruby_setblock(int argc, VALUE *argv, VALUE self)
 	{
 		if(CLASS_OF(v1) != rb_cRange)
 			rb_exc_raise(rb_exc_new2(rb_eArgError, "arguments must be 2 fixnums or 1 range"));
-		VALUE rbegin = rb_funcall(v1, rb_intern("begin"), 0);
-		VALUE rend = rb_funcall(v1, rb_intern("end"), 0);
-		VALUE reexc = rb_funcall(v1, rb_intern("exclude_end?"), 0);
 
-		if(!FIXNUM_P(rbegin) && TYPE(rbegin) != T_BIGNUM)
-			rb_exc_raise(rb_exc_new2(rb_eArgError, "Range#begin is not a Fixnum nor Bignum"));
-		if(!FIXNUM_P(rend) && TYPE(rend) != T_BIGNUM)
-			rb_exc_raise(rb_exc_new2(rb_eArgError, "Range#end is not a Fixnum nor Bignum"));
-		BOOL eexc;
-		if(CLASS_OF(reexc) == rb_cTrueClass)
-			eexc = TRUE;
-		else if(CLASS_OF(reexc) == rb_cFalseClass)
-			eexc = FALSE;
-		else
-			rb_exc_raise(rb_exc_new2(rb_eArgError, "Range#exclude_end? returns not true nor false!!"));
-
-		begin = NUM2LL(rbegin);
-		end = NUM2LL(rend) + (eexc ? 0 : 1);
+		begin = NUM2LL(rb_funcall(v1, rb_intern("begin"),0));
+		end = NUM2LL(rb_funcall(v1, rb_intern("end"),0)) + (RTEST(rb_funcall(v1, rb_intern("exclude_end?"), 0)) ? 0 : 1);
 	} else if(trueargc == 2)
 	{
-		if(!FIXNUM_P(v1) && TYPE(v1) != T_BIGNUM)
-			rb_exc_raise(rb_exc_new2(rb_eArgError, "begin is not a Fixnum nor Bignum"));
-		if(!FIXNUM_P(v1) && TYPE(v1) != T_BIGNUM)
-			rb_exc_raise(rb_exc_new2(rb_eArgError, "end is not a Fixnum nor Bignum"));
-
 		begin = NUM2LL(v1);
 		end = NUM2LL(v2);
 	} else
@@ -663,17 +649,18 @@ static VALUE bzruby_mapx(int argc, VALUE *argv, VALUE self)
 		iorgend = cbzsv->m_pView->GetDocument()->GetDocSize();
 		break;
 	case 1:
-		if(rb_funcall(v1, rb_intern("is_a?"), 1, rb_cRange) != Qtrue)
-			rb_exc_raise(rb_exc_new2(rb_eArgError, "arguments bust be none, a Range or two Fixnums"));
+		if(CLASS_OF(v1) != rb_cRange)
+			rb_exc_raise(rb_exc_new2(rb_eArgError, "arguments must be none, a Range or two Fixnums"));
+
 		iorgbegin = NUM2LL(rb_funcall(v1, rb_intern("begin"), 0));
-		iorgend = NUM2LL(rb_funcall(v1, rb_intern("end"), 0)) + ((rb_funcall(v1, rb_intern("exclude_end?"), 0) == Qtrue) ? 0 : 1); // TODO: exclude_end?は手抜き、QtrueかQfalseのどちらか一つが帰ってくるのを期待…
+		iorgend = NUM2LL(rb_funcall(v1, rb_intern("end"), 0)) + (RTEST(rb_funcall(v1, rb_intern("exclude_end?"), 0)) ? 0 : 1);
 		break;
 	case 2:
 		iorgbegin = NUM2LL(v1);
 		iorgend = NUM2LL(v2);
 		break;
 	default:
-		rb_exc_raise(rb_exc_new2(rb_eArgError, "arguments bust be none, a Range or two Fixnums"));
+		rb_exc_raise(rb_exc_new2(rb_eArgError, "arguments must be none, a Range or two Fixnums"));
 	}
 
 	CBZDoc *doc = cbzsv->m_pView->GetDocument();
