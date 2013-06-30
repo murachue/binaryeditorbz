@@ -128,6 +128,8 @@ static VALUE bzruby_careteq(VALUE self, VALUE val)
 	Check_Type(val, T_FIXNUM);
 	VALUE orgcaret = UINT2NUM(cbzsv->m_pView->m_dwCaret); // おまけ
 	cbzsv->m_pView->MoveCaretTo(FIX2ULONG(val)); // TODO: 4GB越え対応
+	if(RTEST(rb_iv_get(self, "auto_invalidate")))
+		cbzsv->m_pView->Invalidate();
 	return orgcaret;
 }
 
@@ -267,7 +269,8 @@ static VALUE bzruby_bracketeq(VALUE self, VALUE idx_range, VALUE val)
 	LONGLONG iorgbegin, iorgend; // [ibegin,iend] (inclusive)
 	if(TYPE(idx_range) == T_FIXNUM || TYPE(idx_range) == T_BIGNUM)
 	{
-		iorgbegin = iorgend = NUM2LL(idx_range);
+		iorgbegin = NUM2LL(idx_range);
+		iorgend = iorgbegin + 1;
 	} else if(CLASS_OF(idx_range) == rb_cRange)
 	{
 		iorgbegin = NUM2LL(rb_funcall(idx_range, rb_intern("begin"),0));
@@ -488,54 +491,103 @@ static VALUE bzruby_setblock(int argc, VALUE *argv, VALUE self)
 
 	return Qnil; // TODO: rangeでも返す?
 }
-static VALUE bzruby_setmark(VALUE self, VALUE voff)
+static VALUE bzruby_domark(VALUE self, VALUE voff, VALUE val)
 {
 	// TODO: 4GB越え対応(ULONGLONG/rb_big2ull)
 	ULONG off;
 
-	Check_Type(voff, T_FIXNUM);
+	off = NUM2ULONG(voff);
 
-	off = FIX2ULONG(voff);
+	VALUE ival = (val == Qtrue) ? Qfalse : Qtrue; // invert
+	BOOL bival = (ival == Qtrue) ? TRUE : FALSE; // VALUE->BOOL
+	VALUE org = val;
 
-	if(cbzsv->m_pView->GetDocument()->CheckMark(off) == FALSE)
-		cbzsv->m_pView->GetDocument()->SetMark(off);
+	if(cbzsv->m_pView->GetDocument()->CheckMark(off) == bival) // if CheckMark(off) != val
+	{
+		org = ival;
+		cbzsv->m_pView->GetDocument()->SetMark(off); // toggle.
 
-	return Qtrue;
+		if(RTEST(rb_iv_get(self, "auto_invalidate")))
+			cbzsv->m_pView->Invalidate();
+	}
+
+	return org; // おまけ; valかQnilもあり
 }
-static VALUE bzruby_unsetmark(VALUE self, VALUE voff)
+static VALUE bzruby_mark(int argc, VALUE *argv, VALUE self)
 {
-	// TODO: 4GB越え対応(ULONGLONG/rb_big2ull)
-	ULONG off;
+	VALUE voff;
 
-	Check_Type(voff, T_FIXNUM);
+	switch(rb_scan_args(argc, argv, "01", &voff))
+	{
+	case 0:
+		voff = ULL2NUM((ULONGLONG)cbzsv->m_pView->m_dwCaret); // TODO: 4GB越え対応(ULONGLONGはずす)
+		break;
+	case 1:
+		break;
+	default:
+		ASSERT(FALSE); // panic
+	}
 
-	off = FIX2ULONG(voff);
+	return bzruby_domark(self, voff, Qtrue);
+}
+static VALUE bzruby_unmark(int argc, VALUE *argv, VALUE self)
+{
+	VALUE voff;
 
-	if(cbzsv->m_pView->GetDocument()->CheckMark(off) == FALSE)
-		cbzsv->m_pView->GetDocument()->SetMark(off);
+	switch(rb_scan_args(argc, argv, "01", &voff))
+	{
+	case 0:
+		voff = ULL2NUM((ULONGLONG)cbzsv->m_pView->m_dwCaret); // TODO: 4GB越え対応(ULONGLONGはずす)
+		break;
+	case 1:
+		break;
+	default:
+		ASSERT(FALSE); // panic
+	}
 
-	return Qfalse;
+	return bzruby_domark(self, voff, Qfalse);
+}
+static VALUE bzruby_setmark(int argc, VALUE *argv, VALUE self)
+{
+	VALUE v1, v2;
+	VALUE voff, val;
+
+	switch(rb_scan_args(argc, argv, "11", &v1, &v2))
+	{
+	case 1:
+		voff = ULL2NUM((ULONGLONG)cbzsv->m_pView->m_dwCaret); // TODO: 4GB越え対応(ULONGLONGはずす)
+		val = v1;
+		break;
+	case 2:
+		voff = v1;
+		val = v2;
+		break;
+	default:
+		ASSERT(FALSE); // panic
+	}
+	return bzruby_domark(self, voff, val);
 }
 static VALUE bzruby_togglemark(VALUE self, VALUE voff)
 {
 	// TODO: 4GB越え対応(ULONGLONG/rb_big2ull)
 	ULONG off;
 
-	Check_Type(voff, T_FIXNUM);
+	off = NUM2ULONG(voff);
 
-	off = FIX2ULONG(voff);
-
+	VALUE old = cbzsv->m_pView->GetDocument()->CheckMark(off) ? Qtrue : Qfalse;
 	cbzsv->m_pView->GetDocument()->SetMark(off);
-	return cbzsv->m_pView->GetDocument()->CheckMark(off) ? Qtrue : Qfalse;
+
+	if(RTEST(rb_iv_get(self, "auto_invalidate")))
+		cbzsv->m_pView->Invalidate();
+
+	return old;
 }
 static VALUE bzruby_ismarked(VALUE self, VALUE voff)
 {
 	// TODO: 4GB越え対応(ULONGLONG/rb_big2ull)
 	ULONG off;
 
-	Check_Type(voff, T_FIXNUM);
-
-	off = FIX2ULONG(voff);
+	off = NUM2ULONG(voff);
 
 	return cbzsv->m_pView->GetDocument()->CheckMark(off) ? Qtrue : Qfalse;
 }
@@ -549,7 +601,6 @@ static VALUE bzruby_setendianess(VALUE self, VALUE vendian)
 	int endian;
 	int old_endian;
 
-	Check_Type(vendian, T_FIXNUM);
 	endian = NUM2INT(vendian);
 	if(!(endian == 0 || endian == 1))
 		rb_exc_raise(rb_exc_new2(rb_eArgError, "endianess must be 0 or 1"));
@@ -627,7 +678,6 @@ static VALUE bzruby_each_word(VALUE self)
 static VALUE bzruby_wide(VALUE self) { return UINT2NUM(cbzsv->m_pView->m_nBytes); }
 static VALUE bzruby_wideeq(VALUE self, VALUE vval)
 {
-	Check_Type(vval, T_FIXNUM);
 	int val = FIX2INT(vval);
 	if(!(val == 1 || val == 2 || val == 4 || val == 8))
 	{
@@ -660,7 +710,7 @@ static VALUE bzruby_mapx(int argc, VALUE *argv, VALUE self)
 		iorgend = NUM2LL(v2);
 		break;
 	default:
-		rb_exc_raise(rb_exc_new2(rb_eArgError, "arguments must be none, a Range or two Fixnums"));
+		ASSERT(FALSE); // panic
 	}
 
 	CBZDoc *doc = cbzsv->m_pView->GetDocument();
@@ -703,6 +753,9 @@ static VALUE bzruby_mapx(int argc, VALUE *argv, VALUE self)
 		i += remain_rd;
 	}
 
+	if(RTEST(rb_iv_get(self, "auto_invalidate")))
+		cbzsv->m_pView->Invalidate();
+
 	return Qnil;
 }
 static VALUE bzruby_bmapx(VALUE self)
@@ -714,6 +767,20 @@ static VALUE bzruby_bmapx(VALUE self)
 		return bzruby_mapx(2, argv, self);
 	}
 	return Qnil;
+}
+static VALUE bzruby_auto_invalidate(VALUE self)
+{
+	return rb_iv_get(self, "auto_invalidate");
+}
+static VALUE bzruby_auto_invalidateeq(VALUE self, VALUE val)
+{
+	if(val != Qtrue && val != Qfalse)
+	{
+		rb_exc_raise(rb_exc_new2(rb_eArgError, "an argument must be true or false"));
+	}
+	VALUE old = rb_iv_get(self, "auto_invalidate");
+	rb_iv_set(self, "auto_invalidate", val);
+	return old;
 }
 
 extern "C" RUBY_EXTERN int rb_io_init_std;
@@ -746,14 +813,16 @@ static void init_ruby(void)
 	rb_define_module_function(mBz, "data=", reinterpret_cast<VALUE(*)(...)>(bzruby_dataeq), 1);
 	rb_define_module_function(mBz, "value", reinterpret_cast<VALUE(*)(...)>(bzruby_value), -1);
 	rb_define_module_function(mBz, "setvalue", reinterpret_cast<VALUE(*)(...)>(bzruby_valueeq), -1);
+	rb_define_module_function(mBz, "value=", reinterpret_cast<VALUE(*)(...)>(bzruby_valueeq), 1); // 使われるか微妙だ…
 	//rb_define_module_function(mBz, "fill", reinterpret_cast<VALUE(*)(...)>(NULL), 0); // TODO: 実装する?
 	rb_define_module_function(mBz, "blockbegin", reinterpret_cast<VALUE(*)(...)>(bzruby_blockbegin), 0);
 	rb_define_module_function(mBz, "blockend", reinterpret_cast<VALUE(*)(...)>(bzruby_blockend), 0);
 	rb_define_module_function(mBz, "block", reinterpret_cast<VALUE(*)(...)>(bzruby_block), 0);
 	rb_define_module_function(mBz, "setblock", reinterpret_cast<VALUE(*)(...)>(bzruby_setblock), -1);
 	rb_define_module_function(mBz, "block=", reinterpret_cast<VALUE(*)(...)>(bzruby_setblock), -1); // BZ.block=start..end
-	rb_define_module_function(mBz, "setmark", reinterpret_cast<VALUE(*)(...)>(bzruby_setmark), 1);
-	rb_define_module_function(mBz, "unsetmark", reinterpret_cast<VALUE(*)(...)>(bzruby_unsetmark), 1);
+	rb_define_module_function(mBz, "mark", reinterpret_cast<VALUE(*)(...)>(bzruby_mark), -1);
+	rb_define_module_function(mBz, "unmark", reinterpret_cast<VALUE(*)(...)>(bzruby_unmark), -1);
+	rb_define_module_function(mBz, "setmark", reinterpret_cast<VALUE(*)(...)>(bzruby_setmark), -1);
 	rb_define_module_function(mBz, "togglemark", reinterpret_cast<VALUE(*)(...)>(bzruby_togglemark), 1);
 	rb_define_module_function(mBz, "ismarked", reinterpret_cast<VALUE(*)(...)>(bzruby_ismarked), 1);
 	rb_define_module_function(mBz, "ismarked?", reinterpret_cast<VALUE(*)(...)>(bzruby_ismarked), 1);
@@ -763,6 +832,8 @@ static void init_ruby(void)
 #endif
 	rb_define_module_function(mBz, "invalidate", reinterpret_cast<VALUE(*)(...)>(bzruby_invalidate), 0);
 	rb_define_module_function(mBz, "endianess", reinterpret_cast<VALUE(*)(...)>(bzruby_endianess), 0);
+	// TODO: endianess変えた時、invalidateしてもステータスバーが変わらないのをなんとかする。
+	// TODO: ついでにここに; フォーカスがScriptViewにある場合、ステータスバーをクリックしても表示が変わらないのもなんとかする。
 	rb_define_module_function(mBz, "setendianess", reinterpret_cast<VALUE(*)(...)>(bzruby_setendianess), 1);
 	rb_define_module_function(mBz, "endianess=", reinterpret_cast<VALUE(*)(...)>(bzruby_setendianess), 1);
 	rb_define_module_function(mBz, "isle", reinterpret_cast<VALUE(*)(...)>(bzruby_isle), 0);
@@ -781,14 +852,16 @@ static void init_ruby(void)
 	// TODO: 適当にCBZView->m_nBytesのことをwideと呼称しているけど、いいのか?
 	rb_define_module_function(mBz, "wide", reinterpret_cast<VALUE(*)(...)>(bzruby_wide), 0);
 	rb_define_module_function(mBz, "wide=", reinterpret_cast<VALUE(*)(...)>(bzruby_wideeq), 1);
-	//rb_define_module_function(mBz, "auto_invalidate", reinterpret_cast<VALUE(*)(...)>(bzruby_auto_invalidate), 0);
-	//rb_define_module_function(mBz, "auto_invalidate=", reinterpret_cast<VALUE(*)(...)>(bzruby_auto_invalidateeq), 0);
+	rb_define_module_function(mBz, "auto_invalidate", reinterpret_cast<VALUE(*)(...)>(bzruby_auto_invalidate), 0);
+	rb_define_module_function(mBz, "auto_invalidate=", reinterpret_cast<VALUE(*)(...)>(bzruby_auto_invalidateeq), 0);
+	//rb_define_module_function(mBz, "undo", reinterpret_cast<VALUE(*)(...)>(bzruby_undo), 0);
 	//rb_define_module_function(mBz, "setfilename", reinterpret_cast<VALUE(*)(...)>(bzruby_setfilename), 1);
 	//rb_define_module_function(mBz, "open", reinterpret_cast<VALUE(*)(...)>(bzruby_open), 1);
 	//rb_define_module_function(mBz, "save", reinterpret_cast<VALUE(*)(...)>(bzruby_save), 0);
 	//rb_define_module_function(mBz, "saveas", reinterpret_cast<VALUE(*)(...)>(bzruby_saveas), 1);
 	//rb_define_module_function(mBz, "new", reinterpret_cast<VALUE(*)(...)>(bzruby_new), 0);
 	//rb_define_module_function(mBz, "", reinterpret_cast<VALUE(*)(...)>(bzruby_), 0);
+	rb_iv_set(mBz, "auto_invalidate", Qtrue);
 
 	// register_hotkey
 	// key-callback cursor-move-callback fileI/O-callback draw-callback(coloring)
