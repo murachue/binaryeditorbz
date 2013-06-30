@@ -728,11 +728,14 @@ static void init_python(void)
 
 	// TODO: sys.stdout/stdin/stderrを自作関数に置き換える
 	// なぜうごかない…
-	PyObject *mymodule = Py_InitModule("mywriter", pythonMethods);
+	PyObject *mymodule = Py_InitModule("bzwriter", pythonMethods);
 	name = PyString_FromString("write");
 	PyObject_SetAttr(mod, name, mymodule);
 	Py_DECREF(name);
 	Py_DECREF(mod);
+
+	// しかたないのでad-hocに TODO: なんとかしてこの行を抹消する。
+	PyRun_SimpleString("import sys; import bzwriter; sys.stdout=bzwriter; sys.stderr=bzwriter");
 }
 
 CBZScriptView::CBZScriptView()
@@ -824,8 +827,6 @@ CString run_python(const char *cmdstr)
 {
 	// TODO: Isn't there method that handle write() as Ruby?
     //PyObject *pModule = PyImport_AddModule("__main__"); //create main module
-
-	PyRun_SimpleString("import sys; import mywriter; sys.stdout=mywriter; sys.stderr=mywriter");
 
 	// referring IDAPython PythonEvalOrExec..
 	PyCompilerFlags cf = {0};
