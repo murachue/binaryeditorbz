@@ -203,16 +203,16 @@ static VALUE bzruby_bracket(VALUE self, VALUE idx_range)
 static VALUE bzruby_bracketeq(VALUE self, VALUE idx_range, VALUE val)
 {
 	// TODO: BZ[idx/range,wide]=value形式も受け付けるか? (script利用者はendian考えなくていいので楽)
-	int64_t ibegin, iend; // [ibegin,iend] (inclusive)
+	LONGLONG iorgbegin, iorgend; // [ibegin,iend] (inclusive)
 	if(TYPE(idx_range) == T_FIXNUM || TYPE(idx_range) == T_BIGNUM)
 	{
-		ibegin = iend = NUM2LL(idx_range);
+		iorgbegin = iorgend = NUM2LL(idx_range);
 	} else if(rb_funcall(idx_range, rb_intern("is_a?"), 1, rb_cRange))
 	{
-		ibegin = NUM2LL(rb_funcall(idx_range, rb_intern("begin"),0));
-		iend = NUM2LL(rb_funcall(idx_range, rb_intern("end"),0));
+		iorgbegin = NUM2LL(rb_funcall(idx_range, rb_intern("begin"),0));
+		iorgend = NUM2LL(rb_funcall(idx_range, rb_intern("end"),0));
 		if(rb_funcall(idx_range, rb_intern("exclude_end?"),0) == Qtrue)
-			iend -= 1;
+			iorgend -= 1;
 	} else
 	{
 		rb_exc_raise(rb_exc_new2(rb_eArgError, "an argument must be Fixnum, Bignum or Range"));
@@ -227,7 +227,35 @@ static VALUE bzruby_bracketeq(VALUE self, VALUE idx_range, VALUE val)
 	}
 
 	DWORD docsize = doc->GetDocSize(); // TODO: 4GB越え対応
+	LONGLONG ibegin = iorgbegin, iend = iorgend;
 
+	if(ibegin < 0) ibegin = (LONGLONG)docsize + ibegin;
+	if(iend < 0) iend = (LONGLONG)docsize + iend;
+
+	// Stringはこういう動作らしい…
+	if(ibegin < 0 || docsize < ibegin)
+	{
+		CStringA buf;
+		buf.Format("index %d out of data", iorgbegin);
+		rb_exc_raise(rb_exc_new3(rb_eIndexError, rb_str_new_cstr(buf)));
+	}
+
+	// TODO: このあたり怪しいので[begin,end)にするついでに直す
+	if(iend - ibegin < -1)
+	{
+		iend = ibegin - 1;
+	}
+
+	if(docsize < iend)
+	{
+		iend = docsize;
+	}
+
+	// do fetch and return it to Ruby world!
+	// TODO: 4GB越え対応
+	DWORD begin = static_cast<DWORD>(ibegin);
+	DWORD end = end = static_cast<DWORD>(iend);
+	
 	rb_exc_raise(rb_exc_new2(rb_eNotImpError, "Sorry!"));
 }
 static VALUE bzruby_data(VALUE self)
@@ -412,8 +440,7 @@ static VALUE bzruby_block(VALUE self)
 // BZ.setblock(begin...end) 1 Range
 static VALUE bzruby_setblock(int argc, VALUE *argv, VALUE self)
 {
-	// TODO: 4GB越え対応(ULONGLONG/rb_big2ull)
-	ULONG begin, end;
+	LONGLONG begin, end;
 
 	VALUE v1, v2;
 	int trueargc = rb_scan_args(argc, argv, "11", &v1, &v2);
@@ -426,31 +453,52 @@ static VALUE bzruby_setblock(int argc, VALUE *argv, VALUE self)
 		VALUE rend = rb_funcall(v1, rb_intern("end"), 0);
 		VALUE reexc = rb_funcall(v1, rb_intern("exclude_end?"), 0);
 
-		Check_Type(rbegin, T_FIXNUM);
-		Check_Type(rend, T_FIXNUM);
+		if(!FIXNUM_P(rbegin) && TYPE(rbegin) != T_BIGNUM)
+			rb_exc_raise(rb_exc_new2(rb_eArgError, "Range#begin is not a Fixnum nor Bignum"));
+		if(!FIXNUM_P(rend) && TYPE(rend) != T_BIGNUM)
+			rb_exc_raise(rb_exc_new2(rb_eArgError, "Range#end is not a Fixnum nor Bignum"));
 		BOOL eexc;
 		if(CLASS_OF(reexc) == rb_cTrueClass)
 			eexc = TRUE;
 		else if(CLASS_OF(reexc) == rb_cFalseClass)
 			eexc = FALSE;
 		else
-			rb_exc_raise(rb_exc_new2(rb_eArgError, "Range#exclude_end? returns not true nor end!!"));
+			rb_exc_raise(rb_exc_new2(rb_eArgError, "Range#exclude_end? returns not true nor false!!"));
 
-		begin = FIX2ULONG(rbegin);
-		end = FIX2ULONG(rend) + (eexc ? 0 : 1);
+		begin = NUM2LL(rbegin);
+		end = NUM2LL(rend) + (eexc ? 0 : 1);
 	} else if(trueargc == 2)
 	{
-		Check_Type(v1, T_FIXNUM);
-		Check_Type(v2, T_FIXNUM);
+		if(!FIXNUM_P(v1) && TYPE(v1) != T_BIGNUM)
+			rb_exc_raise(rb_exc_new2(rb_eArgError, "begin is not a Fixnum nor Bignum"));
+		if(!FIXNUM_P(v1) && TYPE(v1) != T_BIGNUM)
+			rb_exc_raise(rb_exc_new2(rb_eArgError, "end is not a Fixnum nor Bignum"));
 
-		begin = FIX2ULONG(v1);
-		end = FIX2ULONG(v2);
+		begin = NUM2LL(v1);
+		end = NUM2LL(v2);
 	} else
 	{
 		ASSERT(FALSE); // panic
 	}
 
-	cbzsv->m_pView->setBlock(begin, end);
+	CBZDoc *doc = cbzsv->m_pView->GetDocument();
+	DWORD docsize = doc->GetDocSize(); // TODO: 4GB越え対応
+
+	if(begin < 0)
+		begin = docsize + begin;
+	if(end < 0)
+		end = docsize + end;
+
+	if(begin < 0)
+		begin = 0;
+	if(docsize < begin)
+		begin = docsize;
+	if(end < 0)
+		end = 0;
+	if(docsize < end)
+		end = docsize;
+
+	cbzsv->m_pView->setBlock(static_cast<DWORD>(begin), static_cast<DWORD>(end)); // TODO: 4GB越え対応
 
 	return Qnil; // TODO: rangeでも返す?
 }
@@ -603,6 +651,83 @@ static VALUE bzruby_wideeq(VALUE self, VALUE vval)
 	cbzsv->m_pView->m_nBytes = val;
 	return orgwide;
 }
+static VALUE bzruby_mapx(int argc, VALUE *argv, VALUE self)
+{
+	VALUE v1, v2;
+	LONGLONG iorgbegin, iorgend; // TODO: 4GB越え対応
+
+	switch(rb_scan_args(argc, argv, "02", &v1, &v2))
+	{
+	case 0:
+		iorgbegin = 0;
+		iorgend = cbzsv->m_pView->GetDocument()->GetDocSize();
+		break;
+	case 1:
+		if(rb_funcall(v1, rb_intern("is_a?"), 1, rb_cRange) != Qtrue)
+			rb_exc_raise(rb_exc_new2(rb_eArgError, "arguments bust be none, a Range or two Fixnums"));
+		iorgbegin = NUM2LL(rb_funcall(v1, rb_intern("begin"), 0));
+		iorgend = NUM2LL(rb_funcall(v1, rb_intern("end"), 0)) + ((rb_funcall(v1, rb_intern("exclude_end?"), 0) == Qtrue) ? 0 : 1); // TODO: exclude_end?は手抜き、QtrueかQfalseのどちらか一つが帰ってくるのを期待…
+		break;
+	case 2:
+		iorgbegin = NUM2LL(v1);
+		iorgend = NUM2LL(v2);
+		break;
+	default:
+		rb_exc_raise(rb_exc_new2(rb_eArgError, "arguments bust be none, a Range or two Fixnums"));
+	}
+
+	CBZDoc *doc = cbzsv->m_pView->GetDocument();
+	DWORD docsize = doc->GetDocSize(); // TODO: 4GB越え対応
+	LONGLONG ibegin = iorgbegin, iend = iorgend;
+
+	// 範囲の扱いはset系に(BZ[]=のように)。
+	if(ibegin < 0)
+		ibegin = (LONGLONG)docsize + ibegin;
+	if(iend < 0)
+		iend = (LONGLONG)docsize + iend;
+
+	if(docsize > 0 && (ibegin < 0 || docsize <= ibegin))
+	{
+		CStringA buf;
+		buf.Format("index %d out of data", iorgbegin);
+		rb_exc_raise(rb_exc_new3(rb_eIndexError, rb_str_new_cstr(buf)));
+	}
+	if(iend < ibegin)
+		iend = ibegin;
+	if(iend < 0)
+		iend = ibegin;
+	if(docsize < iend)
+		iend = (LONGLONG)docsize;
+
+	if(ibegin == iend)
+		return Qnil;
+
+	DWORD begin = static_cast<DWORD>(ibegin);
+	DWORD end = static_cast<DWORD>(iend);
+
+	// RETURN_ENUMERATOR_SIZEは引数があって使えない…
+	for(DWORD i = begin; i < end; )
+	{
+		DWORD remain = end - i;
+		LPBYTE pData = doc->QueryMapViewTama2(i, remain);
+		DWORD remain_rd = min(remain, doc->GetMapRemain(i));
+		for(DWORD j = 0; j < remain_rd; j++)
+			pData[j] = (BYTE)NUM2CHR(rb_yield(INT2NUM(pData[j]))); // NUM2CHRはunsigned char(=BYTE)ではなくcharを返す
+		i += remain_rd;
+	}
+
+	return Qnil;
+}
+static VALUE bzruby_bmapx(VALUE self)
+{
+	CBZView *view = cbzsv->m_pView;
+	if(view->IsBlockAvailable())
+	{
+		VALUE argv[2] = {ULONG2NUM(view->BlockBegin()), ULONG2NUM(view->BlockEnd())};
+		return bzruby_mapx(2, argv, self);
+	}
+	return Qnil;
+}
 
 extern "C" RUBY_EXTERN int rb_io_init_std;
 
@@ -623,6 +748,8 @@ static void init_ruby(void)
 
 	// export Bz remoting
 	// TODO: split-view時、対象ドキュメントを取り違えるのでなんとかする。
+	// TODO: 引数チェックの仕方がバラバラなので統一する。
+	//       基本的にアドレスはNUM2LLでlonglongにする、NUM2xxを使っている場合はCheck_Typeなどしない(変換エラー例外に任せる)、begin...endは[begin,end)にする。
 	VALUE mBz = rb_define_module("BZ");
 	rb_define_module_function(mBz, "caret", reinterpret_cast<VALUE(*)(...)>(bzruby_caret), 0);
 	rb_define_module_function(mBz, "caret=", reinterpret_cast<VALUE(*)(...)>(bzruby_careteq), 1);
@@ -662,9 +789,8 @@ static void init_ruby(void)
 	rb_define_module_function(mBz, "each_byte", reinterpret_cast<VALUE(*)(...)>(bzruby_each_byte), 0);
 	rb_define_module_function(mBz, "each_word", reinterpret_cast<VALUE(*)(...)>(bzruby_each_word), 0); // wordはWORDではなく、byte/word/dwordは現在のステータスバーに依存
 	// とりあえずbyte版だけmap!/pmap!/bmap!を用意しておく。word版いる?
-	//rb_define_module_function(mBz, "pmap!", reinterpret_cast<VALUE(*)(...)>(bzruby_pmapx), 0); // BZ.pmap!(begin..end|begin,end){block}
-	//rb_define_module_function(mBz, "map!", reinterpret_cast<VALUE(*)(...)>(bzruby_mapx), 0);　// BZ.map!{block}; 0..BZ.sizeをpmap!に渡した感じ。
-	//rb_define_module_function(mBz, "bmap!", reinterpret_cast<VALUE(*)(...)>(bzruby_bmapx), 0); // BZ.bmap!(){block}; 選択範囲をpmap!に渡した感じ、便利関数、選択していなければ何もしない
+	rb_define_module_function(mBz, "map!", reinterpret_cast<VALUE(*)(...)>(bzruby_mapx), -1); // BZ.pmap!(|begin..end|begin,end){block}; 引数省略時は全体が対象
+	rb_define_module_function(mBz, "bmap!", reinterpret_cast<VALUE(*)(...)>(bzruby_bmapx), 0); // BZ.bmap!(){block}; 選択範囲をpmap!に渡した感じ、便利関数、選択していなければ何もしない
 	// TODO: 適当にCBZView->m_nBytesのことをwideと呼称しているけど、いいのか?
 	rb_define_module_function(mBz, "wide", reinterpret_cast<VALUE(*)(...)>(bzruby_wide), 0);
 	rb_define_module_function(mBz, "wide=", reinterpret_cast<VALUE(*)(...)>(bzruby_wideeq), 1);
