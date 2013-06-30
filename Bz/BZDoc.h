@@ -120,6 +120,7 @@ public:
 		}
 		return 0;
 	}
+	BOOL	CanUndo() { return !!m_pUndo; };
 private:
 	BOOL     MapView();
 	LPBYTE  QueryMapView1(LPBYTE pBegin, DWORD dwOffset);

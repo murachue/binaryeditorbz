@@ -782,6 +782,21 @@ static VALUE bzruby_auto_invalidateeq(VALUE self, VALUE val)
 	rb_iv_set(self, "auto_invalidate", val);
 	return old;
 }
+static VALUE bzruby_undo(VALUE self)
+{
+	CBZView *view = cbzsv->m_pView;
+	CBZDoc *doc = view->GetDocument();
+	if(doc->CanUndo())
+	{
+		doc->DoUndo();
+		view->GotoCaret();
+		view->UpdateDocSize();
+		return Qtrue;
+	} else
+	{
+		return Qfalse;
+	}
+}
 
 extern "C" RUBY_EXTERN int rb_io_init_std;
 
@@ -854,7 +869,7 @@ static void init_ruby(void)
 	rb_define_module_function(mBz, "wide=", reinterpret_cast<VALUE(*)(...)>(bzruby_wideeq), 1);
 	rb_define_module_function(mBz, "auto_invalidate", reinterpret_cast<VALUE(*)(...)>(bzruby_auto_invalidate), 0);
 	rb_define_module_function(mBz, "auto_invalidate=", reinterpret_cast<VALUE(*)(...)>(bzruby_auto_invalidateeq), 0);
-	//rb_define_module_function(mBz, "undo", reinterpret_cast<VALUE(*)(...)>(bzruby_undo), 0);
+	rb_define_module_function(mBz, "undo", reinterpret_cast<VALUE(*)(...)>(bzruby_undo), 0);
 	//rb_define_module_function(mBz, "setfilename", reinterpret_cast<VALUE(*)(...)>(bzruby_setfilename), 1);
 	//rb_define_module_function(mBz, "open", reinterpret_cast<VALUE(*)(...)>(bzruby_open), 1);
 	//rb_define_module_function(mBz, "save", reinterpret_cast<VALUE(*)(...)>(bzruby_save), 0);
