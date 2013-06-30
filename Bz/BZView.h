@@ -130,8 +130,8 @@ private:
 	void	CutOrCopy(CutMode mode);
 public:
 	void	MoveCaretTo(DWORD dwNewCaret/*, bool bFirst=true*/);
-private:
 	void	UpdateDocSize();
+private:
 	BOOL	CalcHexa(LPCSTR sExp, long& nResult);
 	int		ReadHexa(LPCSTR sHexa, LPBYTE& buffer);
 //	void	InitMark();  -->CBZDoc
@@ -140,6 +140,7 @@ private:
 //	BOOL	CheckMark(DWORD dwPtr);
 public:
 	BOOL	IsBlockAvailable() { return m_bBlock; };
+	BOOL	IsInsertMode() { return m_bIns; };
 	DWORD	BlockBegin() { return m_dwBlock < m_dwCaret ? m_dwBlock : m_dwCaret; };
 	DWORD	BlockEnd() { return m_dwBlock > m_dwCaret ? m_dwBlock : m_dwCaret; } ;
 	void    setBlock(DWORD start, DWORD end) {

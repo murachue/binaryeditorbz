@@ -241,7 +241,8 @@ static VALUE bzruby_dataeq(VALUE self, VALUE val)
 {
 	Check_Type(val, T_STRING);
 
-	CBZDoc *doc = cbzsv->m_pView->GetDocument();
+	CBZView *view = cbzsv->m_pView;
+	CBZDoc *doc = view->GetDocument();
 
 	if(doc->m_bReadOnly)
 	{
@@ -250,7 +251,45 @@ static VALUE bzruby_dataeq(VALUE self, VALUE val)
 
 	DWORD docsize = doc->GetDocSize(); // TODO: 4GB越え対応
 
-	rb_exc_raise(rb_exc_new2(rb_eNotImpError, "Sorry!"));
+#ifdef FILE_MAPPING
+	if(doc->IsFileMapping() && RSTRING_LEN(val) != docsize)
+	{
+		rb_exc_raise(rb_exc_new2(rb_eArgError, "can't modify with different size in file-mapping mode"));
+	}
+#endif
+
+	const char *valptr = RSTRING_PTR(val);
+	DWORD valsize = RSTRING_LEN(val); // TODO: 4GB越え対応
+
+	if(docsize == 0)
+	{
+		doc->StoreUndo(0, valsize, UNDO_DEL);
+	} else if(docsize < valsize)
+	{
+		// TODO: このundo操作、atomicの方がいい気がするが仕様的にできない…
+		doc->StoreUndo(docsize, valsize - docsize, UNDO_DEL);
+		doc->StoreUndo(0, docsize, UNDO_OVR);
+	} else // valsize <= docsize
+	{
+		// TODO: このundo操作、atomicの方がいい気がするが仕様的にできない…
+		doc->StoreUndo(valsize, docsize - valsize, UNDO_INS);
+		doc->StoreUndo(0, valsize, UNDO_OVR);
+	}
+	doc->InsertData(0, valsize, FALSE);
+	for(DWORD i = 0; i < valsize; )
+	{
+		LPBYTE pData = doc->QueryMapViewTama2(i, valsize);
+		DWORD remain = doc->GetMapRemain(i);
+		DWORD ovwsize = min(remain, valsize);
+		memcpy(pData, valptr, ovwsize);
+		i += ovwsize;
+		valptr += ovwsize;
+	}
+	if(valsize < docsize)
+		doc->DeleteData(valsize, docsize - valsize);
+	view->UpdateDocSize();
+
+	return val; // おまけ: Qnilでも可
 }
 
 static VALUE bzruby_wide(VALUE self);
@@ -463,7 +502,9 @@ static VALUE bzruby_ismarked(VALUE self, VALUE voff)
 
 	return cbzsv->m_pView->GetDocument()->CheckMark(off) ? Qtrue : Qfalse;
 }
+#ifdef FILE_MAPPING
 static VALUE bzruby_isfilemapping(VALUE self) { return cbzsv->m_pView->GetDocument()->IsFileMapping() ? Qtrue : Qfalse; }
+#endif
 static VALUE bzruby_invalidate(VALUE self) { cbzsv->m_pView->Invalidate(); return Qnil; }
 static VALUE bzruby_endianess(VALUE self) { return UINT2NUM(options.bByteOrder ? 1 : 0); } // 適当
 static VALUE bzruby_setendianess(VALUE self, VALUE vendian)
@@ -599,8 +640,10 @@ static void init_ruby(void)
 	rb_define_module_function(mBz, "togglemark", reinterpret_cast<VALUE(*)(...)>(bzruby_togglemark), 1);
 	rb_define_module_function(mBz, "ismarked", reinterpret_cast<VALUE(*)(...)>(bzruby_ismarked), 1);
 	rb_define_module_function(mBz, "ismarked?", reinterpret_cast<VALUE(*)(...)>(bzruby_ismarked), 1);
+#ifdef FILE_MAPPING
 	rb_define_module_function(mBz, "isfilemapping", reinterpret_cast<VALUE(*)(...)>(bzruby_isfilemapping), 0);
 	rb_define_module_function(mBz, "isfilemapping?", reinterpret_cast<VALUE(*)(...)>(bzruby_isfilemapping), 0);
+#endif
 	rb_define_module_function(mBz, "invalidate", reinterpret_cast<VALUE(*)(...)>(bzruby_invalidate), 0);
 	rb_define_module_function(mBz, "endianess", reinterpret_cast<VALUE(*)(...)>(bzruby_endianess), 0);
 	rb_define_module_function(mBz, "setendianess", reinterpret_cast<VALUE(*)(...)>(bzruby_setendianess), 1);
