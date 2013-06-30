@@ -269,7 +269,10 @@ static VALUE bzruby_dataeq(VALUE self, VALUE val)
 		// TODO: このundo操作、atomicの方がいい気がするが仕様的にできない…
 		doc->StoreUndo(docsize, valsize - docsize, UNDO_DEL);
 		doc->StoreUndo(0, docsize, UNDO_OVR);
-	} else // valsize <= docsize
+	} else if(docsize == valsize)
+	{
+		doc->StoreUndo(0, valsize, UNDO_OVR);
+	} else // valsize < docsize
 	{
 		// TODO: このundo操作、atomicの方がいい気がするが仕様的にできない…
 		doc->StoreUndo(valsize, docsize - valsize, UNDO_INS);
