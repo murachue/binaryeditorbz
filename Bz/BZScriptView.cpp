@@ -867,7 +867,7 @@ CString run_python(const char *cmdstr)
 		CString ostr;
 
 		csnative.Replace(_T("\n"), _T("\r\n"));
-		ostr.Format(_T("==> %s\r\n"), csnative);
+		ostr.Format(_T("%s\r\n"), csnative);
 
 		return ostr;
 	}
@@ -904,7 +904,7 @@ CString run_ruby(const char *cmdstr)
 		CStringA csvalue(RSTRING_PTR(value), RSTRING_LEN(value));
 		CString pstr(csvalue);
 		pstr.Replace(_T("\n"), _T("\r\n"));
-		ostr.Format(_T("#=> %s\r\n"), pstr);
+		ostr.Format(_T("=> %s\r\n"), pstr);
 	} else
 	{
 		value = rb_errinfo();
