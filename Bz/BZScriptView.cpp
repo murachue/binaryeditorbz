@@ -465,22 +465,21 @@ static VALUE bzruby_ismarked(VALUE self, VALUE voff)
 }
 static VALUE bzruby_isfilemapping(VALUE self) { return cbzsv->m_pView->GetDocument()->IsFileMapping() ? Qtrue : Qfalse; }
 static VALUE bzruby_invalidate(VALUE self) { cbzsv->m_pView->Invalidate(); return Qnil; }
-static VALUE bzruby_endianess(VALUE self) { return UINT2NUM(options.bByteOrder); } // 適当
+static VALUE bzruby_endianess(VALUE self) { return UINT2NUM(options.bByteOrder ? 1 : 0); } // 適当
 static VALUE bzruby_setendianess(VALUE self, VALUE vendian)
 {
-	BOOL endian;
+	int endian;
+	int old_endian;
 
-	// boolなclassなら==で問題なさそう。
-	if(CLASS_OF(vendian) == rb_cTrueClass)
-		endian = TRUE;
-	else if(CLASS_OF(vendian) == rb_cFalseClass)
-		endian = FALSE;
-	else
-		rb_exc_raise(rb_exc_new2(rb_eArgError, "an argument must be true or false"));
+	Check_Type(vendian, T_FIXNUM);
+	endian = NUM2INT(vendian);
+	if(!(endian == 0 || endian == 1))
+		rb_exc_raise(rb_exc_new2(rb_eArgError, "endianess must be 0 or 1"));
 
-	options.bByteOrder = endian;
+	old_endian = options.bByteOrder == TRUE ? 1 : 0;
+	options.bByteOrder = (endian == 1) ? TRUE : FALSE;
 
-	return UINT2NUM(options.bByteOrder); // おまけ
+	return UINT2NUM(old_endian); // おまけ
 }
 static VALUE bzruby_isle(VALUE self) { return options.bByteOrder == 0 ? Qtrue : Qfalse; }
 static VALUE bzruby_isbe(VALUE self) { return options.bByteOrder != 0 ? Qtrue : Qfalse; }
@@ -492,9 +491,59 @@ static VALUE bzruby_size(VALUE self)
 }
 static VALUE bzruby_each_byte(VALUE self)
 {
-	VALUE enume;
-	enume = rb_obj_alloc(rb_cObject);
-	rb_define_singleton_method(enume, "", NULL, 0);
+	RETURN_SIZED_ENUMERATOR(self, 0, 0, reinterpret_cast<VALUE(*)(...)>(bzruby_size));
+
+	CBZDoc *doc = cbzsv->m_pView->GetDocument();
+	// TODO: 4GB越え対応
+	DWORD begin = 0;
+	DWORD end = doc->GetDocSize();
+	for(DWORD i = begin; i < end; ) // TODO: 4GB越え対応
+	{
+		LPBYTE pData = doc->QueryMapViewTama2(i, end - begin);
+		DWORD remain = doc->GetMapRemain(i);
+		for(DWORD j = 0; j < remain; j++)
+		{
+			rb_yield(UINT2NUM(pData[j]));
+		}
+		i += remain;
+	}
+
+	return Qnil;
+}
+// TODO: 隠しメソッドのままにする?
+static VALUE bzruby_wordsize(VALUE self)
+{
+	// TODO: 4GB越え対応
+	return ULONG2NUM(static_cast<ULONG>(cbzsv->m_pView->GetDocument()->GetDocSize() / cbzsv->m_pView->m_nBytes));
+}
+static VALUE bzruby_each_word(VALUE self)
+{
+	RETURN_SIZED_ENUMERATOR(self, 0, 0, reinterpret_cast<VALUE(*)(...)>(bzruby_wordsize));
+
+	CBZView *view = cbzsv->m_pView;
+	DWORD wide = view->m_nBytes;
+	CBZDoc *doc = view->GetDocument();
+	// TODO: 4GB越え対応
+	DWORD begin = 0;
+	DWORD end = doc->GetDocSize();
+	DWORD end_rd = end - ((end - begin) % wide);
+	for(DWORD i = begin; i < end_rd; ) // TODO: 4GB越え対応
+	{
+		LPBYTE pData = doc->QueryMapViewTama2(i, end - begin);
+		DWORD remain = doc->GetMapRemain(i);
+		DWORD remain_rd = remain / wide * wide; // round_down(remain)
+		for(DWORD j = 0; j < remain_rd; j += wide)
+		{
+			if(wide == 1 || wide == 2 || wide == 4)
+				rb_yield(ULONG2NUM(view->GetValue(j, wide)));
+			else if(wide == 8)
+				rb_yield(ULL2NUM(view->GetValue64(j)));
+			else
+				ASSERT(FALSE); // panic
+		}
+		i += remain_rd;
+	}
+
 	return Qnil;
 }
 static VALUE bzruby_wide(VALUE self) { return UINT2NUM(cbzsv->m_pView->m_nBytes); }
@@ -553,8 +602,9 @@ static void init_ruby(void)
 	rb_define_module_function(mBz, "isfilemapping", reinterpret_cast<VALUE(*)(...)>(bzruby_isfilemapping), 0);
 	rb_define_module_function(mBz, "isfilemapping?", reinterpret_cast<VALUE(*)(...)>(bzruby_isfilemapping), 0);
 	rb_define_module_function(mBz, "invalidate", reinterpret_cast<VALUE(*)(...)>(bzruby_invalidate), 0);
-	rb_define_module_function(mBz, "setendianess", reinterpret_cast<VALUE(*)(...)>(bzruby_setendianess), 0);
 	rb_define_module_function(mBz, "endianess", reinterpret_cast<VALUE(*)(...)>(bzruby_endianess), 0);
+	rb_define_module_function(mBz, "setendianess", reinterpret_cast<VALUE(*)(...)>(bzruby_setendianess), 1);
+	rb_define_module_function(mBz, "endianess=", reinterpret_cast<VALUE(*)(...)>(bzruby_setendianess), 1);
 	rb_define_module_function(mBz, "isle", reinterpret_cast<VALUE(*)(...)>(bzruby_isle), 0);
 	rb_define_module_function(mBz, "isle?", reinterpret_cast<VALUE(*)(...)>(bzruby_isle), 0);
 	rb_define_module_function(mBz, "isbe", reinterpret_cast<VALUE(*)(...)>(bzruby_isbe), 0);
@@ -562,11 +612,12 @@ static void init_ruby(void)
 	rb_define_module_function(mBz, "filename", reinterpret_cast<VALUE(*)(...)>(bzruby_filename), 0);
 	rb_define_module_function(mBz, "size", reinterpret_cast<VALUE(*)(...)>(bzruby_size), 0);
 	rb_define_module_function(mBz, "length", reinterpret_cast<VALUE(*)(...)>(bzruby_size), 0);
-	rb_define_module_function(mBz, "each_byte", reinterpret_cast<VALUE(*)(...)>(bzruby_each_byte), 0); // => Enumerable
-	//rb_define_module_function(mBz, "each_word", reinterpret_cast<VALUE(*)(...)>(bzruby_each_word), 0); // => Enumerable; wordはWORDではなく、byte/word/dwordは現在のステータスバーに依存
+	rb_define_module_function(mBz, "each", reinterpret_cast<VALUE(*)(...)>(bzruby_each_byte), 0); // each_byteと同義
+	rb_define_module_function(mBz, "each_byte", reinterpret_cast<VALUE(*)(...)>(bzruby_each_byte), 0);
+	rb_define_module_function(mBz, "each_word", reinterpret_cast<VALUE(*)(...)>(bzruby_each_word), 0); // wordはWORDではなく、byte/word/dwordは現在のステータスバーに依存
 	// とりあえずbyte版だけmap!/pmap!/bmap!を用意しておく。word版いる?
-	//rb_define_module_function(mBz, "map!", reinterpret_cast<VALUE(*)(...)>(bzruby_mapx), 0);
 	//rb_define_module_function(mBz, "pmap!", reinterpret_cast<VALUE(*)(...)>(bzruby_pmapx), 0); // BZ.pmap!(begin..end|begin,end){block}
+	//rb_define_module_function(mBz, "map!", reinterpret_cast<VALUE(*)(...)>(bzruby_mapx), 0);　// BZ.map!{block}; 0..BZ.sizeをpmap!に渡した感じ。
 	//rb_define_module_function(mBz, "bmap!", reinterpret_cast<VALUE(*)(...)>(bzruby_bmapx), 0); // BZ.bmap!(){block}; 選択範囲をpmap!に渡した感じ、便利関数、選択していなければ何もしない
 	// TODO: 適当にCBZView->m_nBytesのことをwideと呼称しているけど、いいのか?
 	rb_define_module_function(mBz, "wide", reinterpret_cast<VALUE(*)(...)>(bzruby_wide), 0);
@@ -794,7 +845,7 @@ CString run_ruby(const char *cmdstr)
 	VALUE value;
 	int state;
 
-	// rb_eval_string_protect()だと環境が呼び出しごとにリセットされるので、
+	// rb_eval_string_protect()だとローカル変数が呼び出しごとにリセットされるので、
 	// (少し面倒だけど)bindingが指定できるKernel#evalにObject::TOPLEVEL_BINDINGを渡してやる。
 	//value = rb_eval_string_protect(cmdstr, &state);
 	value = rb_protect(bz_ruby_eval_toplevel, rb_str_new_cstr(cmdstr), &state);
