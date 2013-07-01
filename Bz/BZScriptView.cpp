@@ -798,11 +798,15 @@ static VALUE bzruby_undo(VALUE self)
 	}
 }
 
-extern "C" RUBY_EXTERN int rb_io_init_std;
-
 static void init_ruby(void)
 {
-	rb_io_init_std = 0;
+	static int initialized = 0;
+	if(initialized) return; else initialized = 1;
+
+	int argc = 0;
+	char **argv = NULL;
+	ruby_sysinit(&argc, &argv); // Important to avoid SEGV on ruby_init/ruby_init_loadpath!
+	// RUBY_INIT_STACK; // Win32Ç≈ÇÕãÛÇ»ÇÃÇ≈åƒÇŒÇ»Ç≠ÇƒÇ‡OKÇÃÇÕÇ∏Åc
 	ruby_init(); // ruby_init WORK ONLY ONCE.
 
 	// remap stdio
