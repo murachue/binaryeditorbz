@@ -808,6 +808,7 @@ static void init_ruby(void)
 	ruby_sysinit(&argc, &argv); // Important to avoid SEGV on ruby_init/ruby_init_loadpath!
 	// RUBY_INIT_STACK; // Win32‚Å‚Í‹ó‚È‚Ì‚ÅŒÄ‚Î‚È‚­‚Ä‚àOK‚Ì‚Í‚¸c
 	ruby_init(); // ruby_init WORK ONLY ONCE.
+	ruby_options(0, NULL);
 
 	// remap stdio
 	rb_stdout = rb_obj_alloc(rb_cIO);
