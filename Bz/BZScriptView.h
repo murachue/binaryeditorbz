@@ -65,6 +65,8 @@ public: // for scripting
 private:
 	BZScriptRuby *sruby;
 	BZScriptPython *spython;
+	CStringArray history;
+	int histidx;
 public:
 	afx_msg int OnCreate(LPCREATESTRUCT lpCreateStruct);
 	virtual void OnInitialUpdate();
@@ -75,6 +77,8 @@ public:
 	virtual BOOL PreTranslateMessage(MSG* pMsg);
 	virtual void OnActivateView(BOOL bActivate, CView* pActivateView, CView* pDeactiveView);
 	void write(CString str);
+protected:
+	void run(void);
 };
 
 

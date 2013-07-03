@@ -68,6 +68,7 @@ CBZScriptView::CBZScriptView()
 	sruby->init();
 	spython = new BZScriptPython();
 	spython->init();
+	histidx = 0;
 }
 
 CBZScriptView::~CBZScriptView()
@@ -172,40 +173,83 @@ void CBZScriptView::OnSize(UINT nType, int cx, int cy)
 }
 
 
+void CBZScriptView::run(void)
+{
+	if((GetAsyncKeyState(VK_CONTROL) & 0x8000) == 0)
+	{
+		CString istr, rstr, ostr;
+
+		m_editInput.GetWindowText(istr);
+
+		CStringA zstr(istr);
+
+		m_editInput.SetWindowText(_T(""));
+
+		// 履歴の最後と同じなら履歴に追加しない
+		if(history.GetCount() == 0 || history.GetAt(history.GetCount() - 1) != istr)
+		{
+			histidx = history.Add(istr) + 1;
+		} else
+		{
+			histidx = history.GetCount();
+		}
+
+		m_editResult.GetWindowText(rstr);
+		rstr.AppendFormat(_T(">%s\r\n"), istr);
+		m_editResult.SetWindowText(rstr);
+
+		if((GetAsyncKeyState(VK_SHIFT) & 0x8000) == 0)
+			ostr = sruby->run(this, zstr);
+		else
+			ostr = spython->run(this, zstr);
+
+		m_editResult.GetWindowText(rstr);
+		rstr.Append(ostr);
+		m_editResult.SetWindowText(rstr);
+		m_editResult.SetSel(rstr.GetLength(),rstr.GetLength());
+	}
+}
+
+
 // TODO: ctrl-c/ctrl-vがscript viewに行きつかないけど、ここで何とかできないか?
 BOOL CBZScriptView::PreTranslateMessage(MSG* pMsg)
 {
 	// 入力窓でEnterが押されたら実行
-	if(pMsg->hwnd == m_editInput.m_hWnd && pMsg->message == WM_KEYDOWN && pMsg->wParam == VK_RETURN)
+	if(pMsg->hwnd == m_editInput.m_hWnd && pMsg->message == WM_KEYDOWN)
 	{
-		if((GetAsyncKeyState(VK_CONTROL) & 0x8000) == 0)
+		if(pMsg->wParam == VK_RETURN)
 		{
-			CString istr, rstr, ostr;
-
-			m_editInput.GetWindowText(istr);
-
-			// TODO: XXX Unicodeビルド時しか考慮していない。
-			CStringA zstr(istr);
-			//zstr.AppendChar('\0'); // not need?
-
-			m_editInput.SetWindowText(_T(""));
-
-			m_editResult.GetWindowText(rstr);
-			rstr.AppendFormat(_T(">%s\r\n"), istr);
-			m_editResult.SetWindowText(rstr);
-
-			if((GetAsyncKeyState(VK_SHIFT) & 0x8000) == 0)
-				ostr = sruby->run(this, zstr);
-			else
-				ostr = spython->run(this, zstr);
-
-			m_editResult.GetWindowText(rstr);
-			rstr.Append(ostr);
-			m_editResult.SetWindowText(rstr);
-			m_editResult.SetSel(rstr.GetLength(),rstr.GetLength());
+			run();
+			return TRUE;
+		} else if(pMsg->wParam == VK_UP)
+		{
+			if(0 < histidx)
+			{
+				histidx--;
+				CString str = history.GetAt(histidx);
+				int strl = str.GetLength();
+				m_editInput.SetWindowText(str);
+				m_editInput.SetSel(strl, strl);
+			}
+			return TRUE;
+		} else if(pMsg->wParam == VK_DOWN)
+		{
+			if(histidx < history.GetCount())
+			{
+				histidx++;
+				if(histidx < history.GetCount())
+				{
+					CString str = history.GetAt(histidx);
+					int strl = str.GetLength();
+					m_editInput.SetWindowText(str);
+					m_editInput.SetSel(strl, strl);
+				} else
+				{
+					m_editInput.SetWindowText(_T(""));
+				}
+			}
+			return TRUE;
 		}
-
-		return TRUE;
 	}
 	//*
 	// その他メッセージも必要そうなものを結果窓および入力窓に届ける。
