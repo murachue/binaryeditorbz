@@ -36,40 +36,11 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "BZScriptPython.h"
 #include "MainFrm.h"
 
-// OMG PYTHON!
-#undef HAVE_SYS_UTIME_H
-#undef HAVE_STRERROR
-#undef HAVE_HYPOT
-#undef HAVE_STRFTIME
-#undef copysign
-#undef SIZEOF_OFF_T
-#undef HAVE_TZNAME
-#undef HAVE_PROTOTYPES
-#undef HAVE_MKTIME
-#undef HAVE_STDARG_PROTOTYPES
-
-#undef ssize_t
-#define ssize_t pyssize_t
-
-// !!!!!
-#ifdef _DEBUG
-#define _DEBUG_IS_ON
-#undef _DEBUG
-#endif
-
-#include "python.h"
-
-#undef ssize_t
-#ifdef _DEBUG_IS_ON
-#define _DEBUG
-#endif
-
 // CBZScriptView
 
 IMPLEMENT_DYNCREATE(CBZScriptView, CFormView)
 
 
-static CBZScriptView *cbzsv; // TODO: YES GLOBAL AS RUBY DO!!!
 static CString outbuf;
 
 void CBZScriptView::write(CString str)
@@ -90,76 +61,19 @@ void CBZScriptView::write(CString str)
 	}
 }
 
-static PyObject* python_write(PyObject *self, PyObject *args)
-{
-	int ok;
-	char *str;
-	int len;
-
-	ok = PyArg_ParseTuple(args, "s#", &str, &len);
-	if(!ok) // TODO: is it correct?
-	{
-		// TODO: exception
-		PyErr_SetString(PyExc_NotImplementedError, "argument must be like write(str)");
-		return NULL; // must NULL when raising exception?
-	}
-	CString cstr(str, len);
-
-	CString rstr;
-	cbzsv->m_editResult.GetWindowText(rstr);
-	cstr.Replace(_T("\n"), _T("\r\n"));
-	rstr.Append(cstr);
-	cbzsv->m_editResult.SetWindowText(rstr);
-
-	Py_INCREF(Py_None);
-	return Py_None;
-}
-
-static PyMethodDef pythonMethods[] =
-{
-	{"write", python_write, METH_VARARGS, ""},
-	{NULL, NULL, 0, NULL}
-};
-
-static void init_python(void)
-{
-	Py_SetProgramName("BZ");
-	Py_Initialize();
-	PyObject *name;
-	//name = PyString_FromString("sys");
-	//PyObject *mod = PyImport_ImportModule("sys");
-	//PyObject *mod = PyImport_Import(name);
-	//Py_DECREF(name);
-
-	PyObject *module = PyImport_AddModule("__main__");
-	PyObject *py_globals = (module == NULL) ? NULL : PyModule_GetDict(module);
-	PyObject *mod = PyImport_ImportModuleEx("sys", py_globals, py_globals, NULL);
-
-	// TODO: sys.stdout/stdin/stderrを自作関数に置き換える
-	// なぜうごかない…
-	PyObject *mymodule = Py_InitModule("bzwriter", pythonMethods);
-	name = PyString_FromString("write");
-	PyObject_SetAttr(mod, name, mymodule);
-	Py_DECREF(name);
-	Py_DECREF(mod);
-
-	// しかたないのでad-hocに TODO: なんとかしてこの行を抹消する。
-	PyRun_SimpleString("import sys; import bzwriter; sys.stdout=bzwriter; sys.stderr=bzwriter");
-}
-
 CBZScriptView::CBZScriptView()
 	: CFormView(CBZScriptView::IDD)
 {
 	sruby = new BZScriptRuby();
 	sruby->init();
 	spython = new BZScriptPython();
-	init_python();
+	spython->init();
 }
 
 CBZScriptView::~CBZScriptView()
 {
 	sruby->cleanup();
-	Py_Finalize();
+	spython->cleanup();
 }
 
 void CBZScriptView::DoDataExchange(CDataExchange* pDX)
@@ -225,64 +139,9 @@ void CBZScriptView::ClearAll(void)
 	//ruby_show_version(); // uses stdio (not $stdout.write)...
 
 	sruby->onClear(this);
-	cbzsv = this;
-	PyRun_SimpleString("print('Python ' + sys.version)");
+	spython->onClear(this);
 }
 
-
-CString run_python(const char *cmdstr)
-{
-	// TODO: Isn't there method that handle write() as Ruby?
-    //PyObject *pModule = PyImport_AddModule("__main__"); //create main module
-
-	// referring IDAPython PythonEvalOrExec..
-	PyCompilerFlags cf = {0};
-	PyObject *py_code = Py_CompileStringFlags(cmdstr, "<string>", Py_eval_input, &cf);
-	if(py_code == NULL || PyErr_Occurred())
-	{
-		// Not an expression?
-		PyErr_Clear();
-
-		// Run as a string
-		PyRun_SimpleString(cmdstr);
-		return _T("");
-	}
-
-	PyObject *module = PyImport_AddModule("__main__");
-	PyObject *py_globals = (module == NULL) ? NULL : PyModule_GetDict(module);
-	//PYW_GIL_ENSURE;
-	PyObject *py_result = PyEval_EvalCode((PyCodeObject*)py_code, py_globals, py_globals);
-	//PYW_GIL_RELEASE;
-	Py_DECREF(py_code);
-
-	if(py_result == NULL || PyErr_Occurred())
-	{
-		PyObject *t,*v,*b;
-		PyErr_Fetch(&t,&v,&b);
-		PyErr_Print();
-		return _T("");
-	}
-	if(py_result != Py_None)
-	{
-		PyObject *pystr = PyObject_Str(py_result);
-		Py_DECREF(py_result);
-		char *cstr = PyString_AsString(pystr);
-		int cstrlen = strlen(cstr);
-		CStringA csresult(cstr, cstrlen);
-		Py_DECREF(pystr);
-		CString csnative(csresult);
-		CString ostr;
-
-		csnative.Replace(_T("\n"), _T("\r\n"));
-		ostr.Format(_T("%s\r\n"), csnative);
-
-		return ostr;
-	}
-
-	Py_DECREF(py_result);
-
-	return _T("");//ostr;
-}
 
 void CBZScriptView::OnSize(UINT nType, int cx, int cy)
 {
@@ -338,10 +197,7 @@ BOOL CBZScriptView::PreTranslateMessage(MSG* pMsg)
 			if((GetAsyncKeyState(VK_SHIFT) & 0x8000) == 0)
 				ostr = sruby->run(this, zstr);
 			else
-			{
-				cbzsv = this;
-				ostr = run_python(zstr);
-			}
+				ostr = spython->run(this, zstr);
 
 			m_editResult.GetWindowText(rstr);
 			rstr.Append(ostr);
