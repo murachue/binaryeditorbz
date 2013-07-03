@@ -198,6 +198,8 @@
     <ClCompile Include="BZDoc.cpp" />
     <ClCompile Include="BZFormVw.cpp" />
     <ClCompile Include="BZInspectView.cpp" />
+    <ClCompile Include="BZScriptPython.cpp" />
+    <ClCompile Include="BZScriptRuby.cpp" />
     <ClCompile Include="BZScriptView.cpp" />
     <ClCompile Include="BZView.cpp" />
     <ClCompile Include="ColorCombo.cpp" />
@@ -229,6 +231,8 @@
     <ClInclude Include="BZDoc.h" />
     <ClInclude Include="BZFormVw.h" />
     <ClInclude Include="BZInspectView.h" />
+    <ClInclude Include="BZScriptPython.h" />
+    <ClInclude Include="BZScriptRuby.h" />
     <ClInclude Include="BZScriptView.h" />
     <ClInclude Include="BZView.h" />
     <ClInclude Include="ColorCombo.h" />

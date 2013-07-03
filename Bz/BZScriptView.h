@@ -35,6 +35,9 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 // CBZScriptView フォーム ビュー
 
+class BZScriptRuby;
+class BZScriptPython;
+
 class CBZScriptView : public CFormView
 {
 	DECLARE_DYNCREATE(CBZScriptView)
@@ -57,9 +60,11 @@ protected:
 
 	DECLARE_MESSAGE_MAP()
 
-//private:
-public: // for scripting...
+public: // for scripting
 	CBZView* m_pView;
+private:
+	BZScriptRuby *sruby;
+	BZScriptPython *spython;
 public:
 	afx_msg int OnCreate(LPCREATESTRUCT lpCreateStruct);
 	virtual void OnInitialUpdate();
@@ -69,6 +74,7 @@ public:
 	afx_msg void OnSize(UINT nType, int cx, int cy);
 	virtual BOOL PreTranslateMessage(MSG* pMsg);
 	virtual void OnActivateView(BOOL bActivate, CView* pActivateView, CView* pDeactiveView);
+	void write(CString str);
 };
 
 
