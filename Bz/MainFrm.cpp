@@ -401,7 +401,7 @@ BOOL CMainFrame::CreateClient(CCreateContext* pContext)
 			pActiveView->OnInitialUpdate();
 		}
 	}
-	if((m_bStructView||m_bInspectView||m_bAnalyzerView/*||m_bScriptView*/) && m_nSplitView != ID_VIEW_SPLIT_V) {
+	if((m_bStructView||m_bInspectView||m_bAnalyzerView||(m_nSplitView && m_bScriptView)) && m_nSplitView != ID_VIEW_SPLIT_V) {
 		m_pSplitter->SetColumnInfo(0, options.xSplitStruct, 0);
 	}
 
@@ -796,10 +796,10 @@ void CMainFrame::GetSplitInfo()
 	options.bInspectView = m_bInspectView;
 	options.bAnalyzerView = m_bAnalyzerView;
 	//TODO:options.bScriptView = m_bScriptView;
-	if(m_bStructView || m_bInspectView || m_bAnalyzerView) {
+	if(m_bStructView || m_bInspectView || m_bAnalyzerView || (m_nSplitView && m_bScriptView)) {
 		m_pSplitter->GetColumnInfo(0, nCur, nMin);
 		options.xSplitStruct = nCur;
-	} else if(m_bScriptView) {
+	} else if(!m_nSplitView && m_bScriptView) {
 		m_pSplitter->GetRowInfo(1, nCur, nMin);
 		options.xSplitStruct = nCur;
 	}
@@ -839,14 +839,14 @@ void CMainFrame::RecalcLayout(BOOL bNotify)
 
 	// ScriptView対応: cyをとっておく
 	int nScrCurOld, nMin;
-	if(m_bScriptView) {
+	if(!m_nSplitView && m_bScriptView) {
 		m_pSplitter->GetRowInfo(1, nScrCurOld, nMin);
 	}
 
 	CFrameWnd::RecalcLayout(bNotify);
 
 	// ScriptView対応: 差分を元にメインビューのcyを更新してRecalcLayout()
-	if(m_bScriptView) {
+	if(!m_nSplitView && m_bScriptView) {
 		int nScrCurNew, nMainCurNew; // nMinは使用しないので使いまわし
 		m_pSplitter->GetRowInfo(0, nMainCurNew, nMin);
 		m_pSplitter->GetRowInfo(1, nScrCurNew, nMin);
