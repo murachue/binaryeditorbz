@@ -62,7 +62,7 @@ static PyMethodDef pythonMethods[] =
 	{NULL, NULL, 0, NULL}
 };
 
-void BZScriptPython::init(void)
+void BZScriptPython::init(CBZScriptView *sview)
 {
 	Py_SetProgramName("BZ");
 	Py_Initialize();
@@ -89,7 +89,7 @@ void BZScriptPython::init(void)
 }
 
 
-void BZScriptPython::cleanup(void)
+void BZScriptPython::cleanup(CBZScriptView *sview)
 {
 	Py_Finalize();
 }

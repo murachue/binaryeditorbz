@@ -67,6 +67,7 @@ private:
 	BZScriptPython *spython;
 	CStringArray history;
 	int histidx;
+	CString outbuf;
 public:
 	afx_msg int OnCreate(LPCREATESTRUCT lpCreateStruct);
 	virtual void OnInitialUpdate();

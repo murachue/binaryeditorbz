@@ -41,13 +41,12 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 IMPLEMENT_DYNCREATE(CBZScriptView, CFormView)
 
 
-static CString outbuf;
-
 void CBZScriptView::write(CString str)
 {
-	CString rstr;
 	if(m_editResult.m_hWnd != NULL)
 	{
+		CString rstr;
+
 		m_editResult.GetWindowText(rstr);
 		// append output buf if there are
 		rstr.Append(outbuf);
@@ -65,16 +64,16 @@ CBZScriptView::CBZScriptView()
 	: CFormView(CBZScriptView::IDD)
 {
 	sruby = new BZScriptRuby();
-	sruby->init();
+	sruby->init(this);
 	spython = new BZScriptPython();
-	spython->init();
+	spython->init(this);
 	histidx = 0;
 }
 
 CBZScriptView::~CBZScriptView()
 {
-	sruby->cleanup();
-	spython->cleanup();
+	sruby->cleanup(this);
+	spython->cleanup(this);
 }
 
 void CBZScriptView::DoDataExchange(CDataExchange* pDX)

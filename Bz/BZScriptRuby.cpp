@@ -734,7 +734,7 @@ static VALUE bzruby_undo(VALUE self)
 	}
 }
 
-void BZScriptRuby::init(void)
+void BZScriptRuby::init(CBZScriptView *sview)
 {
 	static int initialized = 0;
 	if(initialized) return; else initialized = 1;
@@ -753,6 +753,8 @@ void BZScriptRuby::init(void)
 	rb_define_singleton_method(rb_stderr, "write", reinterpret_cast<VALUE(*)(...)>(bzruby_write), 1);
 	rb_stdin = rb_obj_alloc(rb_cIO);
 	rb_define_singleton_method(rb_stdin, "read", reinterpret_cast<VALUE(*)(...)>(bzruby_read), -1);
+
+	cbzsv = sview;
 
 	ruby_init_loadpath();
 
@@ -824,7 +826,7 @@ void BZScriptRuby::init(void)
 }
 
 
-void BZScriptRuby::cleanup(void)
+void BZScriptRuby::cleanup(CBZScriptView *sview)
 {
 	//ruby_cleanup(0); // DO NOT CALL, ruby_init DO WORK ONLY ONCE!
 }
