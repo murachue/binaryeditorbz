@@ -733,6 +733,18 @@ static VALUE bzruby_undo(VALUE self)
 		return Qfalse;
 	}
 }
+static VALUE bzruby_b(VALUE self)
+{
+	CBZView *view = cbzsv->m_pView;
+	CBZDoc *doc = view->GetDocument();
+	if(view->IsBlockAvailable())
+	{
+		return bzruby_data2str(doc, view->BlockBegin(), view->BlockEnd());
+	} else
+	{
+		return Qnil;
+	}
+}
 
 void BZScriptRuby::init(CBZScriptView *sview)
 {
@@ -813,6 +825,7 @@ void BZScriptRuby::init(CBZScriptView *sview)
 	rb_define_module_function(mBz, "auto_invalidate", reinterpret_cast<VALUE(*)(...)>(bzruby_auto_invalidate), 0);
 	rb_define_module_function(mBz, "auto_invalidate=", reinterpret_cast<VALUE(*)(...)>(bzruby_auto_invalidateeq), 0);
 	rb_define_module_function(mBz, "undo", reinterpret_cast<VALUE(*)(...)>(bzruby_undo), 0);
+	rb_define_module_function(mBz, "b", reinterpret_cast<VALUE(*)(...)>(bzruby_b), 0);
 	//rb_define_module_function(mBz, "setfilename", reinterpret_cast<VALUE(*)(...)>(bzruby_setfilename), 1);
 	//rb_define_module_function(mBz, "open", reinterpret_cast<VALUE(*)(...)>(bzruby_open), 1);
 	//rb_define_module_function(mBz, "save", reinterpret_cast<VALUE(*)(...)>(bzruby_save), 0);
