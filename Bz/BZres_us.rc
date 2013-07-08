@@ -50,7 +50,7 @@ END
 
 2 TEXTINCLUDE 
 BEGIN
-    "#include ""afxres.h""\r\0"
+    "#include ""afxres.h""\r\n\0"
 END
 
 #endif    // APSTUDIO_INVOKED

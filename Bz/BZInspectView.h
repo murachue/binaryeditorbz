@@ -83,6 +83,15 @@ public:
 	void Update(void);
 	void UpdateChecks(void);
 	void _UpdateChecks(void);
+	CButton m_buttonCalcsum;
+	CEdit m_editCRC16;
+	CEdit m_editCRC32;
+	CEdit m_editAdler32;
+	CEdit m_editMD5;
+	CEdit m_editSHA1;
+	CEdit m_editSHA256;
+	afx_msg void OnClickedInsCalcsum();
+	void CBZInspectView::CalculateSums(void);
 };
 
 

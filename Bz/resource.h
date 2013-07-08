@@ -1,6 +1,6 @@
 //{{NO_DEPENDENCIES}}
 // Microsoft Visual C++ で生成されたインクルード ファイル。
-// BZres_us.rc で使用
+// BZ.rc で使用
 //
 #define IDD_ABOUTBOX                    100
 #define IDD_BZINSPECTVIEW               103
@@ -56,6 +56,13 @@
 #define IDB_ANALYZER_SAVEALL            1042
 #define IDC_SCRIPT_RESULT               1044
 #define IDC_SCRIPT_INPUT                1045
+#define IDC_INS_CALCSUM                 1046
+#define IDE_INS_CRC16                   1047
+#define IDE_INS_CRC32                   1048
+#define IDE_INS_ADLER32                 1049
+#define IDE_INS_MD5                     1050
+#define IDE_INS_SHA1                    1051
+#define IDE_INS_SHA256                  1052
 #define IDS_COLOR_ADDRESS               3000
 #define IDS_COLOR_ADDRESS2              3001
 #define IDS_COLOR_TEXT                  3002
@@ -166,7 +173,7 @@
 #define _APS_3D_CONTROLS                     1
 #define _APS_NEXT_RESOURCE_VALUE        146
 #define _APS_NEXT_COMMAND_VALUE         32873
-#define _APS_NEXT_CONTROL_VALUE         1046
+#define _APS_NEXT_CONTROL_VALUE         1053
 #define _APS_NEXT_SYMED_VALUE           107
 #endif
 #endif
