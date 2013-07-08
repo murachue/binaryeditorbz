@@ -1,6 +1,6 @@
 //{{NO_DEPENDENCIES}}
 // Microsoft Visual C++ で生成されたインクルード ファイル。
-// BZ.rc で使用
+// BZres_us.rc で使用
 //
 #define IDD_ABOUTBOX                    100
 #define IDD_BZINSPECTVIEW               103
