@@ -225,12 +225,25 @@ static HCRYPTHASH crypthash_create(HCRYPTPROV cprov, ALG_ID alg)
 	return chash;
 }
 
+static void crypthash_hashdata(HCRYPTHASH chash, const BYTE *p, DWORD r)
+{
+	BOOL ok;
+
+	if(chash == 0)
+		return;
+
+	ok = CryptHashData(chash, p, r, 0);
+	ASSERT(ok != 0);
+}
+
 static DWORD crypthash_hashsize(HCRYPTHASH chash)
 {
 	DWORD hs, dlen;
+	BOOL ok;
 
 	dlen = sizeof(hs);
-	ASSERT(CryptGetHashParam(chash, HP_HASHSIZE, (BYTE*)&hs, &dlen, 0) != 0);
+	ok = CryptGetHashParam(chash, HP_HASHSIZE, (BYTE*)&hs, &dlen, 0);
+	ASSERT(ok != 0);
 	return hs;
 }
 
@@ -271,6 +284,7 @@ void CBZInspectView::CalculateSums(void)
 	DWORD remain = end - begin;
 
 	// ブロックが0byteの時も表示する。(まれに初期値が知りたい場合がある…。)
+	// このチェックは無効にしておく。
 	//ASSERT(remain > 0);
 
 	// context初期化
@@ -319,9 +333,9 @@ void CBZInspectView::CalculateSums(void)
 		crc32_2 = crc32(crc32_2, p, r);
 		r_adler32 = adler32(r_adler32, p, r);
 
-		if(ch_md5) ASSERT(CryptHashData(ch_md5, p, r, 0) != 0);
-		if(ch_sha1) ASSERT(CryptHashData(ch_sha1, p, r, 0) != 0);
-		if(ch_sha256) ASSERT(CryptHashData(ch_sha256, p, r, 0) != 0);
+		crypthash_hashdata(ch_md5, p, r);
+		crypthash_hashdata(ch_sha1, p, r);
+		crypthash_hashdata(ch_sha256, p, r);
 
 		remain -= r;
 		begin += r;
