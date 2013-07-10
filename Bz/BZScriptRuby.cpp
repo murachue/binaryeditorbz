@@ -745,6 +745,28 @@ static VALUE bzruby_b(VALUE self)
 		return Qnil;
 	}
 }
+static VALUE bzruby_clip(VALUE self)
+{
+	HGLOBAL hMem;
+	LPBYTE pMem, pWorkMem;
+
+	DWORD dwSize;
+	VALUE ret;
+
+	CBZDoc *doc = cbzsv->m_pView->GetDocument();
+
+	dwSize = doc->ClipboardReadOpen(hMem, pMem, pWorkMem);
+	ret = rb_str_new((const char *)pMem, dwSize);
+	doc->ClipboardReadClose(hMem, pMem, pWorkMem);
+
+	return ret;
+}
+static VALUE bzruby_clipeq(VALUE self, VALUE val)
+{
+	Check_Type(val, T_STRING);
+	cbzsv->m_pView->GetDocument()->DoCopyToClipboard((LPBYTE)RSTRING_PTR(val), RSTRING_LEN(val), FALSE);
+	return val;
+}
 
 void BZScriptRuby::init(CBZScriptView *sview)
 {
@@ -826,6 +848,9 @@ void BZScriptRuby::init(CBZScriptView *sview)
 	rb_define_module_function(mBz, "auto_invalidate=", reinterpret_cast<VALUE(*)(...)>(bzruby_auto_invalidateeq), 0);
 	rb_define_module_function(mBz, "undo", reinterpret_cast<VALUE(*)(...)>(bzruby_undo), 0);
 	rb_define_module_function(mBz, "b", reinterpret_cast<VALUE(*)(...)>(bzruby_b), 0);
+	rb_define_module_function(mBz, "clip", reinterpret_cast<VALUE(*)(...)>(bzruby_clip), 0);
+	rb_define_module_function(mBz, "clip=", reinterpret_cast<VALUE(*)(...)>(bzruby_clipeq), 1);
+	rb_define_module_function(mBz, "setclip", reinterpret_cast<VALUE(*)(...)>(bzruby_clipeq), 1);
 	//rb_define_module_function(mBz, "setfilename", reinterpret_cast<VALUE(*)(...)>(bzruby_setfilename), 1);
 	//rb_define_module_function(mBz, "open", reinterpret_cast<VALUE(*)(...)>(bzruby_open), 1);
 	//rb_define_module_function(mBz, "save", reinterpret_cast<VALUE(*)(...)>(bzruby_save), 0);

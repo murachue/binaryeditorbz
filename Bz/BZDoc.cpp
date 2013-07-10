@@ -452,16 +452,8 @@ void CBZDoc::OnUpdateEditReadOnlyOpen(CCmdUI* pCmdUI)
 	pCmdUI->SetCheck(options.bReadOnlyOpen);	
 }
 
-BOOL CBZDoc::CopyToClipboard(DWORD dwOffset, DWORD dwSize, BOOL bHexString)	// ###1.5
+BOOL CBZDoc::DoCopyToClipboard(LPBYTE lpStart, DWORD dwSize, BOOL bHexString)
 {
-#ifdef FILE_MAPPING
-	LPBYTE lpStart = QueryMapViewTama2(dwOffset, dwSize); //QueryMapView(m_pData, dwPtr);
-	if(GetMapRemain(dwOffset) < dwSize) //if(dwSize >= options.dwMaxMapSize || IsOutOfMap(m_pData + dwPtr + dwSize))
-	{
-		AfxMessageBox(IDS_ERR_COPY);
-		return FALSE;
-	}
-#endif //FILE_MAPPING
 	HGLOBAL hMemTxt, hMemBin;
 	LPBYTE pMemTxt, pMemBin;
 	if(!bHexString) {
@@ -504,13 +496,24 @@ BOOL CBZDoc::CopyToClipboard(DWORD dwOffset, DWORD dwSize, BOOL bHexString)	// #
 	return TRUE;
 }
 
-DWORD CBZDoc::PasteFromClipboard(DWORD dwPtr, BOOL bIns)
+BOOL CBZDoc::CopyToClipboard(DWORD dwOffset, DWORD dwSize, BOOL bHexString)	// ###1.5
+{
+#ifdef FILE_MAPPING
+	LPBYTE lpStart = QueryMapViewTama2(dwOffset, dwSize); //QueryMapView(m_pData, dwPtr);
+	if(GetMapRemain(dwOffset) < dwSize) //if(dwSize >= options.dwMaxMapSize || IsOutOfMap(m_pData + dwPtr + dwSize))
+	{
+		AfxMessageBox(IDS_ERR_COPY);
+		return FALSE;
+	}
+#endif //FILE_MAPPING
+	return DoCopyToClipboard(lpStart, dwSize, bHexString);
+}
+
+DWORD CBZDoc::ClipboardReadOpen(HGLOBAL &hMem, LPBYTE &pMem, LPBYTE &pWorkMem)
 {
 	AfxGetMainWnd()->OpenClipboard();
-	HGLOBAL hMem;
 	DWORD dwSize;
-	LPBYTE pMem;
-	LPBYTE pWorkMem = NULL;
+	pWorkMem = NULL;
 	if(hMem = ::GetClipboardData(RegisterClipboardFormat(_T("BinaryData2")))) {
 		pMem = (LPBYTE)::GlobalLock(hMem);
 		dwSize = *((DWORD*)(pMem));
@@ -561,6 +564,25 @@ DWORD CBZDoc::PasteFromClipboard(DWORD dwPtr, BOOL bIns)
 			// Do nothing
 		}
 	}
+	return dwSize;
+}
+
+void CBZDoc::ClipboardReadClose(HGLOBAL hMem, LPBYTE pMem, LPBYTE pWorkMem)
+{
+	::GlobalUnlock(hMem);
+	::CloseClipboard();
+	if(pWorkMem) {
+		MemFree(pWorkMem);
+	}
+}
+
+DWORD CBZDoc::PasteFromClipboard(DWORD dwPtr, BOOL bIns)
+{
+	HGLOBAL hMem;
+	LPBYTE pMem;
+	LPBYTE pWorkMem;
+	DWORD dwSize;
+	dwSize = ClipboardReadOpen(hMem, pMem, pWorkMem);
 	if(!dwSize) return 0;
 #ifdef FILE_MAPPING
 	if(IsFileMapping()) {
@@ -577,11 +599,7 @@ DWORD CBZDoc::PasteFromClipboard(DWORD dwPtr, BOOL bIns)
 		StoreUndo(dwPtr, dwSize, UNDO_OVR);
 	InsertData(dwPtr, dwSize, bIns);
 	memcpy(m_pData+dwPtr, pMem, dwSize);
-	::GlobalUnlock(hMem);
-	::CloseClipboard();
-	if(pWorkMem) {
-		MemFree(pWorkMem);
-	}
+	ClipboardReadClose(hMem, pMem, pWorkMem);
 	return dwPtr+dwSize;
 }
 

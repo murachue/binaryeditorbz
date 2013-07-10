@@ -82,6 +82,9 @@ public:
 	void	SetMark(DWORD dwPtr);
 	BOOL	CheckMark(DWORD dwPtr);
 	DWORD	JumpToMark(DWORD dwPtr);
+	BOOL	DoCopyToClipboard(LPBYTE lpStart, DWORD dwSize, BOOL bHexString);
+	DWORD	ClipboardReadOpen(HGLOBAL &hMem, LPBYTE &pMem, LPBYTE &pWorkMem);
+	void	ClipboardReadClose(HGLOBAL hMem, LPBYTE pMem, LPBYTE pWorkMem);
 #ifdef FILE_MAPPING
 	_inline DWORD	GetFileOffsetFromFileMappingPointer(LPBYTE pConv) { return pConv-m_pData; }
 	_inline LPBYTE	GetFileMappingPointerFromFileOffset(DWORD dwFileOffset) { return dwFileOffset+m_pData; }
