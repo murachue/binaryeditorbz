@@ -82,6 +82,7 @@ public:
 	void	SetMark(DWORD dwPtr);
 	BOOL	CheckMark(DWORD dwPtr);
 	DWORD	JumpToMark(DWORD dwPtr);
+	BOOL	CanUndo() { return !!m_pUndo; };
 	BOOL	DoCopyToClipboard(LPBYTE lpStart, DWORD dwSize, BOOL bHexString);
 	DWORD	ClipboardReadOpen(HGLOBAL &hMem, LPBYTE &pMem, LPBYTE &pWorkMem);
 	void	ClipboardReadClose(HGLOBAL hMem, LPBYTE pMem, LPBYTE pWorkMem);
@@ -123,7 +124,6 @@ public:
 		}
 		return 0;
 	}
-	BOOL	CanUndo() { return !!m_pUndo; };
 private:
 	BOOL     MapView();
 	LPBYTE  QueryMapView1(LPBYTE pBegin, DWORD dwOffset);
