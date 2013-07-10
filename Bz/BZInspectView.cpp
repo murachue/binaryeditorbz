@@ -33,6 +33,7 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "BZDoc.h"
 #include "BZInspectView.h"
 #include "MainFrm.h"
+#include "zlib.h"
 
 
 static WORD crc16_table[256];
@@ -139,6 +140,8 @@ void CBZInspectView::ClearAll(void)
 	m_editBinary8.SetWindowText(_T(""));
 	m_editFloat.SetWindowText(_T(""));
 	m_editDouble.SetWindowText(_T(""));
+
+	ClearSums();
 }
 
 void CBZInspectView::OnBnClickedInsIntel()
@@ -209,6 +212,54 @@ static void make_crc32_table(void)
 	}
 }
 
+static HCRYPTHASH crypthash_create(HCRYPTPROV cprov, ALG_ID alg)
+{
+	HCRYPTHASH chash;
+
+	if(cprov == 0)
+		return 0;
+
+	if(!CryptCreateHash(cprov, alg, 0, 0, &chash))
+		chash = 0;
+
+	return chash;
+}
+
+static DWORD crypthash_hashsize(HCRYPTHASH chash)
+{
+	DWORD hs, dlen;
+
+	dlen = sizeof(hs);
+	ASSERT(CryptGetHashParam(chash, HP_HASHSIZE, (BYTE*)&hs, &dlen, 0) != 0);
+	return hs;
+}
+
+// Note: Only "dlen <= 32" is supported.
+static void crypthash_setstrval(CString *strval, CEdit *edit, HCRYPTHASH chash, DWORD hashlen)
+{
+	if(!chash)
+	{
+		edit->SetWindowText(_T("N/A in CSP"));
+		return;
+	}
+
+	DWORD dlen = hashlen;
+	BYTE hash[32];
+
+	if(!CryptGetHashParam(chash, HP_HASHVAL, hash, &dlen, 0))
+	{
+		edit->SetWindowText(_T("Error in CryptGetHashParam"));
+		return;
+	}
+
+	ASSERT(dlen == hashlen);
+
+	strval->SetString(_T(""));
+	// TODO: for-AppendFormat-byteは遅い。
+	for(int i = 0; i < 16; i++) strval->AppendFormat(_T("%02X"), hash[i]);
+	edit->SetWindowText(*strval);
+}
+
 void CBZInspectView::CalculateSums(void)
 {
 	ASSERT(m_pView != NULL);
@@ -219,13 +270,33 @@ void CBZInspectView::CalculateSums(void)
 	DWORD end = m_pView->BlockEnd();
 	DWORD remain = end - begin;
 
-	ASSERT(remain > 0);
+	// ブロックが0byteの時も表示する。(まれに初期値が知りたい場合がある…。)
+	//ASSERT(remain > 0);
 
 	// context初期化
 	make_crc16_table();
 	WORD crc16 = 0xFFFF;
 	make_crc32_table();
+	DWORD crc32_1 = 0xFFFFFFFF;
+	DWORD crc32_2 = crc32(0L, Z_NULL, 0);
+	DWORD r_adler32 = adler32(0L, Z_NULL, 0);
+	// TODO: CryptAcquireContextやCryptCreateHashのエラー時HCRYPT*を0にしているけど、0はあり得ない数値なのか?
+	//       Win7SP1(x64)ではエラー時、特に値が書き換えられない…。
+	//       INVALID_HANDLE_VALUEは型が合わない、HANDLEにしか使えないのかな。
+	HCRYPTPROV cprov;
+	if(!CryptAcquireContext(&cprov, NULL, MS_ENH_RSA_AES_PROV, PROV_RSA_AES, CRYPT_VERIFYCONTEXT))
+	{
+		if(!CryptAcquireContext(&cprov, NULL, MS_ENH_RSA_AES_PROV_XP, PROV_RSA_AES, CRYPT_VERIFYCONTEXT))
+		{
+			cprov = 0;
+		}
+	}
+	HCRYPTHASH ch_md5 = crypthash_create(cprov, CALG_MD5);
+	HCRYPTHASH ch_sha1 = crypthash_create(cprov, CALG_SHA1);
+	// WinXP SP2まではSHA256をサポートしていない。
+	HCRYPTHASH ch_sha256 = crypthash_create(cprov, CALG_SHA_256);
 
+	// sum計算
 	CBZDoc *doc = m_pView->GetDocument();
 
 	while(remain > 0)
@@ -234,13 +305,74 @@ void CBZInspectView::CalculateSums(void)
 		// TODO: 4GB越え対応
 		DWORD mr = doc->GetMapRemain(begin);
 		DWORD r = min(mr, remain);
-		// TODO: 余り分をFinalする時、ハッシュ関数によってずれがある…どうする?
+
+		// 余り分をFinalする時、ハッシュ関数によってずれがある…どうする?
+		// →CryptServiceProviderではAPIでカバーしてくれるので考慮の必要なし。
 		for(DWORD i = 0; i < r; )
 		{
 			// TODO: p+iからrまでcontextをupdate
-			//       そしてi += 処理分
+			crc16 = crc16_table[(crc16 ^ p[i]) & 0xFF] ^ (crc16 >> 8);
+			crc32_1 = crc32_table[(crc32_1 ^ p[i]) & 0xFF] ^ (crc32_1 >> 8);
+			i += 1;
 		}
+
+		crc32_2 = crc32(crc32_2, p, r);
+		r_adler32 = adler32(r_adler32, p, r);
+
+		if(ch_md5) ASSERT(CryptHashData(ch_md5, p, r, 0) != 0);
+		if(ch_sha1) ASSERT(CryptHashData(ch_sha1, p, r, 0) != 0);
+		if(ch_sha256) ASSERT(CryptHashData(ch_sha256, p, r, 0) != 0);
+
+		remain -= r;
+		begin += r;
 	}
+
+	// 結果表示
+	CString strval;
+
+	strval.Format(_T("%04X (%04X)"), crc16^0xFFFF, crc16);
+	m_editCRC16.SetWindowText(strval);
+
+	// TODO: zlibの結果を採用すべきかな
+	ASSERT((crc32_1^0xFFFFFFFF) == crc32_2);
+	strval.Format(_T("%08X (%08X)"), crc32_1^0xFFFFFFFF, crc32_1);
+	m_editCRC32.SetWindowText(strval);
+
+	strval.Format(_T("%08X"), r_adler32);
+	m_editAdler32.SetWindowText(strval);
+
+	if(cprov)
+	{
+		// paranoid
+		if(ch_md5) ASSERT(crypthash_hashsize(ch_md5) == 16);
+		if(ch_sha1) ASSERT(crypthash_hashsize(ch_sha1) == 20);
+		if(ch_sha256) ASSERT(crypthash_hashsize(ch_sha256) == 32);
+
+		crypthash_setstrval(&strval, &m_editMD5, ch_md5, 16);
+		crypthash_setstrval(&strval, &m_editSHA1, ch_sha1, 20);
+		crypthash_setstrval(&strval, &m_editSHA256, ch_sha256, 32);
+	} else
+	{
+		m_editMD5.SetWindowText(_T("CSP error"));
+		m_editSHA1.SetWindowText(_T("CSP error"));
+		m_editSHA256.SetWindowText(_T("CSP error"));
+	}
+
+	// 片付け
+	if(ch_md5) CryptDestroyHash(ch_md5);
+	if(ch_sha1) CryptDestroyHash(ch_sha1);
+	if(ch_sha256) CryptDestroyHash(ch_sha256);
+	if(cprov) CryptReleaseContext(cprov, 0);
+}
+
+void CBZInspectView::ClearSums(void)
+{
+	m_editCRC16.SetWindowText(_T(""));
+	m_editCRC32.SetWindowText(_T(""));
+	m_editAdler32.SetWindowText(_T(""));
+	m_editMD5.SetWindowText(_T(""));
+	m_editSHA1.SetWindowText(_T(""));
+	m_editSHA256.SetWindowText(_T(""));
 }
 
 void CBZInspectView::Update(void)
@@ -299,13 +431,15 @@ void CBZInspectView::Update(void)
 	strVal += str8bits;
 	m_edit8bits.SetWindowText(strVal);
 
-	if(m_pView->IsBlockAvailable() && (m_pView->BlockEnd() - m_pView->BlockBegin()) > 0)
+	// ブロックが0byteの時も表示する。(まれに初期値が知りたい場合がある…。)
+	if(m_pView->IsBlockAvailable() /*&& (m_pView->BlockEnd() - m_pView->BlockBegin()) > 0*/)
 	{
 		// 小さいサイズならこの場で計算する。
 		// TODO: 4096は適当、設定可能にする。
 		if((m_pView->BlockEnd() - m_pView->BlockBegin()) > 4096)
 		{
 			m_buttonCalcsum.EnableWindow(TRUE);
+			ClearSums();
 		} else
 		{
 			m_buttonCalcsum.EnableWindow(FALSE);
@@ -314,6 +448,7 @@ void CBZInspectView::Update(void)
 	} else
 	{
 		m_buttonCalcsum.EnableWindow(FALSE);
+		ClearSums();
 	}
 }
 

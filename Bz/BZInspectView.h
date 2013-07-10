@@ -92,6 +92,7 @@ public:
 	CEdit m_editSHA256;
 	afx_msg void OnClickedInsCalcsum();
 	void CBZInspectView::CalculateSums(void);
+	void CBZInspectView::ClearSums(void);
 };
 
 
