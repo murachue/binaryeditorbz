@@ -10,6 +10,9 @@
     <Link>
       <AdditionalDependencies>msvcr100-ruby200.lib</AdditionalDependencies>
     </Link>
+    <ClCompile>
+      <PreprocessorDefinitions>_MSC_VER=1600;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+    </ClCompile>
   </ItemDefinitionGroup>
   <ItemGroup />
 </Project>

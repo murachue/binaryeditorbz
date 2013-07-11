@@ -8,7 +8,6 @@
 
 //#define RUBY_EXPORT // dont dllimport
 #define RUBY_DONT_SUBST // dont substitute snprintf etc.
-#define _MSC_VER 1600
 #include "ruby.h"
 
 static CBZScriptView *cbzsv; // TODO: YES GLOBAL AS RUBY DO!!!
