@@ -188,7 +188,7 @@ void CBZScriptView::LoadScriptPlugins(void)
 	if(scripts.GetCount() == 0)
 	{
 		m_comboEngine.EnableWindow(FALSE);
-		m_editInput.SetReadOnly(FALSE);
+		m_editInput.SetReadOnly(TRUE);
 	}
 }
 
