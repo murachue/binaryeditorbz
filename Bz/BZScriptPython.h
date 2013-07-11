@@ -1,12 +1,13 @@
 #pragma once
-class BZScriptPython
+class BZScriptPython : public BZScriptInterface
 {
 public:
 	BZScriptPython(void);
 	~BZScriptPython(void);
-	void init(CBZScriptView *sview);
-	void cleanup(CBZScriptView *sview);
-	void onClear(CBZScriptView* sview);
-	CString run(CBZScriptView* sview, const char * cmdstr);
+	virtual BOOL init(CBZScriptView *sview);
+	virtual void cleanup(CBZScriptView *sview);
+	virtual void onClear(CBZScriptView* sview);
+	virtual CString run(CBZScriptView* sview, const char * cmdstr);
+	virtual CString name(void);
 };
 

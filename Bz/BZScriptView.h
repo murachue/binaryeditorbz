@@ -35,8 +35,7 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 // CBZScriptView フォーム ビュー
 
-class BZScriptRuby;
-class BZScriptPython;
+class BZScriptWrapper;
 
 class CBZScriptView : public CFormView
 {
@@ -63,10 +62,7 @@ protected:
 public: // for scripting
 	CBZView* m_pView;
 private:
-	BZScriptRuby *sruby;
-	BZScriptPython *spython;
-	CStringArray history;
-	int histidx;
+	CArray<BZScriptWrapper*> scripts;
 	CString outbuf;
 public:
 	afx_msg int OnCreate(LPCREATESTRUCT lpCreateStruct);
@@ -74,6 +70,7 @@ public:
 	void ClearAll(void);
 	CEdit m_editResult;
 	CEdit m_editInput;
+	CComboBox m_comboEngine;
 	afx_msg void OnSize(UINT nType, int cx, int cy);
 	virtual BOOL PreTranslateMessage(MSG* pMsg);
 	virtual void OnActivateView(BOOL bActivate, CView* pActivateView, CView* pDeactiveView);

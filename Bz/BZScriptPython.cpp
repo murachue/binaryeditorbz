@@ -2,6 +2,7 @@
 #include "Bz.h" // options
 #include "BZView.h"
 #include "BZDoc.h"
+#include "BZScriptInterface.h"
 #include "BZScriptView.h"
 #include "BZScriptPython.h"
 
@@ -62,7 +63,7 @@ static PyMethodDef pythonMethods[] =
 	{NULL, NULL, 0, NULL}
 };
 
-void BZScriptPython::init(CBZScriptView *sview)
+BOOL BZScriptPython::init(CBZScriptView *sview)
 {
 	Py_SetProgramName("BZ");
 	Py_Initialize();
@@ -86,6 +87,8 @@ void BZScriptPython::init(CBZScriptView *sview)
 
 	// ÇµÇ©ÇΩÇ»Ç¢ÇÃÇ≈ad-hocÇ… TODO: Ç»ÇÒÇ∆Ç©ÇµÇƒÇ±ÇÃçsÇñïè¡Ç∑ÇÈÅB
 	PyRun_SimpleString("import sys; import bzwriter; sys.stdout=bzwriter; sys.stderr=bzwriter");
+
+	return TRUE;
 }
 
 
@@ -155,4 +158,10 @@ CString BZScriptPython::run(CBZScriptView* sview, const char * cmdstr)
 	Py_DECREF(py_result);
 
 	return _T("");//ostr;
+}
+
+
+CString BZScriptPython::name(void)
+{
+	return CString(_T("Python"));
 }

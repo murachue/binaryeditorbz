@@ -31,6 +31,8 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "BZ.h"
 #include "BZView.h"
 #include "BZDoc.h"
+#include "BZScriptInterface.h"
+#include "BZScriptWrapper.h"
 #include "BZScriptView.h"
 #include "BZScriptRuby.h"
 #include "BZScriptPython.h"
@@ -63,23 +65,24 @@ void CBZScriptView::write(CString str)
 CBZScriptView::CBZScriptView()
 	: CFormView(CBZScriptView::IDD)
 {
-	sruby = new BZScriptRuby();
-	sruby->init(this);
-	spython = new BZScriptPython();
-	spython->init(this);
-	histidx = 0;
 }
 
 CBZScriptView::~CBZScriptView()
 {
-	sruby->cleanup(this);
-	spython->cleanup(this);
+	for(int i = 0; i < scripts.GetCount(); i++)
+		scripts.GetAt(i)->getSIF()->cleanup(this);
+
+	for(int i = 0; i < scripts.GetCount(); i++)
+		delete scripts.GetAt(i);
+
+	// sifs.RemoveAll()はdtorが何とかしてくれると思うので、呼ばなくても問題ない。
 }
 
 void CBZScriptView::DoDataExchange(CDataExchange* pDX)
 {
 	CFormView::DoDataExchange(pDX);
 	DDX_Control(pDX, IDC_SCRIPT_RESULT, m_editResult);
+	DDX_Control(pDX, IDC_SCRIPT_ENGINE, m_comboEngine);
 	DDX_Control(pDX, IDC_SCRIPT_INPUT, m_editInput);
 }
 
@@ -129,6 +132,24 @@ void CBZScriptView::OnInitialUpdate()
 
 	SetScrollSizes(MM_TEXT, CSize(0, 0));	
 	m_pView = (CBZView*)GetNextWindow();
+
+	// TODO: 存在するプラグインをスキャンし、scripts.addする。
+	{
+		BZScriptWrapper *sw = new BZScriptWrapper();
+		BOOL ok1 = sw->init(new BZScriptRuby(), this);
+		ASSERT(ok1);
+		scripts.Add(sw);
+		m_comboEngine.AddString(sw->getSIF()->name());
+	}
+	{
+		BZScriptWrapper *sw = new BZScriptWrapper();
+		BOOL ok1 = sw->init(new BZScriptPython(), this);
+		ASSERT(ok1);
+		scripts.Add(sw);
+		m_comboEngine.AddString(sw->getSIF()->name());
+	}
+	m_comboEngine.SetCurSel(0);
+
 	ClearAll();
 }
 
@@ -138,8 +159,8 @@ void CBZScriptView::ClearAll(void)
 	m_editInput.SetWindowText(_T(""));
 	//ruby_show_version(); // uses stdio (not $stdout.write)...
 
-	sruby->onClear(this);
-	spython->onClear(this);
+	for(int i = 0; i < scripts.GetCount(); i++)
+		scripts.GetAt(i)->getSIF()->onClear(this);
 }
 
 
@@ -149,12 +170,14 @@ void CBZScriptView::OnSize(UINT nType, int cx, int cy)
 
 	if(m_editResult.m_hWnd && m_editInput.m_hWnd)
 	{
-		CRect rc, rer, rei;
+		CRect rc, rer, rce, rei;
 		GetWindowRect(rc);
 		m_editResult.GetWindowRect(rer);
+		m_comboEngine.GetWindowRect(rce);
 		m_editInput.GetWindowRect(rei);
 		ScreenToClient(rc);
 		ScreenToClient(rer);
+		ScreenToClient(rce);
 		ScreenToClient(rei);
 
 		int margin = rer.left - rc.left;
@@ -162,11 +185,15 @@ void CBZScriptView::OnSize(UINT nType, int cx, int cy)
 		rer.right = rc.right - margin;
 		rer.bottom = rc.bottom - margin - rei.Height() - margin;
 
+		rce.top = rc.bottom - margin - rce.Height();
+		rce.bottom = rc.bottom - margin;
+
 		rei.right = rc.right - margin;
 		rei.top = rc.bottom - margin - rei.Height();
 		rei.bottom = rc.bottom - margin;
 
 		m_editResult.MoveWindow(rer);
+		m_comboEngine.MoveWindow(rce);
 		m_editInput.MoveWindow(rei);
 	}
 }
@@ -180,27 +207,15 @@ void CBZScriptView::run(void)
 
 		m_editInput.GetWindowText(istr);
 
-		CStringA zstr(istr);
-
 		m_editInput.SetWindowText(_T(""));
 
-		// 履歴の最後と同じなら履歴に追加しない
-		if(history.GetCount() == 0 || history.GetAt(history.GetCount() - 1) != istr)
-		{
-			histidx = history.Add(istr) + 1;
-		} else
-		{
-			histidx = history.GetCount();
-		}
+		BZScriptWrapper *sw = scripts.GetAt(m_comboEngine.GetCurSel());
 
 		m_editResult.GetWindowText(rstr);
-		rstr.AppendFormat(_T(">%s\r\n"), istr);
+		rstr.AppendFormat(_T("%s>%s\r\n"), sw->getSIF()->name(), istr);
 		m_editResult.SetWindowText(rstr);
 
-		if((GetAsyncKeyState(VK_SHIFT) & 0x8000) == 0)
-			ostr = sruby->run(this, zstr);
-		else
-			ostr = spython->run(this, zstr);
+		ostr = sw->run(this, istr);
 
 		m_editResult.GetWindowText(rstr);
 		rstr.Append(ostr);
@@ -222,29 +237,37 @@ BOOL CBZScriptView::PreTranslateMessage(MSG* pMsg)
 			return TRUE;
 		} else if(pMsg->wParam == VK_UP)
 		{
-			if(0 < histidx)
+			if(GetAsyncKeyState(VK_CONTROL) & 0x8000)
 			{
-				histidx--;
-				CString str = history.GetAt(histidx);
-				int strl = str.GetLength();
-				m_editInput.SetWindowText(str);
-				m_editInput.SetSel(strl, strl);
+				int idx = m_comboEngine.GetCurSel() - 1;
+				if(0 <= idx)
+					m_comboEngine.SetCurSel(idx);
+			} else
+			{
+				CString str;
+				if(scripts.GetAt(m_comboEngine.GetCurSel())->getPrevHistory(str))
+				{
+					int strl = str.GetLength();
+					m_editInput.SetWindowText(str);
+					m_editInput.SetSel(strl, strl);
+				}
 			}
 			return TRUE;
 		} else if(pMsg->wParam == VK_DOWN)
 		{
-			if(histidx < history.GetCount())
+			if(GetAsyncKeyState(VK_CONTROL) & 0x8000)
 			{
-				histidx++;
-				if(histidx < history.GetCount())
+				int idx = m_comboEngine.GetCurSel() + 1;
+				if(idx < m_comboEngine.GetCount())
+					m_comboEngine.SetCurSel(idx);
+			} else
+			{
+				CString str;
+				if(scripts.GetAt(m_comboEngine.GetCurSel())->getNextHistory(str))
 				{
-					CString str = history.GetAt(histidx);
 					int strl = str.GetLength();
 					m_editInput.SetWindowText(str);
 					m_editInput.SetSel(strl, strl);
-				} else
-				{
-					m_editInput.SetWindowText(_T(""));
 				}
 			}
 			return TRUE;

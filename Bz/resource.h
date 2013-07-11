@@ -63,6 +63,7 @@
 #define IDE_INS_MD5                     1050
 #define IDE_INS_SHA1                    1051
 #define IDE_INS_SHA256                  1052
+#define IDC_SCRIPT_ENGINE               1053
 #define IDS_COLOR_ADDRESS               3000
 #define IDS_COLOR_ADDRESS2              3001
 #define IDS_COLOR_TEXT                  3002
@@ -173,7 +174,7 @@
 #define _APS_3D_CONTROLS                     1
 #define _APS_NEXT_RESOURCE_VALUE        146
 #define _APS_NEXT_COMMAND_VALUE         32873
-#define _APS_NEXT_CONTROL_VALUE         1053
+#define _APS_NEXT_CONTROL_VALUE         1054
 #define _APS_NEXT_SYMED_VALUE           107
 #endif
 #endif

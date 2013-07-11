@@ -2,6 +2,7 @@
 #include "Bz.h" // options
 #include "BZView.h"
 #include "BZDoc.h"
+#include "BZScriptInterface.h"
 #include "BZScriptView.h"
 #include "BZScriptRuby.h"
 
@@ -768,10 +769,10 @@ static VALUE bzruby_clipeq(VALUE self, VALUE val)
 	return val;
 }
 
-void BZScriptRuby::init(CBZScriptView *sview)
+BOOL BZScriptRuby::init(CBZScriptView *sview)
 {
 	static int initialized = 0;
-	if(initialized) return; else initialized = 1;
+	if(initialized) return TRUE; else initialized = 1;
 
 	int argc = 0;
 	char **argv = NULL;
@@ -861,6 +862,8 @@ void BZScriptRuby::init(CBZScriptView *sview)
 
 	// register_hotkey
 	// key-callback cursor-move-callback fileI/O-callback draw-callback(coloring)
+
+	return TRUE;
 }
 
 
@@ -928,4 +931,10 @@ CString BZScriptRuby::run(CBZScriptView* sview, const char * cmdstr)
 	}
 
 	return ostr;
+}
+
+
+CString BZScriptRuby::name(void)
+{
+	return CString(_T("Ruby"));
 }
