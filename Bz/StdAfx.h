@@ -71,3 +71,9 @@ namespace BZ { // TODO:HACK!! avoid conflict with atl
 #endif
 #endif
 */
+
+#ifdef BZ_SCRIPT_API
+#define BZ_SCRIPT_DLLEXTERN __declspec(dllexport)
+#else
+#define BZ_SCRIPT_DLLEXTERN __declspec(dllimport)
+#endif

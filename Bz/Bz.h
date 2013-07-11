@@ -165,7 +165,7 @@ public:
 	BOOL bAddressTooltip;
 };
 
-extern CBZOptions options;
+extern BZ_SCRIPT_DLLEXTERN CBZOptions options;
 CString SeparateByComma(int num, BOOL bSigned = FALSE);
 CString SeparateByComma64(ULONGLONG num, BOOL bSigned = FALSE);
 CString GetModulePath(LPCSTR pFileName);

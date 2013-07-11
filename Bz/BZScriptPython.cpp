@@ -22,6 +22,12 @@
 static CBZScriptView *cbzsv; // TODO: Global...
 
 
+extern "C" BZScriptInterface __declspec(dllexport) * getScriptInterface(void)
+{
+	return new BZScriptPython();
+}
+
+
 BZScriptPython::BZScriptPython(void)
 {
 }

@@ -76,7 +76,7 @@ inline ULONGLONG SwapQword(ULONGLONG val)
 	return val;
 }
 
-class CBZView : public CTextView
+class BZ_SCRIPT_DLLEXTERN CBZView : public CTextView
 {
 protected: // create from serialization only
 	CBZView();

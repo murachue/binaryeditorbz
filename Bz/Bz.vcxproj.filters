@@ -72,12 +72,6 @@
     <ClCompile Include="BZScriptView.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="BZScriptRuby.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="BZScriptPython.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
     <ClCompile Include="BZScriptWrapper.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
@@ -157,12 +151,6 @@
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="BZScriptView.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="BZScriptRuby.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="BZScriptPython.h">
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="BZScriptInterface.h">

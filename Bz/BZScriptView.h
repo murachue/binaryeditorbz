@@ -74,7 +74,9 @@ public:
 	afx_msg void OnSize(UINT nType, int cx, int cy);
 	virtual BOOL PreTranslateMessage(MSG* pMsg);
 	virtual void OnActivateView(BOOL bActivate, CView* pActivateView, CView* pDeactiveView);
-	void write(CString str);
+	void BZ_SCRIPT_DLLEXTERN write(CString str);
+	void LoadScriptPlugins(void);
+	void LoadScriptPlugin(LPCTSTR dllname);
 protected:
 	void run(void);
 };

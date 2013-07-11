@@ -31,7 +31,7 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 enum UndoMode {	UNDO_INS, UNDO_OVR, UNDO_DEL };
 
-class CBZDoc : public CDocument
+class BZ_SCRIPT_DLLEXTERN CBZDoc : public CDocument
 {
 public: // create from serialization only
 	CBZDoc();

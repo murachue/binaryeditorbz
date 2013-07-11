@@ -7,6 +7,16 @@ Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "BZres_us", "BZres_us.vcxpro
 EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "zlib1", "..\zlib1\zlib1.vcxproj", "{ED5192EB-04CB-4E69-8197-65A772C64A75}"
 EndProject
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "BZScript_ruby", "BZScript_ruby.vcxproj", "{A8755AF2-E914-457D-8780-A8B3BB9E83F0}"
+	ProjectSection(ProjectDependencies) = postProject
+		{1DE442F2-3EC9-446A-98E5-039BA4311D46} = {1DE442F2-3EC9-446A-98E5-039BA4311D46}
+	EndProjectSection
+EndProject
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "BZScript_python", "BZScript_python.vcxproj", "{25E50F1C-773E-480B-A048-F478615A836A}"
+	ProjectSection(ProjectDependencies) = postProject
+		{1DE442F2-3EC9-446A-98E5-039BA4311D46} = {1DE442F2-3EC9-446A-98E5-039BA4311D46}
+	EndProjectSection
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Win32 = Debug|Win32
@@ -32,6 +42,18 @@ Global
 		{ED5192EB-04CB-4E69-8197-65A772C64A75}.Release|Win32.Build.0 = Release|Win32
 		{ED5192EB-04CB-4E69-8197-65A772C64A75}.ReleaseUPX|Win32.ActiveCfg = Release|Win32
 		{ED5192EB-04CB-4E69-8197-65A772C64A75}.ReleaseUPX|Win32.Build.0 = Release|Win32
+		{A8755AF2-E914-457D-8780-A8B3BB9E83F0}.Debug|Win32.ActiveCfg = Debug|Win32
+		{A8755AF2-E914-457D-8780-A8B3BB9E83F0}.Debug|Win32.Build.0 = Debug|Win32
+		{A8755AF2-E914-457D-8780-A8B3BB9E83F0}.Release|Win32.ActiveCfg = Release|Win32
+		{A8755AF2-E914-457D-8780-A8B3BB9E83F0}.Release|Win32.Build.0 = Release|Win32
+		{A8755AF2-E914-457D-8780-A8B3BB9E83F0}.ReleaseUPX|Win32.ActiveCfg = Release|Win32
+		{A8755AF2-E914-457D-8780-A8B3BB9E83F0}.ReleaseUPX|Win32.Build.0 = Release|Win32
+		{25E50F1C-773E-480B-A048-F478615A836A}.Debug|Win32.ActiveCfg = Debug|Win32
+		{25E50F1C-773E-480B-A048-F478615A836A}.Debug|Win32.Build.0 = Debug|Win32
+		{25E50F1C-773E-480B-A048-F478615A836A}.Release|Win32.ActiveCfg = Release|Win32
+		{25E50F1C-773E-480B-A048-F478615A836A}.Release|Win32.Build.0 = Release|Win32
+		{25E50F1C-773E-480B-A048-F478615A836A}.ReleaseUPX|Win32.ActiveCfg = Release|Win32
+		{25E50F1C-773E-480B-A048-F478615A836A}.ReleaseUPX|Win32.Build.0 = Release|Win32
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

@@ -14,6 +14,12 @@
 static CBZScriptView *cbzsv; // TODO: YES GLOBAL AS RUBY DO!!!
 
 
+extern "C" BZScriptInterface __declspec(dllexport) * getScriptInterface(void)
+{
+	return new BZScriptRuby();
+}
+
+
 BZScriptRuby::BZScriptRuby(void)
 {
 }

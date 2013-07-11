@@ -47,20 +47,17 @@
   <ImportGroup Condition="'$(Configuration)|$(Platform)'=='ReleaseUPX|Win32'" Label="PropertySheets">
     <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
     <Import Project="$(VCTargetsPath)Microsoft.CPP.UpgradeFromVC60.props" />
-    <Import Project="pythoninstalled.props" />
-    <Import Project="rubyinstalled.props" />
+    <Import Project="wtl81.props" />
   </ImportGroup>
   <ImportGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'" Label="PropertySheets">
     <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
     <Import Project="$(VCTargetsPath)Microsoft.CPP.UpgradeFromVC60.props" />
-    <Import Project="pythoninstalled.props" />
-    <Import Project="rubyinstalled.props" />
+    <Import Project="wtl81.props" />
   </ImportGroup>
   <ImportGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'" Label="PropertySheets">
     <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
     <Import Project="$(VCTargetsPath)Microsoft.CPP.UpgradeFromVC60.props" />
-    <Import Project="pythoninstalled.props" />
-    <Import Project="rubyinstalled.props" />
+    <Import Project="wtl81.props" />
   </ImportGroup>
   <PropertyGroup Label="UserMacros" />
   <PropertyGroup>
@@ -68,15 +65,12 @@
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
     <LinkIncremental>true</LinkIncremental>
-    <IncludePath>D:\lib\wtl81_12085\Include;$(IncludePath)</IncludePath>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
     <LinkIncremental>false</LinkIncremental>
-    <IncludePath>D:\lib\wtl81_12085\Include;$(IncludePath)</IncludePath>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='ReleaseUPX|Win32'">
     <LinkIncremental>false</LinkIncremental>
-    <IncludePath>D:\lib\wtl81_12085\Include;$(IncludePath)</IncludePath>
   </PropertyGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
     <Midl>
@@ -96,7 +90,7 @@
       <BrowseInformation>true</BrowseInformation>
       <WarningLevel>Level3</WarningLevel>
       <DebugInformationFormat>ProgramDatabase</DebugInformationFormat>
-      <PreprocessorDefinitions>WIN32;_DEBUG;_WINDOWS;_CSTRING_NS=WTL;NTDDI_VERSION=NTDDI_WINXPSP3;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <PreprocessorDefinitions>WIN32;BZ_SCRIPT_API;_DEBUG;_WINDOWS;NTDDI_VERSION=NTDDI_WINXPSP3;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <SmallerTypeCheck>true</SmallerTypeCheck>
     </ClCompile>
     <ResourceCompile>
@@ -126,7 +120,7 @@
       <Optimization>Full</Optimization>
       <InlineFunctionExpansion>Default</InlineFunctionExpansion>
       <FavorSizeOrSpeed>Size</FavorSizeOrSpeed>
-      <PreprocessorDefinitions>WIN32;NDEBUG;_WINDOWS;_CSTRING_NS=WTL;NTDDI_VERSION=NTDDI_WINXPSP3;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <PreprocessorDefinitions>WIN32;BZ_SCRIPT_API;NDEBUG;_WINDOWS;NTDDI_VERSION=NTDDI_WINXPSP3;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <StringPooling>true</StringPooling>
       <RuntimeLibrary>MultiThreadedDLL</RuntimeLibrary>
       <BufferSecurityCheck>true</BufferSecurityCheck>
@@ -166,7 +160,7 @@
       <Optimization>Full</Optimization>
       <InlineFunctionExpansion>OnlyExplicitInline</InlineFunctionExpansion>
       <FavorSizeOrSpeed>Size</FavorSizeOrSpeed>
-      <PreprocessorDefinitions>WIN32;NDEBUG;_WINDOWS;_CSTRING_NS=WTL;NTDDI_VERSION=NTDDI_WINXPSP3;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <PreprocessorDefinitions>WIN32;BZ_SCRIPT_API;NDEBUG;_WINDOWS;NTDDI_VERSION=NTDDI_WINXPSP3;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <StringPooling>true</StringPooling>
       <RuntimeLibrary>MultiThreadedDLL</RuntimeLibrary>
       <BufferSecurityCheck>true</BufferSecurityCheck>
@@ -198,8 +192,6 @@
     <ClCompile Include="BZDoc.cpp" />
     <ClCompile Include="BZFormVw.cpp" />
     <ClCompile Include="BZInspectView.cpp" />
-    <ClCompile Include="BZScriptPython.cpp" />
-    <ClCompile Include="BZScriptRuby.cpp" />
     <ClCompile Include="BZScriptView.cpp" />
     <ClCompile Include="BZScriptWrapper.cpp" />
     <ClCompile Include="BZView.cpp" />
@@ -233,8 +225,6 @@
     <ClInclude Include="BZFormVw.h" />
     <ClInclude Include="BZInspectView.h" />
     <ClInclude Include="BZScriptInterface.h" />
-    <ClInclude Include="BZScriptPython.h" />
-    <ClInclude Include="BZScriptRuby.h" />
     <ClInclude Include="BZScriptView.h" />
     <ClInclude Include="BZScriptWrapper.h" />
     <ClInclude Include="BZView.h" />

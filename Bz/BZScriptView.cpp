@@ -34,8 +34,6 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "BZScriptInterface.h"
 #include "BZScriptWrapper.h"
 #include "BZScriptView.h"
-#include "BZScriptRuby.h"
-#include "BZScriptPython.h"
 #include "MainFrm.h"
 
 // CBZScriptView
@@ -43,7 +41,7 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 IMPLEMENT_DYNCREATE(CBZScriptView, CFormView)
 
 
-void CBZScriptView::write(CString str)
+void BZ_SCRIPT_DLLEXTERN CBZScriptView::write(CString str)
 {
 	if(m_editResult.m_hWnd != NULL)
 	{
@@ -124,6 +122,76 @@ int CBZScriptView::OnCreate(LPCREATESTRUCT lpCreateStruct)
 	return 0;
 }
 
+void CBZScriptView::LoadScriptPlugin(LPCTSTR dllname)
+{
+	HMODULE hScriptDLL;
+	typedef BZScriptInterface*(*getScriptInterface_t)(void);
+	getScriptInterface_t proc;
+
+	if((hScriptDLL = LoadLibrary(dllname)) == NULL)
+	{
+		// TODO: 読み込めないエラー
+		return;
+	}
+	if((proc = (getScriptInterface_t)GetProcAddress(hScriptDLL, "getScriptInterface")) == NULL)
+	{
+		FreeLibrary(hScriptDLL);
+		// TODO: 読み込めないエラー
+		return;
+	}
+	BZScriptWrapper *sw = new BZScriptWrapper();
+	BOOL ok1 = sw->init(proc(), this);
+	ASSERT(ok1);
+	scripts.Add(sw);
+	m_comboEngine.AddString(sw->getSIF()->name());
+}
+	
+void CBZScriptView::LoadScriptPlugins(void)
+{
+	TCHAR buf[MAX_PATH];
+
+	GetModuleFileName(GetModuleHandle(NULL), buf, sizeof(buf) - 1);
+	CString exepath(buf);
+	int lastyen = exepath.ReverseFind(_T('\\'));
+	if(lastyen > -1)
+	{
+		exepath = exepath.Left(lastyen);
+	}
+
+	CString dllmask(exepath);
+	dllmask.Append(_T("\\BZScript_*.dll"));
+
+	WIN32_FIND_DATA ffd;
+	HANDLE hFind;
+	hFind = FindFirstFile(dllmask, &ffd);
+	while(hFind != INVALID_HANDLE_VALUE)
+	{
+		int lastfour = lstrlen(ffd.cFileName) - 4;
+		if(lastfour > -1)
+		{
+			// FindFirstFile("*.dll")は".dllhoge"のようなファイルにもマッチするため、本当に".dll"か確認する。
+			// ".dll_"などとして無効化できるようになる。
+			if(lstrcmp(ffd.cFileName + lastfour, _T(".dll")) == 0)
+			{
+				// ぴったり".dll"
+				CString dllname(exepath);
+				dllname.AppendFormat(_T("\\%s"), ffd.cFileName);
+				LoadScriptPlugin(dllname);
+			}
+		}
+		if(!FindNextFile(hFind, &ffd))
+			hFind = INVALID_HANDLE_VALUE;
+	}
+	m_comboEngine.SetCurSel(0);
+
+	// 一つもスクリプトプラグインが読み込めなかった時は、UIを無効化する。
+	if(scripts.GetCount() == 0)
+	{
+		m_comboEngine.EnableWindow(FALSE);
+		m_editInput.SetReadOnly(FALSE);
+	}
+}
+
 void CBZScriptView::OnInitialUpdate()
 {
 	CFormView::OnInitialUpdate();
@@ -133,22 +201,7 @@ void CBZScriptView::OnInitialUpdate()
 	SetScrollSizes(MM_TEXT, CSize(0, 0));	
 	m_pView = (CBZView*)GetNextWindow();
 
-	// TODO: 存在するプラグインをスキャンし、scripts.addする。
-	{
-		BZScriptWrapper *sw = new BZScriptWrapper();
-		BOOL ok1 = sw->init(new BZScriptRuby(), this);
-		ASSERT(ok1);
-		scripts.Add(sw);
-		m_comboEngine.AddString(sw->getSIF()->name());
-	}
-	{
-		BZScriptWrapper *sw = new BZScriptWrapper();
-		BOOL ok1 = sw->init(new BZScriptPython(), this);
-		ASSERT(ok1);
-		scripts.Add(sw);
-		m_comboEngine.AddString(sw->getSIF()->name());
-	}
-	m_comboEngine.SetCurSel(0);
+	LoadScriptPlugins();
 
 	ClearAll();
 }
@@ -160,7 +213,14 @@ void CBZScriptView::ClearAll(void)
 	//ruby_show_version(); // uses stdio (not $stdout.write)...
 
 	for(int i = 0; i < scripts.GetCount(); i++)
+	{
 		scripts.GetAt(i)->getSIF()->onClear(this);
+	}
+
+	if(scripts.GetCount() > 0)
+	{
+		write(CString(_T("\r\n")));
+	}
 }
 
 
