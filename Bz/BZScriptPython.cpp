@@ -73,26 +73,27 @@ BOOL BZScriptPython::init(CBZScriptView *sview)
 {
 	Py_SetProgramName("BZ");
 	Py_Initialize();
-	PyObject *name;
+
+	// "sys"をimportして色々するテスト…
+	// なぜかsysがimportされたことにならない。
+
+	//PyObject *name;
 	//name = PyString_FromString("sys");
 	//PyObject *mod = PyImport_ImportModule("sys");
 	//PyObject *mod = PyImport_Import(name);
 	//Py_DECREF(name);
 
-	PyObject *module = PyImport_AddModule("__main__");
-	PyObject *py_globals = (module == NULL) ? NULL : PyModule_GetDict(module);
-	PyObject *mod = PyImport_ImportModuleEx("sys", py_globals, py_globals, NULL);
+	//PyObject *module = PyImport_AddModule("__main__");
+	//PyObject *py_globals = (module == NULL) ? NULL : PyModule_GetDict(module);
+	//PyObject *mod = PyImport_ImportModuleEx("sys", py_globals, py_globals, NULL);
 
-	// TODO: sys.stdout/stdin/stderrを自作関数に置き換える
-	// なぜうごかない…
+	// sys.stdout/stderrを自作関数に置き換える
+	// TODO: stdinもなんとかする。
 	PyObject *mymodule = Py_InitModule("bzwriter", pythonMethods);
-	name = PyString_FromString("write");
-	PyObject_SetAttr(mod, name, mymodule);
-	Py_DECREF(name);
-	Py_DECREF(mod);
-
-	// しかたないのでad-hocに TODO: なんとかしてこの行を抹消する。
-	PyRun_SimpleString("import sys; import bzwriter; sys.stdout=bzwriter; sys.stderr=bzwriter");
+	// PySys_SetObject(->PyDict_SetItem?)は、PyObject_SetAttrと違って参照を盗まないようだ。
+	PySys_SetObject("stdout", mymodule);
+	PySys_SetObject("stderr", mymodule);
+	//Py_DECREF(mymodule); Py_InitModuleの戻り値は借り物なのでPy_DECREF不可
 
 	return TRUE;
 }
@@ -107,7 +108,7 @@ void BZScriptPython::cleanup(CBZScriptView *sview)
 void BZScriptPython::onClear(CBZScriptView* sview)
 {
 	cbzsv = sview;
-	PyRun_SimpleString("print('Python ' + sys.version)");
+	PyRun_SimpleString("import sys; print('Python ' + sys.version)");
 }
 
 
@@ -139,8 +140,6 @@ CString BZScriptPython::run(CBZScriptView* sview, const char * cmdstr)
 
 	if(py_result == NULL || PyErr_Occurred())
 	{
-		PyObject *t,*v,*b;
-		PyErr_Fetch(&t,&v,&b);
 		PyErr_Print();
 		return _T("");
 	}
