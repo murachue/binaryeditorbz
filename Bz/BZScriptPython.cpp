@@ -114,8 +114,7 @@ void BZScriptPython::onClear(CBZScriptView* sview)
 
 CString BZScriptPython::run(CBZScriptView* sview, const char * cmdstr)
 {
-	// TODO: Isn't there method that handle write() as Ruby?
-    //PyObject *pModule = PyImport_AddModule("__main__"); //create main module
+	cbzsv = sview;
 
 	// referring IDAPython PythonEvalOrExec..
 	PyCompilerFlags cf = {0};
@@ -132,7 +131,6 @@ CString BZScriptPython::run(CBZScriptView* sview, const char * cmdstr)
 
 	PyObject *module = PyImport_AddModule("__main__");
 	PyObject *py_globals = (module == NULL) ? NULL : PyModule_GetDict(module);
-	cbzsv = sview;
 	//PYW_GIL_ENSURE;
 	PyObject *py_result = PyEval_EvalCode((PyCodeObject*)py_code, py_globals, py_globals);
 	//PYW_GIL_RELEASE;
