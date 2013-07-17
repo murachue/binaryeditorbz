@@ -63,21 +63,27 @@ static VALUE bzruby_read(int argc, VALUE *argv, VALUE self)
 	return emptystr;
 }
 
+static inline LONGLONG convert_minus_index(LONGLONG idx, LONGLONG docsize)
+{
+	if(idx < 0)
+		return docsize + idx;
+	else
+		return idx;
+}
 static VALUE bzruby_caret(VALUE self) { return UINT2NUM(cbzsv->m_pView->m_dwCaret); }
-
 static VALUE bzruby_careteq(VALUE self, VALUE val)
 {
 	Check_Type(val, T_FIXNUM);
-	VALUE orgcaret = UINT2NUM(cbzsv->m_pView->m_dwCaret); // おまけ
-	cbzsv->m_pView->MoveCaretTo(FIX2ULONG(val)); // TODO: 4GB越え対応
+	CBZView *view = cbzsv->m_pView;
+	VALUE orgcaret = UINT2NUM(view->m_dwCaret); // おまけ
+	view->MoveCaretTo(static_cast<DWORD>(convert_minus_index(NUM2LL(val), view->GetDocument()->GetDocSize()))); // TODO: 4GB越え対応
 	if(RTEST(rb_iv_get(self, "auto_invalidate")))
-		cbzsv->m_pView->Invalidate();
+		view->Invalidate();
 	return orgcaret;
 }
-
 // [begin,end)
 // TODO: 4GB越え対応
-static VALUE bzruby_data2str(CBZDoc *doc, DWORD begin, DWORD end)
+static VALUE data2rbstr(CBZDoc *doc, DWORD begin, DWORD end)
 {
 	DWORD remain = end - begin;
 	VALUE rstr = rb_str_new_cstr("");
@@ -95,7 +101,7 @@ static VALUE bzruby_data2str(CBZDoc *doc, DWORD begin, DWORD end)
 }
 // begin>endやbegin,end<0、begin,end>docsizeなどのチェックはすでに済んでいるとする。
 // TODO: 4GB越え対応
-static VALUE bzruby_setdata(CBZView *view, DWORD begin, DWORD end, VALUE val)
+static VALUE setdata_by_rbstr(CBZView *view, DWORD begin, DWORD end, VALUE val)
 {
 	CBZDoc *doc = view->GetDocument();
 
@@ -155,28 +161,34 @@ static VALUE bzruby_setdata(CBZView *view, DWORD begin, DWORD end, VALUE val)
 
 	return val; // おまけ: Qnilでも可
 }
-static VALUE bzruby_bracket(VALUE self, VALUE idx_range)
+static void range_from_value(VALUE idx_range, LONGLONG docsize, LONGLONG &iorgbegin, LONGLONG &iorgend, LONGLONG &ibegin, LONGLONG &iend)
 {
-	LONGLONG ibegin, iend; // [ibegin,iend)
-
 	if(TYPE(idx_range) == T_FIXNUM || TYPE(idx_range) == T_BIGNUM)
 	{
-		ibegin = NUM2LL(idx_range);
-		iend = ibegin + 1;
+		iorgbegin = NUM2LL(idx_range);
+		iorgend = iorgbegin + 1;
+		ibegin = convert_minus_index(iorgbegin, docsize);
+		iend = convert_minus_index(iorgend, docsize);
 	} else if(CLASS_OF(idx_range) == rb_cRange)
 	{
-		ibegin = NUM2LL(rb_funcall(idx_range, rb_intern("begin"),0));
-		iend = NUM2LL(rb_funcall(idx_range, rb_intern("end"),0)) + (RTEST(rb_funcall(idx_range, rb_intern("exclude_end?"), 0)) ? 0 : 1);
+		iorgbegin = NUM2LL(rb_funcall(idx_range, rb_intern("begin"),0));
+		iorgend = NUM2LL(rb_funcall(idx_range, rb_intern("end"),0));
+		ibegin = convert_minus_index(iorgbegin, docsize);
+		iend = convert_minus_index(iorgend, docsize);
+		iend += (RTEST(rb_funcall(idx_range, rb_intern("exclude_end?"), 0)) ? 0 : 1);
 	} else
 	{
-		rb_exc_raise(rb_exc_new2(rb_eArgError, "an argument must be Fixnum, Bignum or Range"));
+		rb_exc_raise(rb_exc_new2(rb_eArgError, "index must be Integer or Range"));
 	}
+}
+static VALUE bzruby_bracket(VALUE self, VALUE idx_range)
+{
+	LONGLONG ibegin, iend; // [ibegin,iend) (exclusive)
 
 	CBZDoc *doc = cbzsv->m_pView->GetDocument();
 	DWORD docsize = doc->GetDocSize(); // TODO: 4GB越え対応
 
-	if(ibegin < 0) ibegin = (LONGLONG)docsize + ibegin;
-	if(iend < 0) iend = (LONGLONG)docsize + iend + 1;
+	range_from_value(idx_range, docsize, ibegin, iend, ibegin, iend);
 
 	if(iend - ibegin <= 0)
 	{
@@ -203,34 +215,22 @@ static VALUE bzruby_bracket(VALUE self, VALUE idx_range)
 	DWORD begin = static_cast<DWORD>(ibegin);
 	DWORD end = end = static_cast<DWORD>(iend);
 	
-	return bzruby_data2str(doc, begin, end);
+	return data2rbstr(doc, begin, end);
 }
 static VALUE bzruby_bracketeq(VALUE self, VALUE idx_range, VALUE val)
 {
 	// TODO: BZ[idx/range,wide]=value形式も受け付けるか? (script利用者はendian考えなくていいので楽)
-	LONGLONG iorgbegin, iorgend; // [ibegin,iend] (inclusive)
-	if(TYPE(idx_range) == T_FIXNUM || TYPE(idx_range) == T_BIGNUM)
-	{
-		iorgbegin = NUM2LL(idx_range);
-		iorgend = iorgbegin + 1;
-	} else if(CLASS_OF(idx_range) == rb_cRange)
-	{
-		iorgbegin = NUM2LL(rb_funcall(idx_range, rb_intern("begin"),0));
-		iorgend = NUM2LL(rb_funcall(idx_range, rb_intern("end"),0)) + (RTEST(rb_funcall(idx_range, rb_intern("exclude_end?"), 0)) ? 0 : 1);
-	} else
-	{
-		rb_exc_raise(rb_exc_new2(rb_eArgError, "an argument must be Fixnum, Bignum or Range"));
-	}
 	Check_Type(val, T_STRING);
+
+	// [ibegin,iend) (exclusive)
+	LONGLONG iorgbegin, iorgend;
+	LONGLONG ibegin, iend;
 
 	CBZView *view = cbzsv->m_pView;
 	CBZDoc *doc = view->GetDocument();
-
 	DWORD docsize = doc->GetDocSize(); // TODO: 4GB越え対応
-	LONGLONG ibegin = iorgbegin, iend = iorgend;
 
-	if(ibegin < 0) ibegin = (LONGLONG)docsize + ibegin;
-	if(iend < 0) iend = (LONGLONG)docsize + iend + 1;
+	range_from_value(idx_range, docsize, iorgbegin, iorgend, ibegin, iend);
 
 	// Stringはこういう動作らしい…
 	if(ibegin < 0 || docsize < ibegin)
@@ -255,14 +255,14 @@ static VALUE bzruby_bracketeq(VALUE self, VALUE idx_range, VALUE val)
 	DWORD begin = static_cast<DWORD>(ibegin);
 	DWORD end = static_cast<DWORD>(iend);
 	
-	return bzruby_setdata(view, begin, end, val);
+	return setdata_by_rbstr(view, begin, end, val);
 }
 static VALUE bzruby_data(VALUE self)
 {
 	CBZDoc *doc = cbzsv->m_pView->GetDocument();
 	DWORD docsize = doc->GetDocSize(); // TODO: 4GB越え対応
 
-	return bzruby_data2str(doc, 0, docsize);
+	return data2rbstr(doc, 0, docsize);
 }
 static VALUE bzruby_dataeq(VALUE self, VALUE val)
 {
@@ -271,7 +271,7 @@ static VALUE bzruby_dataeq(VALUE self, VALUE val)
 	CBZView *view = cbzsv->m_pView;
 	CBZDoc *doc = view->GetDocument();
 
-	return bzruby_setdata(view, 0, doc->GetDocSize(), val);
+	return setdata_by_rbstr(view, 0, doc->GetDocSize(), val);
 }
 
 static VALUE bzruby_wide(VALUE self);
@@ -415,10 +415,8 @@ static VALUE bzruby_setblock(int argc, VALUE *argv, VALUE self)
 	CBZDoc *doc = cbzsv->m_pView->GetDocument();
 	DWORD docsize = doc->GetDocSize(); // TODO: 4GB越え対応
 
-	if(begin < 0)
-		begin = docsize + begin;
-	if(end < 0)
-		end = docsize + end;
+	begin = convert_minus_index(begin, docsize);
+	end = convert_minus_index(end, docsize);
 
 	if(begin < 0)
 		begin = 0;
@@ -660,10 +658,8 @@ static VALUE bzruby_mapx(int argc, VALUE *argv, VALUE self)
 	LONGLONG ibegin = iorgbegin, iend = iorgend;
 
 	// 範囲の扱いはset系に(BZ[]=のように)。
-	if(ibegin < 0)
-		ibegin = (LONGLONG)docsize + ibegin;
-	if(iend < 0)
-		iend = (LONGLONG)docsize + iend;
+	ibegin = convert_minus_index(ibegin, docsize);
+	iend = convert_minus_index(iend, docsize);
 
 	if(docsize > 0 && (ibegin < 0 || docsize <= ibegin))
 	{
@@ -681,6 +677,7 @@ static VALUE bzruby_mapx(int argc, VALUE *argv, VALUE self)
 	if(ibegin == iend)
 		return Qnil;
 
+	// TODO: 4GB越え対応
 	DWORD begin = static_cast<DWORD>(ibegin);
 	DWORD end = static_cast<DWORD>(iend);
 
@@ -745,7 +742,7 @@ static VALUE bzruby_b(VALUE self)
 	CBZDoc *doc = view->GetDocument();
 	if(view->IsBlockAvailable())
 	{
-		return bzruby_data2str(doc, view->BlockBegin(), view->BlockEnd());
+		return data2rbstr(doc, view->BlockBegin(), view->BlockEnd());
 	} else
 	{
 		return Qnil;
@@ -799,7 +796,6 @@ BOOL BZScriptRuby::init(CBZScriptView *sview)
 	ruby_init_loadpath();
 
 	// export Bz remoting
-	// TODO: split-view時、対象ドキュメントを取り違えるのでなんとかする。
 	// TODO: 引数チェックの仕方がバラバラなので統一する。
 	//       基本的にアドレスはNUM2LLでlonglongにする、NUM2xxを使っている場合はCheck_Typeなどしない(変換エラー例外に任せる)、begin...endは[begin,end)にする。
 	VALUE mBz = rb_define_module("BZ");
