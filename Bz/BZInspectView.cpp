@@ -257,7 +257,8 @@ static void crypthash_setstrval(CString *strval, CEdit *edit, HCRYPTHASH chash, 
 	}
 
 	DWORD dlen = hashlen;
-	BYTE hash[32];
+	BYTE hash[32]; // XXX: hashlen must be <= 32
+	ASSERT(hashlen <= 32);
 
 	if(!CryptGetHashParam(chash, HP_HASHVAL, hash, &dlen, 0))
 	{
@@ -269,7 +270,7 @@ static void crypthash_setstrval(CString *strval, CEdit *edit, HCRYPTHASH chash, 
 
 	strval->SetString(_T(""));
 	// TODO: for-AppendFormat-byteÇÕíxÇ¢ÅB
-	for(int i = 0; i < 16; i++) strval->AppendFormat(_T("%02X"), hash[i]);
+	for(DWORD i = 0; i < hashlen; i++) strval->AppendFormat(_T("%02X"), hash[i]);
 	edit->SetWindowText(*strval);
 }
 
