@@ -786,8 +786,7 @@ BOOL BZScriptRuby::init(CBZScriptView *sview)
 	// remap stdio
 	rb_stdout = rb_obj_alloc(rb_cIO);
 	rb_define_singleton_method(rb_stdout, "write", reinterpret_cast<VALUE(*)(...)>(bzruby_write), 1);
-	rb_stderr = rb_obj_alloc(rb_cIO);
-	rb_define_singleton_method(rb_stderr, "write", reinterpret_cast<VALUE(*)(...)>(bzruby_write), 1);
+	rb_stderr = rb_stdout;
 	rb_stdin = rb_obj_alloc(rb_cIO);
 	rb_define_singleton_method(rb_stdin, "read", reinterpret_cast<VALUE(*)(...)>(bzruby_read), -1);
 
@@ -889,7 +888,10 @@ static VALUE bz_ruby_eval_toplevel(VALUE rcmdstr)
 	VALUE binding;
 	//binding = rb_funcall(rb_cObject, rb_intern("binding"), 0); // だめ
 	binding = rb_const_get(rb_cObject, rb_intern("TOPLEVEL_BINDING")); // OK
-	return rb_funcall(rb_mKernel, rb_intern("eval"), 2, rcmdstr, binding);
+	VALUE ret;
+	ret = rb_funcall(rb_mKernel, rb_intern("eval"), 2, rcmdstr, binding);
+	// TODO: retを「_」にセットする…どのようにローカル変数にアクセスする?
+	return ret
 }
 
 CString BZScriptRuby::run(CBZScriptView* sview, const char * cmdstr)
