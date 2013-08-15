@@ -311,6 +311,7 @@ void CBZBmpView::OnLButtonDown(UINT nFlags, CPoint point)
 		}
 	}
 
+	SetCapture();
 //	CScrollView::OnLButtonDown(nFlags, point);
 }
 void CBZBmpView::OnMouseMove(UINT nFlags, CPoint point)
@@ -361,6 +362,7 @@ void CBZBmpView::OnMouseMove(UINT nFlags, CPoint point)
 void CBZBmpView::OnLButtonUp(UINT nFlags, CPoint point)
 {
 	m_isLButtonDown = false;
+	ReleaseCapture();
 	//CScrollView::OnLButtonUp(nFlags, point);
 }
 
