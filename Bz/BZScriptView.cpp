@@ -143,7 +143,9 @@ void CBZScriptView::LoadScriptPlugin(LPCTSTR dllname)
 	BOOL ok1 = sw->init(proc(), this);
 	ASSERT(ok1);
 	scripts.Add(sw);
-	m_comboEngine.AddString(sw->getSIF()->name());
+	int idx = m_comboEngine.AddString(sw->getSIF()->name());
+	if(sw->getSIF()->name() == options.sScriptEngine || m_comboEngine.GetCurSel() == CB_ERR)
+		m_comboEngine.SetCurSel(idx);
 }
 	
 void CBZScriptView::LoadScriptPlugins(void)
@@ -182,7 +184,6 @@ void CBZScriptView::LoadScriptPlugins(void)
 		if(!FindNextFile(hFind, &ffd))
 			hFind = INVALID_HANDLE_VALUE;
 	}
-	m_comboEngine.SetCurSel(0);
 
 	// 一つもスクリプトプラグインが読み込めなかった時は、UIを無効化する。
 	if(scripts.GetCount() == 0)
@@ -195,8 +196,6 @@ void CBZScriptView::LoadScriptPlugins(void)
 void CBZScriptView::OnInitialUpdate()
 {
 	CFormView::OnInitialUpdate();
-
-	// TODO: ここに特定なコードを追加するか、もしくは基本クラスを呼び出してください。
 
 	SetScrollSizes(MM_TEXT, CSize(0, 0));	
 	m_pView = (CBZView*)GetNextWindow();
@@ -285,7 +284,6 @@ void CBZScriptView::run(void)
 }
 
 
-// TODO: ctrl-c/ctrl-vがscript viewに行きつかないけど、ここで何とかできないか?
 BOOL CBZScriptView::PreTranslateMessage(MSG* pMsg)
 {
 	// 入力窓でEnterが押されたら実行
@@ -301,7 +299,10 @@ BOOL CBZScriptView::PreTranslateMessage(MSG* pMsg)
 			{
 				int idx = m_comboEngine.GetCurSel() - 1;
 				if(0 <= idx)
+				{
 					m_comboEngine.SetCurSel(idx);
+					options.sScriptEngine = scripts.GetAt(m_comboEngine.GetCurSel())->getSIF()->name();
+				}
 			} else
 			{
 				CString str;
@@ -319,7 +320,10 @@ BOOL CBZScriptView::PreTranslateMessage(MSG* pMsg)
 			{
 				int idx = m_comboEngine.GetCurSel() + 1;
 				if(idx < m_comboEngine.GetCount())
+				{
 					m_comboEngine.SetCurSel(idx);
+					options.sScriptEngine = scripts.GetAt(m_comboEngine.GetCurSel())->getSIF()->name();
+				}
 			} else
 			{
 				CString str;
@@ -358,8 +362,6 @@ BOOL CBZScriptView::PreTranslateMessage(MSG* pMsg)
 
 void CBZScriptView::OnActivateView(BOOL bActivate, CView* pActivateView, CView* pDeactiveView)
 {
-	// TODO: ここに特定なコードを追加するか、もしくは基本クラスを呼び出してください。
-
 	CFormView::OnActivateView(bActivate, pActivateView, pDeactiveView);
 	if(bActivate)
 		m_editInput.SetFocus();

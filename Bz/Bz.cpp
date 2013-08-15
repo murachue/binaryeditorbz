@@ -562,6 +562,9 @@ void CBZOptions::Load()
 	}
 	
 	bAddressTooltip = GetProfileInt(_T("BmpAddressTooltip"), TRUE);
+
+	bScriptView = GetProfileInt(_T("ScriptView"), FALSE);
+	sScriptEngine = GetProfileString(_T("ScriptEngine"), _T(""));
 }
 
 void CBZOptions::Save()
@@ -625,6 +628,8 @@ void CBZOptions::Save()
 	
 	WriteProfileInt(_T("BmpAddressTooltip"), bAddressTooltip);
 	
+	WriteProfileInt(_T("ScriptView"), bScriptView);
+	WriteProfileString(_T("ScriptEngine"), sScriptEngine);
 }
 
 /////////////////////////////////////////////////////////////////////////////

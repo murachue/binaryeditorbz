@@ -207,7 +207,7 @@ BOOL CMainFrame::OnCreateClient(LPCREATESTRUCT lpcs, CCreateContext* pContext)
 	m_bStructView = options.bStructView;
 	m_bInspectView = options.bInspectView;
 	m_bAnalyzerView = options.bAnalyzerView;
-	//TODO:m_bScriptView = options.bScriptView;
+	m_bScriptView = options.bScriptView;
 	CreateClient(pContext);
 	return TRUE; //CFrameWnd::OnCreateClient(lpcs, pContext);
 }
@@ -795,7 +795,7 @@ void CMainFrame::GetSplitInfo()
 	options.bStructView = m_bStructView;
 	options.bInspectView = m_bInspectView;
 	options.bAnalyzerView = m_bAnalyzerView;
-	//TODO:options.bScriptView = m_bScriptView;
+	options.bScriptView = m_bScriptView;
 	if(m_bStructView || m_bInspectView || m_bAnalyzerView || (m_nSplitView && m_bScriptView)) {
 		m_pSplitter->GetColumnInfo(0, nCur, nMin);
 		options.xSplitStruct = nCur;

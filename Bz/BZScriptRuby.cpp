@@ -891,7 +891,7 @@ static VALUE bz_ruby_eval_toplevel(VALUE rcmdstr)
 	VALUE ret;
 	ret = rb_funcall(rb_mKernel, rb_intern("eval"), 2, rcmdstr, binding);
 	// TODO: retを「_」にセットする…どのようにローカル変数にアクセスする?
-	return ret
+	return ret;
 }
 
 CString BZScriptRuby::run(CBZScriptView* sview, const char * cmdstr)

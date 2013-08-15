@@ -163,6 +163,9 @@ public:
 	BOOL bAnalyzerView;
 
 	BOOL bAddressTooltip;
+
+	BOOL bScriptView;
+	CString sScriptEngine;
 };
 
 extern BZ_SCRIPT_DLLEXTERN CBZOptions options;
