@@ -75,10 +75,11 @@ public:
 	virtual BOOL PreTranslateMessage(MSG* pMsg);
 	virtual void OnActivateView(BOOL bActivate, CView* pActivateView, CView* pDeactiveView);
 	void BZ_SCRIPT_DLLEXTERN write(CString str);
-	void LoadScriptPlugins(void);
-	void LoadScriptPlugin(LPCTSTR dllname);
 protected:
 	void run(void);
+	void LoadScriptPlugins(void);
+	void LoadScriptPlugin(LPCTSTR dllname);
+	void RemoveAllEngines(void);
 };
 
 

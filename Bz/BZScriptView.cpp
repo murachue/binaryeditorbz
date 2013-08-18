@@ -60,12 +60,7 @@ void BZ_SCRIPT_DLLEXTERN CBZScriptView::write(CString str)
 	}
 }
 
-CBZScriptView::CBZScriptView()
-	: CFormView(CBZScriptView::IDD)
-{
-}
-
-CBZScriptView::~CBZScriptView()
+void CBZScriptView::RemoveAllEngines(void)
 {
 	for(int i = 0; i < scripts.GetCount(); i++)
 		scripts.GetAt(i)->getSIF()->cleanup(this);
@@ -73,7 +68,22 @@ CBZScriptView::~CBZScriptView()
 	for(int i = 0; i < scripts.GetCount(); i++)
 		delete scripts.GetAt(i);
 
-	// sifs.RemoveAll()はdtorが何とかしてくれると思うので、呼ばなくても問題ない。
+	scripts.RemoveAll();
+
+	if(m_comboEngine.m_hWnd != NULL)
+	{
+		m_comboEngine.ResetContent();
+	}
+}
+
+CBZScriptView::CBZScriptView()
+	: CFormView(CBZScriptView::IDD)
+{
+}
+
+CBZScriptView::~CBZScriptView()
+{
+	RemoveAllEngines();
 }
 
 void CBZScriptView::DoDataExchange(CDataExchange* pDX)
@@ -147,7 +157,7 @@ void CBZScriptView::LoadScriptPlugin(LPCTSTR dllname)
 	if(sw->getSIF()->name() == options.sScriptEngine || m_comboEngine.GetCurSel() == CB_ERR)
 		m_comboEngine.SetCurSel(idx);
 }
-	
+
 void CBZScriptView::LoadScriptPlugins(void)
 {
 	TCHAR buf[MAX_PATH];
@@ -200,6 +210,10 @@ void CBZScriptView::OnInitialUpdate()
 	SetScrollSizes(MM_TEXT, CSize(0, 0));	
 	m_pView = (CBZView*)GetNextWindow();
 
+	// TODO: OnInitialUpdateが2回呼ばれることがある対策…。
+	// BZ起動直後にScriptViewが表示される場合(前回終了時ScriptView表示のまま)のパターン。
+	// CMainFrame::CreateClientによるものと、MFCによるもの。
+	RemoveAllEngines();
 	LoadScriptPlugins();
 
 	ClearAll();
@@ -209,6 +223,7 @@ void CBZScriptView::ClearAll(void)
 {
 	m_editResult.SetWindowText(_T(""));
 	m_editInput.SetWindowText(_T(""));
+	outbuf.SetString(_T(""));
 	//ruby_show_version(); // uses stdio (not $stdout.write)...
 
 	for(int i = 0; i < scripts.GetCount(); i++)

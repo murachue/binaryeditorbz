@@ -353,12 +353,15 @@ BOOL CMainFrame::CreateClient(CCreateContext* pContext)
 		if(bSubView && m_bScriptView) {
 			// TODO: Yes this is ad-hoc! support only 1-document view.
 			m_pSplitter = new CSplitterWnd;
+
+			// RecalcLayout対策: すごくad-hoc...
+			// ここでFALSEにすることで、CMainFrame::RecalcLayoutがm_pSplitter->CreateStatic時に呼ばれてしまってその中で未初期化なRowInfoを触ってSEGVするのを回避する。
+			// SetRowInfoする前にCMainFrame::RecalcLayoutを呼ぶ時、そこでsplitterに変なことされるのを回避する理由もある。
+			m_bScriptView = FALSE;
+
 			m_pSplitter->CreateStatic(this, 2, 1);
-			if(m_bScriptView)
-				m_pSplitter->CreateView(1, 0, RUNTIME_CLASS(CBZScriptView), CSize(0,0), pContext);
-			else
-				ASSERT(FALSE); // panic
 			m_pSplitter->CreateView(0, 0, RUNTIME_CLASS(CBZView), CSize(0,0), pContext);
+			m_pSplitter->CreateView(1, 0, RUNTIME_CLASS(CBZScriptView), CSize(0,0), pContext);
 			((CView*)m_pSplitter->GetPane(1, 0))->OnInitialUpdate();
 			// Special: activate script view
 			pActiveView = (CView*)m_pSplitter->GetPane(1, 0);
@@ -366,7 +369,6 @@ BOOL CMainFrame::CreateClient(CCreateContext* pContext)
 			bzViewNew[0]->OnInitialUpdate();
 			// SetRowInfo(1, ...)は動作しないので、<s>MainFrameのサイズから逆算する…</s>
 			// MainFrameのサイズ(ClientRect)から逆算するとズレていくので、最大サイズになっている(はず)CBZScriptViewのサイズから計算
-			m_bScriptView = FALSE; // RecalcLayout対策: すごくad-hoc...
 			RecalcLayout(); // RecalcLayoutしないとCSplitterWndのサイズが0,0のままなのでm_pSplitter->RecalcLayout()しても意味なくなる。
 			m_bScriptView = TRUE; // RecalcLayout対策: 元に戻す
 			int nCur, nMin;
