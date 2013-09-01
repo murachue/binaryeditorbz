@@ -111,7 +111,7 @@ BEGIN
         MENUITEM "Copy &Dump List\tCtrl+D",     ID_EDIT_COPY_DUMP
         MENUITEM "Copy as &Hexstring\tCtrl+Shift+C", ID_EDIT_COPY_HEXSTRING
         MENUITEM "Paste He&xstring as binary\tCtrl+Shift+V", ID_EDIT_PASTE_HEXSTRING
-        MENUITEM "&Specify paste format...",     ID_PASTETYPE
+        MENUITEM "&Specify paste format...",    ID_PASTETYPE
         MENUITEM SEPARATOR
         MENUITEM "Select &All\tCtrl+A",         ID_EDIT_SELECT_ALL
         MENUITEM SEPARATOR
@@ -429,7 +429,7 @@ BEGIN
         BOTTOMMARGIN, 298
     END
 
-	IDD_PASTETYPE, DIALOG
+    IDD_PASTETYPE, DIALOG
     BEGIN
         LEFTMARGIN, 7
         RIGHTMARGIN, 214
@@ -727,8 +727,9 @@ BEGIN
                             "%d byte(s) remained after inflate. Justify selection?"
     IDS_ERR_TOOLONG_NEGFIND "Negative find with longer than 1 byte are not implemented at this moment."
     IDS_CANT_OPEN_CLIPBOARD "Can't open clipboard."
-    IDS_CLIPBOARD_MODIFIED  "Clipboard modified; can't paste."
+    IDS_CLIPBOARD_MODIFIED  "Clipboard modified. Choose format again."
     IDS_CLIPBOARD_ITEM_SIZE "Size: %u bytes"
+    IDS_CANT_GETCLIPBOARDDATA "GetClipboardData(%d) failed."
 END
 
 STRINGTABLE

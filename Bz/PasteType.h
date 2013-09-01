@@ -21,6 +21,7 @@ public:
 	WTL::CStatic m_ItemSize;
 protected:
 	CArray<UINT> m_formats;
+	BOOL populateFormats(void);
 public:
 	WTL::CButton m_OKButton;
 	BOOL OnInitDialog(CWindow wndFocus, LPARAM lInitParam);

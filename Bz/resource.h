@@ -1,6 +1,6 @@
 //{{NO_DEPENDENCIES}}
 // Microsoft Visual C++ で生成されたインクルード ファイル。
-// BZ.rc で使用
+// BZres_us.rc で使用
 //
 #define IDD_ABOUTBOX                    100
 #define IDD_BZINSPECTVIEW               103
@@ -173,6 +173,7 @@
 #define IDS_CANT_OPEN_CLIPBOARD         61532
 #define IDS_CLIPBOARD_MODIFIED          61533
 #define IDS_CLIPBOARD_ITEM_SIZE         61534
+#define IDS_CANT_GETCLIPBOARDDATA       61535
 
 // Next default values for new objects
 // 

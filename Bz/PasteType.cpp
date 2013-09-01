@@ -16,9 +16,6 @@ CPasteType::~CPasteType()
 {
 }
 
-// CPasteType メッセージ ハンドラー
-
-
 static LPCTSTR clipFormatStrs[] = {
 	_T("(Invalid)"), // 0
 	_T("CF_TEXT"), // 1
@@ -44,11 +41,12 @@ static LPCTSTR clipFormatStrs[] = {
 //#endif
 };
 
-BOOL CPasteType::OnInitDialog(CWindow wndFocus, LPARAM lInitParam)
+BOOL CPasteType::populateFormats(void)
 {
-	DoDataExchange(DDX_LOAD);
-
+	m_FormatList.ResetContent();
+	m_formats.RemoveAll();
 	m_ItemSize.SetWindowText(_T(""));
+
 	if(!OpenClipboard())
 	{
 		AfxMessageBox(IDS_CANT_OPEN_CLIPBOARD, MB_ICONERROR);
@@ -69,9 +67,9 @@ BOOL CPasteType::OnInitDialog(CWindow wndFocus, LPARAM lInitParam)
 		// TODO: potentially cause buffer overflow; use CString?
 		if(len == 0)
 		{
-			len = wsprintf(fmtname, _T("(id=%u 0x%x)"), i, i);
+			len = wsprintf(fmtname, _T("(id=%u=0x%x)"), i, i);
 		} else {
-			len += wsprintf(fmtname + len, _T(" (id=%u 0x%x)"), i, i);
+			len += wsprintf(fmtname + len, _T(" (id=%u=0x%x)"), i, i);
 		}
 		fmtname[len] = '\0';
 		m_FormatList.AddString(fmtname);
@@ -82,23 +80,34 @@ BOOL CPasteType::OnInitDialog(CWindow wndFocus, LPARAM lInitParam)
 	return TRUE;
 }
 
+// CPasteType メッセージ ハンドラー
+
+
+BOOL CPasteType::OnInitDialog(CWindow wndFocus, LPARAM lInitParam)
+{
+	DoDataExchange(DDX_LOAD);
+
+	if(populateFormats() == FALSE)
+	{
+		EndDialog(0);
+	}
+
+	return TRUE;
+}
+
 void CPasteType::OnClickedOk(UINT uNotifyCode, int nID, CWindow wndCtl)
 {
 	DoDataExchange(DDX_SAVE);
-
-	// エラー後のリストのダブルクリック対策
-	if(!m_OKButton.IsWindowEnabled())
-	{
-		return;
-	}
 
 	// クリップボードが変更されていないか確認。
 	// 本当はClipboardViewerなどに登録して、変更されたときに通知すべきだが
 	// Windows2000 or WindowsXP～専用なので見送り。
 	// フォーマット一覧があっていればOKとする(実害ないので)。
+	// 変更されていたらクリップボードのフォーマットを列挙しなおす。
 	if(!OpenClipboard())
 	{
 		AfxMessageBox(IDS_CANT_OPEN_CLIPBOARD, MB_ICONERROR);
+		EndDialog(0);
 		return;
 	}
 	UINT i = 0, j = 0;
@@ -114,8 +123,11 @@ void CPasteType::OnClickedOk(UINT uNotifyCode, int nID, CWindow wndCtl)
 
 	if(i != 0)
 	{
-		AfxMessageBox(IDS_CLIPBOARD_MODIFIED, MB_ICONERROR);
-		m_OKButton.EnableWindow(FALSE);
+		AfxMessageBox(IDS_CLIPBOARD_MODIFIED, MB_ICONWARNING);
+		if(populateFormats() == FALSE)
+		{
+			EndDialog(0);
+		}
 		return;
 	}
 
@@ -144,7 +156,12 @@ void CPasteType::OnLbnSelChangeCliptypelist(UINT uNotifyCode, int nID, CWindow w
 		return;
 	}
 	HANDLE hMem;
-	if((hMem = GetClipboardData(fmt)) != NULL)
+	if((hMem = GetClipboardData(fmt)) == NULL)
+	{
+		CString buf;
+		buf.Format(IDS_CANT_GETCLIPBOARDDATA, fmt);
+		m_ItemSize.SetWindowText(buf);
+	} else
 	{
 		CString buf;
 		buf.Format(IDS_CLIPBOARD_ITEM_SIZE, GlobalSize(hMem));

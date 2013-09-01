@@ -310,7 +310,7 @@ BEGIN
         MENUITEM "ダンプリストをコピー(&D)\tCtrl+D",      ID_EDIT_COPY_DUMP
         MENUITEM "16進文字列にしてコピー(&H)\tCtrl+Shift+C", ID_EDIT_COPY_HEXSTRING
         MENUITEM "16進文字列をバイナリで張り付け(&X)\tCtrl+Shift+V", ID_EDIT_PASTE_HEXSTRING
-        MENUITEM "形式を指定して貼り付け...(&S)",  ID_PASTETYPE
+        MENUITEM "形式を指定して貼り付け...(&S)",          ID_PASTETYPE
         MENUITEM SEPARATOR
         MENUITEM "すべて選択(&A)\tCtrl+A",           ID_EDIT_SELECT_ALL
         MENUITEM SEPARATOR
@@ -739,8 +739,9 @@ BEGIN
     IDS_INFLATE_REMAIN_BYTES "inflateで%dバイト余りました。選択範囲をぴったりにしますか?"
     IDS_ERR_TOOLONG_NEGFIND "2文字以上のnegative findは今のところ未実装です。"
     IDS_CANT_OPEN_CLIPBOARD "クリップボードを開けません。"
-    IDS_CLIPBOARD_MODIFIED  "クリップボードが変更されているため貼り付けられません。"
+    IDS_CLIPBOARD_MODIFIED  "クリップボードが変更されています。\nもう一度選択しなおしてください。"
     IDS_CLIPBOARD_ITEM_SIZE "サイズ: %u バイト"
+    IDS_CANT_GETCLIPBOARDDATA "GetClipboardData(%d)失敗"
 END
 
 STRINGTABLE
