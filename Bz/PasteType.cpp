@@ -2,19 +2,22 @@
 //
 
 #include "stdafx.h"
-//#include "Bz.h"
 #include "resource.h"
 #include "PasteType.h"
-//#include "afxdialogex.h"
 
 
 // CPasteType ダイアログ
 
-//IMPLEMENT_DYNAMIC(CPasteType, CDialogEx)
-
 CPasteType::CPasteType() : CDialogImpl<CPasteType>()
 {
 }
+
+CPasteType::~CPasteType()
+{
+}
+
+// CPasteType メッセージ ハンドラー
+
 
 static LPCTSTR clipFormatStrs[] = {
 	_T("(Invalid)"), // 0
@@ -41,8 +44,6 @@ static LPCTSTR clipFormatStrs[] = {
 //#endif
 };
 
-//CPasteType::CPasteType(CWnd* pParent /*=NULL*/)
-//	: CDialogEx(CPasteType::IDD, pParent)
 BOOL CPasteType::OnInitDialog(CWindow wndFocus, LPARAM lInitParam)
 {
 	DoDataExchange(DDX_LOAD);
@@ -65,6 +66,7 @@ BOOL CPasteType::OnInitDialog(CWindow wndFocus, LPARAM lInitParam)
 		} else {
 			len = GetClipboardFormatName(i, fmtname, _countof(fmtname) - 1);
 		}
+		// TODO: potentially cause buffer overflow; use CString?
 		if(len == 0)
 		{
 			len = wsprintf(fmtname, _T("(id=%u 0x%x)"), i, i);
@@ -80,34 +82,15 @@ BOOL CPasteType::OnInitDialog(CWindow wndFocus, LPARAM lInitParam)
 	return TRUE;
 }
 
-CPasteType::~CPasteType()
-{
-}
-
-/*
-void CPasteType::DoDataExchange(CDataExchange* pDX)
-{
-	CDialogEx::DoDataExchange(pDX);
-	DDX_Control(pDX, IDC_CLIPTYPELIST, m_FormatList);
-	DDX_Control(pDX, IDC_CLIPITEMSIZE, m_ItemSize);
-	DDX_Control(pDX, IDOK, m_OKButton);
-}
-*/
-
-/*
-BEGIN_MESSAGE_MAP(CPasteType, CDialogEx)
-	ON_BN_CLICKED(IDOK, &CPasteType::OnClickedOk)
-	ON_BN_CLICKED(IDCANCEL, &CPasteType::OnClickedCancel)
-END_MESSAGE_MAP()
-*/
-
-// CPasteType メッセージ ハンドラー
-
-
-//void CPasteType::OnClickedOk()
 void CPasteType::OnClickedOk(UINT uNotifyCode, int nID, CWindow wndCtl)
 {
 	DoDataExchange(DDX_SAVE);
+
+	// エラー後のリストのダブルクリック対策
+	if(!m_OKButton.IsWindowEnabled())
+	{
+		return;
+	}
 
 	// クリップボードが変更されていないか確認。
 	// 本当はClipboardViewerなどに登録して、変更されたときに通知すべきだが
@@ -136,8 +119,6 @@ void CPasteType::OnClickedOk(UINT uNotifyCode, int nID, CWindow wndCtl)
 		return;
 	}
 
-	//CDialogEx::OnOK();
-
 	i = m_formats.GetAt(m_FormatList.GetCurSel());
 	EndDialog(i); // TODO: int arg1 != UINT GetAt()
 }
@@ -145,7 +126,6 @@ void CPasteType::OnClickedOk(UINT uNotifyCode, int nID, CWindow wndCtl)
 
 void CPasteType::OnClickedCancel(UINT uNotifyCode, int nID, CWindow wndCtl)
 {
-	//CDialogEx::OnCancel();
 	EndDialog(0);
 }
 
@@ -157,6 +137,7 @@ void CPasteType::OnLbnSelChangeCliptypelist(UINT uNotifyCode, int nID, CWindow w
 	if(!OpenClipboard())
 	{
 		//AfxMessageBox(_T("クリップボードを開けません。"), MB_ICONERROR);
+		// AfxMessageBoxの代わりにstaticを更新してみる(突然のポップアップ感を避ける)。
 		CString buf;
 		buf.LoadString(IDS_CANT_OPEN_CLIPBOARD);
 		m_ItemSize.SetWindowText(buf);
