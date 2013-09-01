@@ -178,7 +178,7 @@ STYLE DS_SETFONT | DS_MODALFRAME | DS_FIXEDSYS | WS_POPUP | WS_CAPTION | WS_SYSM
 CAPTION "クリップボードの形式を指定して貼り付け"
 FONT 8, "MS Shell Dlg", 400, 0, 0x1
 BEGIN
-    LISTBOX         IDC_CLIPTYPELIST,7,7,205,114,LBS_SORT | LBS_NOINTEGRALHEIGHT | WS_VSCROLL | WS_TABSTOP
+    LISTBOX         IDC_CLIPTYPELIST,7,7,205,114,LBS_NOINTEGRALHEIGHT | WS_VSCROLL | WS_TABSTOP
     DEFPUSHBUTTON   "OK",IDOK,109,123,50,14
     PUSHBUTTON      "キャンセル",IDCANCEL,163,123,50,14
     LTEXT           "サイズ: XXXXXXXXX バイト",IDC_CLIPITEMSIZE,7,128,98,8
@@ -310,7 +310,7 @@ BEGIN
         MENUITEM "ダンプリストをコピー(&D)\tCtrl+D",      ID_EDIT_COPY_DUMP
         MENUITEM "16進文字列にしてコピー(&H)\tCtrl+Shift+C", ID_EDIT_COPY_HEXSTRING
         MENUITEM "16進文字列をバイナリで張り付け(&X)\tCtrl+Shift+V", ID_EDIT_PASTE_HEXSTRING
-        MENUITEM "クリップボードの形式を指定して貼り付け...(&S)",     ID_PASTETYPE
+        MENUITEM "形式を指定して貼り付け...(&S)",  ID_PASTETYPE
         MENUITEM SEPARATOR
         MENUITEM "すべて選択(&A)\tCtrl+A",           ID_EDIT_SELECT_ALL
         MENUITEM SEPARATOR
@@ -738,6 +738,9 @@ BEGIN
     IDS_ERR_INFLATE_RESULT_ERROR "inflateにおいてエラーが発生しました。"
     IDS_INFLATE_REMAIN_BYTES "inflateで%dバイト余りました。選択範囲をぴったりにしますか?"
     IDS_ERR_TOOLONG_NEGFIND "2文字以上のnegative findは今のところ未実装です。"
+    IDS_CANT_OPEN_CLIPBOARD "クリップボードを開けません。"
+    IDS_CLIPBOARD_MODIFIED  "クリップボードが変更されているため貼り付けられません。"
+    IDS_CLIPBOARD_ITEM_SIZE "サイズ: %u バイト"
 END
 
 STRINGTABLE

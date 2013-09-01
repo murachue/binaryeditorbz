@@ -758,7 +758,7 @@ static VALUE bzruby_clip(VALUE self)
 
 	CBZDoc *doc = cbzsv->m_pView->GetDocument();
 
-	dwSize = doc->ClipboardReadOpen(hMem, pMem, pWorkMem);
+	dwSize = doc->ClipboardReadOpen(hMem, pMem, pWorkMem, 0);
 	ret = rb_str_new((const char *)pMem, dwSize);
 	doc->ClipboardReadClose(hMem, pMem, pWorkMem);
 

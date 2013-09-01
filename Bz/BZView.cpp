@@ -2087,7 +2087,7 @@ void CBZView::OnPasteType()
 	int result = CPasteType().DoModal();
 	if(result != 0) {
 		DWORD dwPaste;
-		if(dwPaste = m_pDoc->PasteFromClipboard(m_dwCaret, m_bIns, result)) {
+		if(dwPaste = m_pDoc->PasteFromClipboard(m_dwCaret, m_bIns, result)) { // TODO: int result != UINT arg3
 			m_dwOldCaret = m_dwCaret;
 			m_dwCaret = dwPaste;
 			UpdateDocSize();

@@ -509,12 +509,15 @@ BOOL CBZDoc::CopyToClipboard(DWORD dwOffset, DWORD dwSize, BOOL bHexString)	// #
 	return DoCopyToClipboard(lpStart, dwSize, bHexString);
 }
 
-DWORD CBZDoc::ClipboardReadOpen(HGLOBAL &hMem, LPBYTE &pMem, LPBYTE &pWorkMem)
+DWORD CBZDoc::ClipboardReadOpen(HGLOBAL &hMem, LPBYTE &pMem, LPBYTE &pWorkMem, UINT format)
 {
 	AfxGetMainWnd()->OpenClipboard();
 	DWORD dwSize;
 	pWorkMem = NULL;
-	if(hMem = ::GetClipboardData(RegisterClipboardFormat(_T("BinaryData2")))) {
+	if(format != 0 && (hMem = ::GetClipboardData(format)) != NULL) {
+		pMem = (LPBYTE)::GlobalLock(hMem);
+		dwSize = GlobalSize(hMem);
+	} else if(hMem = ::GetClipboardData(RegisterClipboardFormat(_T("BinaryData2")))) {
 		pMem = (LPBYTE)::GlobalLock(hMem);
 		dwSize = *((DWORD*)(pMem));
 		pMem += sizeof(DWORD);
@@ -576,13 +579,13 @@ void CBZDoc::ClipboardReadClose(HGLOBAL hMem, LPBYTE pMem, LPBYTE pWorkMem)
 	}
 }
 
-DWORD CBZDoc::PasteFromClipboard(DWORD dwPtr, BOOL bIns, int format=0)
+DWORD CBZDoc::PasteFromClipboard(DWORD dwPtr, BOOL bIns, UINT format)
 {
 	HGLOBAL hMem;
 	LPBYTE pMem;
 	LPBYTE pWorkMem;
 	DWORD dwSize;
-	dwSize = ClipboardReadOpen(hMem, pMem, pWorkMem);
+	dwSize = ClipboardReadOpen(hMem, pMem, pWorkMem, format);
 	if(!dwSize) return 0;
 #ifdef FILE_MAPPING
 	if(IsFileMapping()) {

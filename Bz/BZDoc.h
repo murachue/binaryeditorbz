@@ -70,7 +70,7 @@ public:
 // Operations
 public:
 	BOOL	CopyToClipboard(DWORD dwPtr, DWORD dwSize, BOOL bHexString);
-	DWORD	PasteFromClipboard(DWORD dwPtr, BOOL bIns, int format=0);
+	DWORD	PasteFromClipboard(DWORD dwPtr, BOOL bIns, UINT format=0);
 	DWORD	PasteHexstringFromClipboard(DWORD dwPtr, BOOL bIns);
 	BOOL	isDocumentEditedSelfOnly();
 	void	InsertData(DWORD dwPtr, DWORD dwSize, BOOL bIns);
@@ -84,7 +84,7 @@ public:
 	DWORD	JumpToMark(DWORD dwPtr);
 	BOOL	CanUndo() { return !!m_pUndo; };
 	BOOL	DoCopyToClipboard(LPBYTE lpStart, DWORD dwSize, BOOL bHexString);
-	DWORD	ClipboardReadOpen(HGLOBAL &hMem, LPBYTE &pMem, LPBYTE &pWorkMem);
+	DWORD	ClipboardReadOpen(HGLOBAL &hMem, LPBYTE &pMem, LPBYTE &pWorkMem, UINT format);
 	void	ClipboardReadClose(HGLOBAL hMem, LPBYTE pMem, LPBYTE pWorkMem);
 #ifdef FILE_MAPPING
 	_inline DWORD	GetFileOffsetFromFileMappingPointer(LPBYTE pConv) { return pConv-m_pData; }

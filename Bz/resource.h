@@ -170,6 +170,9 @@
 #define IDS_ERR_INFLATE_RESULT_ERROR    61529
 #define IDS_INFLATE_REMAIN_BYTES        61530
 #define IDS_ERR_TOOLONG_NEGFIND         61531
+#define IDS_CANT_OPEN_CLIPBOARD         61532
+#define IDS_CLIPBOARD_MODIFIED          61533
+#define IDS_CLIPBOARD_ITEM_SIZE         61534
 
 // Next default values for new objects
 // 
