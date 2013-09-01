@@ -2076,14 +2076,6 @@ void CBZView::OnUpdateEditPasteHexstring(CCmdUI* pCmdUI)
 
 void CBZView::OnPasteType() 
 {
-	/*
-	DWORD dwPaste;
-	if(dwPaste = m_pDoc->PasteFromClipboard(m_dwCaret, m_bIns)) {
-		m_dwOldCaret = m_dwCaret;
-		m_dwCaret = dwPaste;
-		UpdateDocSize();
-	}
-	*/
 	int result = CPasteType().DoModal();
 	if(result != 0) {
 		DWORD dwPaste;

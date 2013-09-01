@@ -147,15 +147,17 @@ static VALUE setdata_by_rbstr(CBZView *view, DWORD begin, DWORD end, VALUE val)
 		doc->DeleteData(begin + valsize, dstsize - valsize);
 	}
 
-	DWORD endi = begin + valsize;
+	DWORD endi = begin + valsize; // TODO: 4GB‰z‚¦‘Î‰ž
+	DWORD valrem = valsize; // TODO: 4GB‰z‚¦‘Î‰ž
 	for(DWORD i = begin; i < endi; )
 	{
-		LPBYTE pData = doc->QueryMapViewTama2(i, valsize);
-		DWORD remain = doc->GetMapRemain(i);
-		DWORD ovwsize = min(remain, valsize);
+		LPBYTE pData = doc->QueryMapViewTama2(i, valrem);
+		DWORD remain = doc->GetMapRemain(i); // TODO: 4GB‰z‚¦‘Î‰ž
+		DWORD ovwsize = min(remain, valrem); // TODO: 4GB‰z‚¦‘Î‰ž
 		memcpy(pData, valptr, ovwsize);
 		i += ovwsize;
 		valptr += ovwsize;
+		valrem -= ovwsize;
 	}
 	view->UpdateDocSize();
 

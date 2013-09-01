@@ -20,6 +20,7 @@
 #endif
 
 static CBZScriptView *cbzsv; // TODO: Global...
+static BOOL auto_invalidate_flag; // TODO: Global...
 
 
 extern "C" BZScriptInterface __declspec(dllexport) * getScriptInterface(void)
@@ -63,9 +64,595 @@ static PyObject* python_write(PyObject *self, PyObject *args)
 	return Py_None;
 }
 
-static PyMethodDef pythonMethods[] =
+static PyMethodDef bzwriterMethods[] =
 {
 	{"write", python_write, METH_VARARGS, ""},
+	{NULL, NULL, 0, NULL}
+};
+
+
+static ULONGLONG convert_minus_index(LONGLONG i, ULONGLONG size)
+{
+	// TODO: 実装
+	return i;
+}
+
+static PyObject *convert_bool(BOOL val)
+{
+	PyObject *obj;
+
+	if(val)
+	{
+		obj = Py_True;
+	} else
+	{
+		obj = Py_False;
+	}
+
+	Py_INCREF(obj);
+	return obj;
+}
+
+static BOOL get_auto_invalidate(PyObject *self)
+{
+	/*
+	PyObject *aikey = PyString_FromString("auto_invalidate");
+	PyObject *ai = PyObject_GetItem(self, aikey);
+	Py_DECREF(aikey);
+
+	BOOL ret;
+	if(PyObject_IsTrue(ai))
+		ret = TRUE;
+	else
+		ret = FALSE;
+
+	Py_DECREF(ai);
+
+	return ret;
+	*/
+	return auto_invalidate_flag;
+}
+
+static void set_auto_invalidate(PyObject *self, BOOL val)
+{
+	/*
+	PyObject *aikey = PyString_FromString("auto_invalidate");
+	PyObject_SetItem(self, aikey, convert_bool(val));
+	Py_DECREF(aikey);
+	*/
+	auto_invalidate_flag = val;
+}
+
+static void auto_invalidate(PyObject *self)
+{
+	if(get_auto_invalidate(self))
+		cbzsv->m_pView->Invalidate();
+}
+
+static PyObject* bzpy_caret(PyObject *self, PyObject *args)
+{
+	LONGLONG i = LONGLONG_MIN;
+	if(!PyArg_ParseTuple(args, "|L", &i)) return NULL;
+
+	if(i == LONGLONG_MIN)
+	{
+		// get
+		return Py_BuildValue("k", cbzsv->m_pView->m_dwCaret); // TODO: 4GB越え対応
+	} else
+	{
+		// set
+		CBZView *view = cbzsv->m_pView;
+		DWORD old = view->m_dwCaret; // おまけ // TODO: 4GB越え対応
+		cbzsv->m_pView->MoveCaretTo(convert_minus_index(i, view->GetDocument()->GetDocSize()));
+		return Py_BuildValue("k", old); // TODO: 4GB越え対応
+	}
+}
+
+// TODO: 4GB越え対応
+static PyObject *data2pystr(CBZDoc *doc, DWORD begin, DWORD end)
+{
+	DWORD remain = end - begin; // TODO: 4GB越え対応
+	PyObject *str = PyString_FromString("");
+	while(remain > 0)
+	{
+		LPBYTE pdata = doc->QueryMapViewTama2(begin, remain);
+		DWORD mappedsize = doc->GetMapRemain(begin); // TODO: 4GB越え対応
+		DWORD size = min(mappedsize, remain); // TODO: 4GB越え対応
+		PyObject *tstr = PyString_FromStringAndSize((const char*)pdata, size);
+		PyString_ConcatAndDel(&str, tstr);
+		if(str == NULL) return NULL;
+		begin += size;
+		remain -= size;
+	}
+	return str;
+}
+
+static PyObject* bzpy_dataat(PyObject *self, PyObject *args, PyObject *kwargs)
+{
+	LONGLONG begin = LONGLONG_MIN, end = LONGLONG_MIN;
+	const char *data = NULL;
+	Py_ssize_t datalen = 0; // TODO: 4GB越え対応?
+	static char *kws[] = {"begin", "end", "data"};
+	if(!PyArg_ParseTupleAndKeywords(args, kwargs, "L|Ls#", kws, &begin, &end, &data, &datalen)) return NULL;
+
+	CBZView *view = cbzsv->m_pView;
+	CBZDoc *doc = view->GetDocument();
+	DWORD docsize = doc->GetDocSize(); // TODO: 4GB越え対応
+
+	begin = convert_minus_index(begin, docsize);
+
+	if(end == LONGLONG_MIN)
+	{
+		if(data == NULL)
+		{
+			end = begin + 1;
+		} else
+		{
+			end = begin;
+		}
+	}
+
+	end = convert_minus_index(end, docsize);
+
+	if(end < begin)
+	{
+		PyErr_SetString(PyExc_IndexError, "\"begin\" beyonds \"end\"");
+		return NULL;
+	}
+
+	if(data == NULL)
+	{
+		// get
+		return data2pystr(doc, begin, end);
+	} else
+	{
+		if(doc->m_bReadOnly)
+		{
+			PyErr_SetString(PyExc_RuntimeError, "can't modify read-only file");
+			return NULL;
+		}
+
+		DWORD dstsize = end - begin; // TODO: 4GB越え対応
+
+#ifdef FILE_MAPPING
+		if(doc->IsFileMapping() && dstsize != datalen)
+		{
+			// XXX: RuntimeErrorじゃなくてTypeError? うーんArgumentErrorがほしい…。
+			PyErr_SetString(PyExc_RuntimeError, "can't modify with different size in file-mapping mode");
+			return NULL;
+		}
+#endif
+
+		if(dstsize == 0 && datalen == 0)
+			return Py_BuildValue("s#", data, datalen); // おまけ: Py_INCREFしたPy_Noneでも可
+
+		if(dstsize == 0) // 単に挿入される
+		{
+			doc->StoreUndo(begin, datalen, UNDO_DEL);
+			doc->InsertData(begin, datalen, TRUE);
+		} else if(dstsize < datalen) // 伸びる
+		{
+			// TODO: このundo操作、atomicの方がいい気がするが仕様的にできない…
+			doc->StoreUndo(begin + dstsize, datalen - dstsize, UNDO_DEL);
+			doc->StoreUndo(begin, dstsize, UNDO_OVR);
+			doc->InsertData(begin + dstsize, datalen - dstsize, TRUE);
+		} else if(dstsize == datalen) // 同じ長さ
+		{
+			doc->StoreUndo(begin, datalen, UNDO_OVR);
+			//doc->InsertData(begin, valsize, FALSE); // 必要ないはず
+		} else // valsize < docsize; 縮む
+		{
+			// TODO: このundo操作、atomicの方がいい気がするが仕様的にできない…
+			doc->StoreUndo(begin + datalen, dstsize - datalen, UNDO_INS);
+			doc->StoreUndo(begin, datalen, UNDO_OVR);
+			doc->DeleteData(begin + datalen, dstsize - datalen);
+		}
+
+		DWORD endi = begin + datalen; // TODO: 4GB越え対応
+		const char *valptr = data; // "data"を後で使うのでとっておく。
+		DWORD valrem = datalen; // "datalen"を後で使うのでとっておく。 // TODO: 4GB越え対応
+		for(DWORD i = begin; i < endi; )
+		{
+			LPBYTE pData = doc->QueryMapViewTama2(i, valrem);
+			DWORD remain = doc->GetMapRemain(i); // TODO: 4GB越え対応
+			DWORD ovwsize = min(remain, valrem); // TODO: 4GB越え対応
+			memcpy(pData, valptr, ovwsize);
+			i += ovwsize;
+			valptr += ovwsize;
+			valrem -= ovwsize;
+		}
+		view->UpdateDocSize();
+
+		return Py_BuildValue("s#", data, datalen); // おまけ: Py_INCREFしたPy_Noneでも可
+	}
+}
+
+static PyObject* bzpy_value(PyObject *self, PyObject *args, PyObject *kwargs)
+{
+	CBZView *view = cbzsv->m_pView;
+	LONGLONG off = view->m_dwCaret;
+	int size = view->m_nBytes;
+	ULONGLONG value = ULONGLONG_MAX;
+	static char *kws[] = {"offset", "width", "value"};
+	if(!PyArg_ParseTupleAndKeywords(args, kwargs, "|LiK", kws, &off, &size, &value)) return NULL;
+
+	off = convert_minus_index(off, view->GetDocument()->GetDocSize());
+
+	if(value == ULONGLONG_MAX)
+	{
+		// get
+		// TODO: valueはLONGLONG_MINの場合も有り得る…。
+		if(size == 8)
+		{
+			return Py_BuildValue("K", view->GetValue64(off));
+		} else if(size == 1 || size == 2 || size == 4)
+		{
+			return Py_BuildValue("k", view->GetValue(off, size));
+		} else
+		{
+			// XXX: RuntimeErrorじゃなくてTypeError? うーんArgumentErrorがほしい…。
+			PyErr_SetString(PyExc_RuntimeError, "size must be 1, 2, 4 or 8");
+			return NULL;
+		}
+	} else
+	{
+		// set
+		if(size == 1 || size == 2 || size == 4)
+		{
+			view->SetValue(off, size, value);
+			return Py_BuildValue("k", value); // Py_INCREFしたPy_Noneでも可
+		} else
+		{
+			// XXX: RuntimeErrorじゃなくてTypeError? うーんArgumentErrorがほしい…。
+			PyErr_SetString(PyExc_RuntimeError, "size must be 1, 2 or 4");
+			return NULL;
+		}
+	}
+}
+
+static PyObject* bzpy_block(PyObject *self, PyObject *args)
+{
+	CBZView *view = cbzsv->m_pView;
+	LONGLONG begin = LONGLONG_MIN, end = LONGLONG_MIN;
+	if(!PyArg_ParseTuple(args, "|LL", &begin, &end)) return NULL;
+
+	if(begin == LONGLONG_MIN)
+	{
+		// get
+		if(!view->IsBlockAvailable())
+		{
+			Py_INCREF(Py_None);
+			return Py_None;
+		}
+		// TODO: 4GB越え対応(ULONGLONG/Py_BuildValue "K")
+		return Py_BuildValue("(kk)", view->BlockBegin(), view->BlockEnd());
+	} else if(end == LONGLONG_MIN)
+	{
+		// XXX: ...use "caret"!
+		PyErr_SetString(PyExc_RuntimeError, "\"begin\" passed but \"end\". Use caret().");
+		return NULL;
+	} else
+	{
+		// set
+		CBZDoc *doc = view->GetDocument();
+		DWORD docsize = doc->GetDocSize(); // TODO: 4GB越え対応
+
+		begin = convert_minus_index(begin, docsize);
+		end = convert_minus_index(end, docsize);
+
+		if(begin < 0)
+			begin = 0;
+		if(docsize < begin)
+			begin = docsize;
+		if(end < 0)
+			end = 0;
+		if(docsize < end)
+			end = docsize;
+
+		view->setBlock(static_cast<DWORD>(begin), static_cast<DWORD>(end)); // TODO: 4GB越え対応
+
+		Py_INCREF(Py_None);
+		return Py_None;
+	}
+}
+
+static PyObject* bzpy_mark(PyObject *self, PyObject *args, PyObject *kwargs)
+{
+	CBZView *view = cbzsv->m_pView;
+	LONGLONG off = LONGLONG_MIN;
+	PyObject *mark = Py_None;
+	static char *kws[] = {"offset", "mark"};
+	if(!PyArg_ParseTupleAndKeywords(args, kwargs, "|LO", kws, &off, &mark)) return NULL;
+
+	if(off == LONGLONG_MIN)
+	{
+		off = view->m_dwCaret;
+	}
+
+	CBZDoc *doc = view->GetDocument();
+	convert_minus_index(off, doc->GetDocSize());
+
+	if(mark == Py_None)
+	{
+		// get
+		return convert_bool(doc->CheckMark(off));
+	} else
+	{
+		// set
+		BOOL target;
+		if(PyObject_IsTrue(mark))
+		{
+			target = TRUE;
+		} else
+		{
+			target = FALSE;
+		}
+
+		BOOL org = doc->CheckMark(off);
+		if(org != target)
+		{
+			doc->SetMark(off); // toggle.
+
+			auto_invalidate(self);
+		}
+
+		return convert_bool(org); // おまけ; valかPy_Noneもあり
+	}
+}
+
+static PyObject* bzpy_togglemark(PyObject *self, PyObject *args)
+{
+	CBZView *view = cbzsv->m_pView;
+	LONGLONG off = LONGLONG_MIN;
+	if(!PyArg_ParseTuple(args, "|L", &off)) return NULL;
+
+	if(off == LONGLONG_MIN)
+	{
+		off = view->m_dwCaret;
+	}
+
+	CBZDoc *doc = view->GetDocument();
+	convert_minus_index(off, doc->GetDocSize());
+
+	// set
+	BOOL org = doc->CheckMark(off);
+
+	doc->SetMark(off); // toggle.
+
+	auto_invalidate(self);
+
+	return convert_bool(org); // おまけ; valかPy_Noneもあり
+}
+
+static PyObject* bzpy_filemapping(PyObject *self, PyObject *args)
+{
+	if(!PyArg_ParseTuple(args, "")) return NULL;
+
+	return convert_bool(cbzsv->m_pView->GetDocument()->IsFileMapping());
+}
+
+static PyObject* bzpy_invalidate(PyObject *self, PyObject *args)
+{
+	if(!PyArg_ParseTuple(args, "")) return NULL;
+
+	cbzsv->m_pView->Invalidate();
+
+	Py_INCREF(Py_None);
+	return Py_None;
+}
+
+static PyObject* bzpy_endianess(PyObject *self, PyObject *args)
+{
+	int endianess = INT_MIN;
+	if(!PyArg_ParseTuple(args, "|i", &endianess)) return NULL;
+
+	if(endianess == INT_MIN)
+	{
+		// get
+		return Py_BuildValue("i", options.bByteOrder ? 1 : 0);
+	} else
+	{
+		// set
+		if(endianess != 0 && endianess != 1)
+		{
+			PyErr_SetString(PyExc_IndexError, "endianess is allowed only become 0 or 1.");
+		}
+		int old = options.bByteOrder;
+		options.bByteOrder = endianess;
+
+		// XXX: TODO: UTF-16はendianessで表示が変わるため必要。Rubyで忘れてるので後で移植。
+		auto_invalidate(self);
+
+		return Py_BuildValue("i", old ? 1 : 0);
+	}
+}
+
+static PyObject* bzpy_filename(PyObject *self, PyObject *args)
+{
+	if(!PyArg_ParseTuple(args, "")) return NULL;
+
+	return Py_BuildValue("s", CStringA(cbzsv->m_pView->GetDocument()->GetPathName()));
+}
+
+static PyObject* bzpy_len(PyObject *self, PyObject *args)
+{
+	if(!PyArg_ParseTuple(args, "")) return NULL;
+
+	return Py_BuildValue("k", cbzsv->m_pView->GetDocument()->GetDocSize());
+}
+
+// TODO: イテレータ実装。Pythonは非常に面倒くさいようだ。
+/*
+static PyObject* bzpy_bytes(PyObject *self, PyObject *args)
+{
+	if(!PyArg_ParseTuple(args, "")) return NULL;
+
+	CBZDoc *doc = cbzsv->m_pView->GetDocument();
+	// TODO: 4GB越え対応
+	DWORD begin = 0;
+	DWORD end = doc->GetDocSize();
+	for(DWORD i = begin; i < end; ) // TODO: 4GB越え対応
+	{
+		LPBYTE pData = doc->QueryMapViewTama2(i, end - begin);
+		DWORD remain = doc->GetMapRemain(i);
+		for(DWORD j = 0; j < remain; j++)
+		{
+			rb_yield(UINT2NUM(pData[j]));
+		}
+		i += remain;
+	}
+
+	return Py_BuildValue("i", i + 1);
+}
+
+static PyObject* bzpy_words(PyObject *self, PyObject *args)
+{
+	if(!PyArg_ParseTuple(args, "")) return NULL;
+
+	CBZView *view = cbzsv->m_pView;
+	DWORD wide = view->m_nBytes;
+	CBZDoc *doc = view->GetDocument();
+	// TODO: 4GB越え対応
+	DWORD begin = 0;
+	DWORD end = doc->GetDocSize();
+	DWORD end_rd = end - ((end - begin) % wide);
+	for(DWORD i = begin; i < end_rd; ) // TODO: 4GB越え対応
+	{
+		LPBYTE pData = doc->QueryMapViewTama2(i, end - begin);
+		DWORD remain = doc->GetMapRemain(i);
+		DWORD remain_rd = remain / wide * wide; // round_down(remain)
+		for(DWORD j = 0; j < remain_rd; j += wide)
+		{
+			if(wide == 1 || wide == 2 || wide == 4)
+				rb_yield(ULONG2NUM(view->GetValue(j, wide)));
+			else if(wide == 8)
+				rb_yield(ULL2NUM(view->GetValue64(j)));
+			else
+				ASSERT(FALSE); // panic
+		}
+		i += remain_rd;
+	}
+
+	return Py_BuildValue("i", i + 1);
+}
+*/
+
+static PyObject* bzpy_wide(PyObject *self, PyObject *args)
+{
+	int wide = INT_MIN;
+	if(!PyArg_ParseTuple(args, "i", &wide)) return NULL;
+
+	if(wide == INT_MIN)
+	{
+		// get
+		return Py_BuildValue("i", cbzsv->m_pView->m_nBytes);
+	} else
+	{
+		// set
+		if(!(wide == 1 || wide == 2 || wide == 4 || wide == 8))
+		{
+			// XXX: RuntimeErrorじゃなくてTypeError? うーんArgumentErrorがほしい…。
+			PyErr_SetString(PyExc_RuntimeError, "wide must be 1, 2, 4 or 8");
+		}
+		int orgwide = cbzsv->m_pView->m_nBytes; // おまけ
+		cbzsv->m_pView->m_nBytes = wide;
+		return Py_BuildValue("i", orgwide);
+	}
+}
+
+static PyObject* bzpy_autoinvalidate(PyObject *self, PyObject *args)
+{
+	PyObject *newai = Py_None;
+	if(!PyArg_ParseTuple(args, "|O", &newai)) return NULL;
+	PyObject *ai;
+
+	ai = convert_bool(get_auto_invalidate(self));
+
+	if(newai == Py_None)
+	{
+		// get
+	} else
+	{
+		// set
+		set_auto_invalidate(self, PyObject_IsTrue(newai));
+	}
+
+	return ai;
+}
+
+static PyObject* bzpy_undo(PyObject *self, PyObject *args)
+{
+	if(!PyArg_ParseTuple(args, "")) return NULL;
+
+	CBZView *view = cbzsv->m_pView;
+	CBZDoc *doc = view->GetDocument();
+	if(doc->CanUndo())
+	{
+		doc->DoUndo();
+		view->GotoCaret();
+		view->UpdateDocSize();
+
+		Py_INCREF(Py_True);
+		return Py_True;
+	} else
+	{
+		Py_INCREF(Py_False);
+		return Py_False;
+	}
+}
+
+static PyObject* bzpy_selected(PyObject *self, PyObject *args)
+{
+	if(!PyArg_ParseTuple(args, "")) return NULL;
+
+	CBZView *view = cbzsv->m_pView;
+	CBZDoc *doc = view->GetDocument();
+	if(view->IsBlockAvailable())
+	{
+		return data2pystr(doc, view->BlockBegin(), view->BlockEnd());
+	} else
+	{
+		Py_INCREF(Py_None);
+		return Py_None;
+	}
+}
+
+// XXX: どんなインターフェースが一般的かPythonistaに聞いて決める。
+// TOOWTDI: "(|set)method" (to be modified to (get|set)method ...?)
+// TMTOWTDI:
+//   - __setattr__ / __getattr__
+//   - (|get)method -- to get values
+//   - map?
+static PyMethodDef bzMethods[] =
+{
+	{"caret", bzpy_caret, METH_VARARGS, ""},
+	{"setcaret", bzpy_caret, METH_VARARGS, ""},
+	{"dataat", (PyCFunction)bzpy_dataat, METH_KEYWORDS, ""},
+	{"setdataat", (PyCFunction)bzpy_dataat, METH_KEYWORDS, ""},
+	{"value", (PyCFunction)bzpy_value, METH_KEYWORDS, ""},
+	{"setvalue", (PyCFunction)bzpy_value, METH_KEYWORDS, ""},
+	{"block", bzpy_block, METH_VARARGS, ""},
+	{"setblock", bzpy_block, METH_VARARGS, ""},
+	{"mark", (PyCFunction)bzpy_mark, METH_KEYWORDS, ""},
+	{"togglemark", bzpy_togglemark, METH_VARARGS, ""}, // call-only
+	{"setmark", (PyCFunction)bzpy_mark, METH_KEYWORDS, ""},
+	{"filemapping", bzpy_filemapping, METH_VARARGS, ""}, // read-only
+	{"invalidate", bzpy_invalidate, METH_VARARGS, ""}, // call-only
+	{"endianess", bzpy_endianess, METH_VARARGS, ""},
+	{"setendianess", bzpy_endianess, METH_VARARGS, ""},
+	{"filename", bzpy_filename, METH_VARARGS, ""}, // read-only
+	{"__len__", bzpy_len, METH_VARARGS, ""}, // read-only
+	//{"bytes", bzpy_bytes, METH_VARARGS, ""}, // Iterator
+	//{"words", bzpy_words, METH_VARARGS, ""}, // Iterator
+	{"wide", bzpy_wide, METH_VARARGS, ""},
+	{"setwide", bzpy_wide, METH_VARARGS, ""},
+	{"autoinvalidate", bzpy_autoinvalidate, METH_VARARGS, ""},
+	{"setautoinvalidate", bzpy_autoinvalidate, METH_VARARGS, ""},
+	{"undo", bzpy_undo, METH_VARARGS, ""}, // call-only
+	{"selected", bzpy_selected, METH_VARARGS, ""}, // bzruby's "b"
+	// clipboard feature is hidden until merging b128dd8
+	//{"clip", bzpy_, METH_VARARGS, ""},
+	//{"setclip", bzpy_, METH_VARARGS, ""},
 	{NULL, NULL, 0, NULL}
 };
 
@@ -89,11 +676,15 @@ BOOL BZScriptPython::init(CBZScriptView *sview)
 
 	// sys.stdout/stderrを自作関数に置き換える
 	// TODO: stdinもなんとかする。
-	PyObject *mymodule = Py_InitModule("bzwriter", pythonMethods);
+	PyObject *mymodule;
+	mymodule = Py_InitModule("bzwriter", bzwriterMethods);
 	// PySys_SetObject(->PyDict_SetItem?)は、PyObject_SetAttrと違って参照を盗まないようだ。
 	PySys_SetObject("stdout", mymodule);
 	PySys_SetObject("stderr", mymodule);
 	//Py_DECREF(mymodule); Py_InitModuleの戻り値は借り物なのでPy_DECREF不可
+
+	mymodule = Py_InitModule3("bz", bzMethods, "BZ embedded interface module.");
+	set_auto_invalidate(mymodule, TRUE);
 
 	return TRUE;
 }
