@@ -70,7 +70,7 @@ public:
 // Operations
 public:
 	BOOL	CopyToClipboard(DWORD dwPtr, DWORD dwSize, BOOL bHexString);
-	DWORD	PasteFromClipboard(DWORD dwPtr, BOOL bIns);
+	DWORD	PasteFromClipboard(DWORD dwPtr, BOOL bIns, int format=0);
 	DWORD	PasteHexstringFromClipboard(DWORD dwPtr, BOOL bIns);
 	BOOL	isDocumentEditedSelfOnly();
 	void	InsertData(DWORD dwPtr, DWORD dwSize, BOOL bIns);

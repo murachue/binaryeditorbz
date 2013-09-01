@@ -16,6 +16,7 @@
 #define IDD_SETTING                     143
 #define IDD_INPUT                       144
 #define IDD_BZSCRIPTVIEW                145
+#define IDD_PASTETYPE                   146
 #define IDC_LIST_TAG                    1000
 #define IDC_LIST_MEMBER                 1001
 #define IDAPPLY                         1002
@@ -64,6 +65,8 @@
 #define IDE_INS_SHA1                    1051
 #define IDE_INS_SHA256                  1052
 #define IDC_SCRIPT_ENGINE               1053
+#define IDC_CLIPTYPELIST                1054
+#define IDC_CLIPITEMSIZE                1055
 #define IDS_COLOR_ADDRESS               3000
 #define IDS_COLOR_ADDRESS2              3001
 #define IDS_COLOR_TEXT                  3002
@@ -138,6 +141,7 @@
 #define ID_EDIT_PASTE_HEXSTRING         32868
 #define ID_BMPVIEW_GOTOCARET            32871
 #define ID_VIEW_SCRIPT                  32872
+#define ID_PASTETYPE                    32873
 #define ID_INDICATOR_INFO               0xE710
 #define ID_INDICATOR_SIZE               0xE711
 #define ID_INDICATOR_CHAR               0xE712
@@ -172,9 +176,9 @@
 #ifdef APSTUDIO_INVOKED
 #ifndef APSTUDIO_READONLY_SYMBOLS
 #define _APS_3D_CONTROLS                     1
-#define _APS_NEXT_RESOURCE_VALUE        146
-#define _APS_NEXT_COMMAND_VALUE         32873
-#define _APS_NEXT_CONTROL_VALUE         1054
+#define _APS_NEXT_RESOURCE_VALUE        147
+#define _APS_NEXT_COMMAND_VALUE         32874
+#define _APS_NEXT_CONTROL_VALUE         1056
 #define _APS_NEXT_SYMED_VALUE           107
 #endif
 #endif

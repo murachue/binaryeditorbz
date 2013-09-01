@@ -38,6 +38,7 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "MainFrm.h"
 #include "ColorDlg.h"
 #include "SettingDlg.h"
+#include "PasteType.h"
 #include  <ctype.h>
 #include  <winnls.h>
 #include  <mbstring.h>
@@ -121,6 +122,8 @@ BEGIN_MESSAGE_MAP(CBZView, CTextView)
 	ON_UPDATE_COMMAND_UI(ID_EDIT_COPY_HEXSTRING, OnUpdateEditCopyHexstring)
 	ON_COMMAND(ID_EDIT_PASTE_HEXSTRING, OnEditPasteHexstring)
 	ON_UPDATE_COMMAND_UI(ID_EDIT_PASTE_HEXSTRING, OnUpdateEditPasteHexstring)
+	ON_COMMAND(ID_PASTETYPE, OnPasteType)
+	ON_UPDATE_COMMAND_UI(ID_PASTETYPE, OnUpdatePasteType)
 	ON_COMMAND(ID_JUMP_BASE, OnJumpBase)
 	ON_COMMAND(ID_JUMP_MARK, SetMark)
 	ON_COMMAND(ID_JUMP_MARKNEXT, JumpToMark)
@@ -2064,6 +2067,35 @@ void CBZView::OnEditPasteHexstring()
 }
 
 void CBZView::OnUpdateEditPasteHexstring(CCmdUI* pCmdUI) 
+{
+	OpenClipboard();
+	UINT cf = EnumClipboardFormats(0);
+	CloseClipboard();
+	pCmdUI->Enable(!m_pDoc->m_bReadOnly && cf);
+}
+
+void CBZView::OnPasteType() 
+{
+	/*
+	DWORD dwPaste;
+	if(dwPaste = m_pDoc->PasteFromClipboard(m_dwCaret, m_bIns)) {
+		m_dwOldCaret = m_dwCaret;
+		m_dwCaret = dwPaste;
+		UpdateDocSize();
+	}
+	*/
+	int result = CPasteType().DoModal();
+	if(result != 0) {
+		DWORD dwPaste;
+		if(dwPaste = m_pDoc->PasteFromClipboard(m_dwCaret, m_bIns, result)) {
+			m_dwOldCaret = m_dwCaret;
+			m_dwCaret = dwPaste;
+			UpdateDocSize();
+		}
+	}
+}
+
+void CBZView::OnUpdatePasteType(CCmdUI* pCmdUI) 
 {
 	OpenClipboard();
 	UINT cf = EnumClipboardFormats(0);

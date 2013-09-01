@@ -200,6 +200,7 @@
     <ClCompile Include="ComboBar.cpp" />
     <ClCompile Include="MainFrm.cpp" />
     <ClCompile Include="options.cpp" />
+    <ClCompile Include="PasteType.cpp" />
     <ClCompile Include="ProgressDialog.cpp" />
     <ClCompile Include="SettingDlg.cpp" />
     <ClCompile Include="Splitter.cpp" />
@@ -235,6 +236,7 @@
     <ClInclude Include="MainFrm.h" />
     <ClInclude Include="MemDC.h" />
     <ClInclude Include="options.h" />
+    <ClInclude Include="PasteType.h" />
     <ClInclude Include="ProgressDialog.h" />
     <ClInclude Include="resource.h" />
     <ClInclude Include="SettingDlg.h" />

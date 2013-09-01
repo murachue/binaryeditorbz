@@ -576,7 +576,7 @@ void CBZDoc::ClipboardReadClose(HGLOBAL hMem, LPBYTE pMem, LPBYTE pWorkMem)
 	}
 }
 
-DWORD CBZDoc::PasteFromClipboard(DWORD dwPtr, BOOL bIns)
+DWORD CBZDoc::PasteFromClipboard(DWORD dwPtr, BOOL bIns, int format=0)
 {
 	HGLOBAL hMem;
 	LPBYTE pMem;

@@ -258,6 +258,8 @@ protected:
 	afx_msg void OnKeyUp(UINT nChar, UINT nRepCnt, UINT nFlags);
 	afx_msg void OnEditPasteHexstring();
 	afx_msg void OnUpdateEditPasteHexstring(CCmdUI* pCmdUI);
+	afx_msg void OnPasteType();
+	afx_msg void OnUpdatePasteType(CCmdUI* pCmdUI);
 	//}}AFX_MSG
 	afx_msg void OnCharMode(UINT nID);
 	afx_msg void OnUpdateCharMode(CCmdUI* pCmdUI);
