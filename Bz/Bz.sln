@@ -12,7 +12,12 @@ Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "BZScript_ruby", "BZScript_r
 		{1DE442F2-3EC9-446A-98E5-039BA4311D46} = {1DE442F2-3EC9-446A-98E5-039BA4311D46}
 	EndProjectSection
 EndProject
-Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "BZScript_python", "BZScript_python.vcxproj", "{25E50F1C-773E-480B-A048-F478615A836A}"
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "BZScript_python2", "BZScript_python2.vcxproj", "{25E50F1C-773E-480B-A048-F478615A836A}"
+	ProjectSection(ProjectDependencies) = postProject
+		{1DE442F2-3EC9-446A-98E5-039BA4311D46} = {1DE442F2-3EC9-446A-98E5-039BA4311D46}
+	EndProjectSection
+EndProject
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "BZScript_python3", "BZScript_python3.vcxproj", "{E15EDC83-85DD-4E4E-B155-EC2F413AB15D}"
 	ProjectSection(ProjectDependencies) = postProject
 		{1DE442F2-3EC9-446A-98E5-039BA4311D46} = {1DE442F2-3EC9-446A-98E5-039BA4311D46}
 	EndProjectSection
@@ -54,6 +59,15 @@ Global
 		{25E50F1C-773E-480B-A048-F478615A836A}.Release|Win32.Build.0 = Release|Win32
 		{25E50F1C-773E-480B-A048-F478615A836A}.ReleaseUPX|Win32.ActiveCfg = Release|Win32
 		{25E50F1C-773E-480B-A048-F478615A836A}.ReleaseUPX|Win32.Build.0 = Release|Win32
+		{E15EDC83-85DD-4E4E-B155-EC2F413AB15D}.Debug|Win32.ActiveCfg = Debug|Win32
+		{E15EDC83-85DD-4E4E-B155-EC2F413AB15D}.Debug|Win32.Build.0 = Debug|Win32
+		{E15EDC83-85DD-4E4E-B155-EC2F413AB15D}.Debug|Win32.Deploy.0 = Debug|Win32
+		{E15EDC83-85DD-4E4E-B155-EC2F413AB15D}.Release|Win32.ActiveCfg = Release|Win32
+		{E15EDC83-85DD-4E4E-B155-EC2F413AB15D}.Release|Win32.Build.0 = Release|Win32
+		{E15EDC83-85DD-4E4E-B155-EC2F413AB15D}.Release|Win32.Deploy.0 = Release|Win32
+		{E15EDC83-85DD-4E4E-B155-EC2F413AB15D}.ReleaseUPX|Win32.ActiveCfg = Release|Win32
+		{E15EDC83-85DD-4E4E-B155-EC2F413AB15D}.ReleaseUPX|Win32.Build.0 = Release|Win32
+		{E15EDC83-85DD-4E4E-B155-EC2F413AB15D}.ReleaseUPX|Win32.Deploy.0 = Release|Win32
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

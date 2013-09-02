@@ -6,6 +6,10 @@
 #include "BZScriptView.h"
 #include "BZScriptPython.h"
 
+#if !defined(BZPYTHON2) ^ !defined(BZPYTHON3) == 0
+#error "Define either BZPYTHON2 or BZPYTHON3 but not both."
+#endif
+
 // !!!!!
 // Py_NO_ENABLE_SHARED also disables dllimport, I just want to avoid to linking against python27_d.lib in Debug config which is not included in Win32 Python distrib...
 #ifdef _DEBUG
@@ -17,6 +21,12 @@
 
 #ifdef _DEBUG_IS_ON
 #define _DEBUG
+#endif
+
+#ifdef BZPYTHON3
+#define PyString_FromString PyBytes_FromString
+#define PyString_FromStringAndSize PyBytes_FromStringAndSize
+#define PyString_ConcatAndDel PyBytes_ConcatAndDel
 #endif
 
 static CBZScriptView *cbzsv; // TODO: Global...
@@ -54,21 +64,46 @@ static PyObject* python_write(PyObject *self, PyObject *args)
 	}
 	CString cstr(str, len);
 
-	CString rstr;
-	cbzsv->m_editResult.GetWindowText(rstr);
 	cstr.Replace(_T("\n"), _T("\r\n"));
-	rstr.Append(cstr);
-	cbzsv->m_editResult.SetWindowText(rstr);
+	cbzsv->write(cstr);
 
 	Py_INCREF(Py_None);
 	return Py_None;
 }
 
+#ifdef BZPYTHON3
+static PyObject* python_flush(PyObject *self, PyObject *args)
+{
+	if(!PyArg_ParseTuple(args, ""))
+		return NULL;
+
+	// Do nothing.
+
+	Py_INCREF(Py_None);
+	return Py_None;
+}
+#endif
+
 static PyMethodDef bzwriterMethods[] =
 {
 	{"write", python_write, METH_VARARGS, ""},
+#ifdef BZPYTHON3
+	{"flush", python_flush, METH_VARARGS, ""},
+#endif
 	{NULL, NULL, 0, NULL}
 };
+
+#ifdef BZPYTHON3
+static PyModuleDef bzwriterModule = {
+	PyModuleDef_HEAD_INIT, "bzwriter", NULL, -1, bzwriterMethods,
+	NULL, NULL, NULL, NULL
+};
+
+static PyObject* PyInit_bzwriter(void)
+{
+	return PyModule_Create(&bzwriterModule);
+}
+#endif
 
 
 static ULONGLONG convert_minus_index(LONGLONG i, ULONGLONG size)
@@ -675,9 +710,37 @@ static PyMethodDef bzMethods[] =
 	{NULL, NULL, 0, NULL}
 };
 
+#define BZPYTHON_DOC "BZ embedded interface module."
+
+#ifdef BZPYTHON3
+static PyModuleDef bzModule = {
+	PyModuleDef_HEAD_INIT, "bz", BZPYTHON_DOC, -1, bzMethods,
+	NULL, NULL, NULL, NULL
+};
+
+static PyObject* PyInit_bz(void)
+{
+/*
+	// test...
+	PyObject *mod;
+	mod = PyModule_Create(&bzModule);
+	Py_DECREF(mod);
+	return mod;
+*/
+	// http://docs.python.org/3/extending/embedding.html#extending-embedded-python のまま。
+	return PyModule_Create(&bzModule);
+}
+#endif
+
 BOOL BZScriptPython::init(CBZScriptView *sview)
 {
+#ifdef BZPYTHON2
 	Py_SetProgramName("BZ");
+#endif
+#ifdef BZPYTHON3
+	Py_SetProgramName(L"BZ");
+	PyImport_AppendInittab("bz", &PyInit_bz);
+#endif
 	Py_Initialize();
 
 	// "sys"をimportして色々するテスト…
@@ -696,13 +759,36 @@ BOOL BZScriptPython::init(CBZScriptView *sview)
 	// sys.stdout/stderrを自作関数に置き換える
 	// TODO: stdinもなんとかする。
 	PyObject *mymodule;
+#ifdef BZPYTHON2
 	mymodule = Py_InitModule("bzwriter", bzwriterMethods);
+#endif
+#ifdef BZPYTHON3
+	// bzwriterは隠しオブジェクトとして、PyImport_AppendInittabしない。
+	mymodule = PyModule_Create(&bzwriterModule); // PyModule_Create may returns new reference...
+#endif
 	// PySys_SetObject(->PyDict_SetItem?)は、PyObject_SetAttrと違って参照を盗まないようだ。
 	PySys_SetObject("stdout", mymodule);
 	PySys_SetObject("stderr", mymodule);
 	//Py_DECREF(mymodule); Py_InitModuleの戻り値は借り物なのでPy_DECREF不可
 
-	mymodule = Py_InitModule3("bz", bzMethods, "BZ embedded interface module.");
+#ifdef BZPYTHON2
+	mymodule = Py_InitModule3("bz", bzMethods, BZPYTHON_DOC);
+#endif
+#ifdef BZPYTHON3
+	// Python3はPyModule_Create時に内部で参照を持ち、Py_Finalize時に放すように見える。
+	// ここでPy_DECREFを呼んでもfreeされない。けど安全のため放置。多少のメモリーリークなんて知らない。
+	// bzwriterの参照はstdout/stderrも握っている。
+	//Py_DECREF(mymodule);
+
+/*
+	mymodule = PyImport_ImportModule("bz");
+	Py_DECREF(mymodule);
+*/
+/*
+	mymodule = PyModule_Create(&bzModule); // PyModule_Createはたぶん新しい参照を返す…?
+	Py_DECREF(mymodule); // Py_DECREFするべき?
+*/
+#endif
 	set_auto_invalidate(mymodule, TRUE);
 
 	return TRUE;
@@ -742,7 +828,12 @@ CString BZScriptPython::run(CBZScriptView* sview, const char * cmdstr)
 	PyObject *module = PyImport_AddModule("__main__");
 	PyObject *py_globals = (module == NULL) ? NULL : PyModule_GetDict(module);
 	//PYW_GIL_ENSURE;
+#ifdef BZPYTHON2
 	PyObject *py_result = PyEval_EvalCode((PyCodeObject*)py_code, py_globals, py_globals);
+#endif
+#ifdef BZPYTHON3
+	PyObject *py_result = PyEval_EvalCode(py_code, py_globals, py_globals);
+#endif
 	//PYW_GIL_RELEASE;
 	Py_DECREF(py_code);
 
@@ -755,9 +846,18 @@ CString BZScriptPython::run(CBZScriptView* sview, const char * cmdstr)
 	{
 		PyObject *pystr = PyObject_Str(py_result);
 		Py_DECREF(py_result);
+#ifdef BZPYTHON2
 		char *cstr = PyString_AsString(pystr);
 		int cstrlen = strlen(cstr);
 		CStringA csresult(cstr, cstrlen);
+#endif
+#ifdef BZPYTHON3
+		// PyUnicode_AsUnicode->Py_UNICODE could be UCS4... only want wchar_t; use PyUnicode_AsWideChar(String).
+		wchar_t *cstr = PyUnicode_AsWideCharString(pystr, NULL);
+		int cstrlen = lstrlenW(cstr);
+		CStringW csresult(cstr, cstrlen);
+		PyMem_Free(cstr);
+#endif
 		Py_DECREF(pystr);
 		CString csnative(csresult);
 		CString ostr;
@@ -776,5 +876,10 @@ CString BZScriptPython::run(CBZScriptView* sview, const char * cmdstr)
 
 CString BZScriptPython::name(void)
 {
-	return CString(_T("Python"));
+#ifdef BZPYTHON2
+	return CString(_T("Python2"));
+#endif
+#ifdef BZPYTHON3
+	return CString(_T("Python3"));
+#endif
 }
