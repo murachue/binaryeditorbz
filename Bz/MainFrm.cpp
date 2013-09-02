@@ -385,8 +385,8 @@ BOOL CMainFrame::CreateClient(CCreateContext* pContext)
 				m_pSplitter->CreateView(0, 0, RUNTIME_CLASS(CBZInspectView), CSize(0,0), pContext);
 			else if(m_bAnalyzerView)
 				m_pSplitter->CreateView(0, 0, RUNTIME_CLASS(CBZAnalyzerView), CSize(0,0), pContext);
-			else if(m_bScriptView)
-				m_pSplitter->CreateView(0, 0, RUNTIME_CLASS(CBZScriptView), CSize(0,0), pContext);
+			//else if(m_bScriptView)
+			//	m_pSplitter->CreateView(0, 0, RUNTIME_CLASS(CBZScriptView), CSize(0,0), pContext);
 			else if(m_bStructView)
 				m_pSplitter->CreateView(0, 0, RUNTIME_CLASS(CBZFormView), CSize(0,0), pContext);
 			else

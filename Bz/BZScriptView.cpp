@@ -209,6 +209,9 @@ void CBZScriptView::OnInitialUpdate()
 
 	SetScrollSizes(MM_TEXT, CSize(0, 0));	
 	m_pView = (CBZView*)GetNextWindow();
+	if(m_pView == NULL)
+		m_pView = (CBZView*)GetNextWindow(GW_HWNDPREV);
+	ASSERT(m_pView != NULL);
 
 	// TODO: OnInitialUpdateが2回呼ばれることがある対策…。
 	// BZ起動直後にScriptViewが表示される場合(前回終了時ScriptView表示のまま)のパターン。

@@ -167,17 +167,30 @@ static PyObject *data2pystr(CBZDoc *doc, DWORD begin, DWORD end)
 	return str;
 }
 
-static PyObject* bzpy_dataat(PyObject *self, PyObject *args, PyObject *kwargs)
+static PyObject* bzpy_data(PyObject *self, PyObject *args, PyObject *kwargs)
 {
 	LONGLONG begin = LONGLONG_MIN, end = LONGLONG_MIN;
 	const char *data = NULL;
 	Py_ssize_t datalen = 0; // TODO: 4GB越え対応?
-	static char *kws[] = {"begin", "end", "data"};
-	if(!PyArg_ParseTupleAndKeywords(args, kwargs, "L|Ls#", kws, &begin, &end, &data, &datalen)) return NULL;
+	static /*const*/ char *kws[] = {"begin", "end", "data", NULL/*redundant sentinel*/};
+	if(!PyArg_ParseTupleAndKeywords(args, kwargs, "|LLs#", kws, &begin, &end, &data, &datalen)) return NULL;
+	//if(!PyArg_ParseTuple(args, "|LLs#", &begin, &end, &data, &datalen)) return NULL;
 
 	CBZView *view = cbzsv->m_pView;
 	CBZDoc *doc = view->GetDocument();
 	DWORD docsize = doc->GetDocSize(); // TODO: 4GB越え対応
+
+	if(begin == LONGLONG_MIN)
+	{
+		if(end == LONGLONG_MIN)
+		{
+			begin = 0;
+			end = docsize;
+		} else
+		{
+			begin = view->m_dwCaret;
+		}
+	}
 
 	begin = convert_minus_index(begin, docsize);
 
@@ -188,7 +201,7 @@ static PyObject* bzpy_dataat(PyObject *self, PyObject *args, PyObject *kwargs)
 			end = begin + 1;
 		} else
 		{
-			end = begin;
+			end = min(docsize, begin + datalen);
 		}
 	}
 
@@ -197,6 +210,12 @@ static PyObject* bzpy_dataat(PyObject *self, PyObject *args, PyObject *kwargs)
 	if(end < begin)
 	{
 		PyErr_SetString(PyExc_IndexError, "\"begin\" beyonds \"end\"");
+		return NULL;
+	}
+
+	if(docsize < end)
+	{
+		PyErr_SetString(PyExc_IndexError, "\"end\" beyonds document size");
 		return NULL;
 	}
 
@@ -273,7 +292,7 @@ static PyObject* bzpy_value(PyObject *self, PyObject *args, PyObject *kwargs)
 	LONGLONG off = view->m_dwCaret;
 	int size = view->m_nBytes;
 	ULONGLONG value = ULONGLONG_MAX;
-	static char *kws[] = {"offset", "width", "value"};
+	static /*const*/ char *kws[] = {"offset", "width", "value", NULL/*redundant sentinel*/};
 	if(!PyArg_ParseTupleAndKeywords(args, kwargs, "|LiK", kws, &off, &size, &value)) return NULL;
 
 	off = convert_minus_index(off, view->GetDocument()->GetDocSize());
@@ -329,7 +348,7 @@ static PyObject* bzpy_block(PyObject *self, PyObject *args)
 	} else if(end == LONGLONG_MIN)
 	{
 		// XXX: ...use "caret"!
-		PyErr_SetString(PyExc_RuntimeError, "\"begin\" passed but \"end\". Use caret().");
+		PyErr_SetString(PyExc_RuntimeError, "\"begin\" passed but \"end\"; Use caret()");
 		return NULL;
 	} else
 	{
@@ -361,7 +380,7 @@ static PyObject* bzpy_mark(PyObject *self, PyObject *args, PyObject *kwargs)
 	CBZView *view = cbzsv->m_pView;
 	LONGLONG off = LONGLONG_MIN;
 	PyObject *mark = Py_None;
-	static char *kws[] = {"offset", "mark"};
+	static /*const*/ char *kws[] = {"offset", "mark", NULL/*redundant sentinel*/};
 	if(!PyArg_ParseTupleAndKeywords(args, kwargs, "|LO", kws, &off, &mark)) return NULL;
 
 	if(off == LONGLONG_MIN)
@@ -455,12 +474,12 @@ static PyObject* bzpy_endianess(PyObject *self, PyObject *args)
 		// set
 		if(endianess != 0 && endianess != 1)
 		{
-			PyErr_SetString(PyExc_IndexError, "endianess is allowed only become 0 or 1.");
+			PyErr_SetString(PyExc_IndexError, "endianess is allowed only become 0 or 1");
 		}
 		int old = options.bByteOrder;
 		options.bByteOrder = endianess;
 
-		// XXX: TODO: UTF-16はendianessで表示が変わるため必要。Rubyで忘れてるので後で移植。
+		// UTF-16はendianessで表示が変わるため必要。
 		auto_invalidate(self);
 
 		return Py_BuildValue("i", old ? 1 : 0);
@@ -625,31 +644,31 @@ static PyObject* bzpy_selected(PyObject *self, PyObject *args)
 //   - map?
 static PyMethodDef bzMethods[] =
 {
-	{"caret", bzpy_caret, METH_VARARGS, ""},
-	{"setcaret", bzpy_caret, METH_VARARGS, ""},
-	{"dataat", (PyCFunction)bzpy_dataat, METH_KEYWORDS, ""},
-	{"setdataat", (PyCFunction)bzpy_dataat, METH_KEYWORDS, ""},
-	{"value", (PyCFunction)bzpy_value, METH_KEYWORDS, ""},
-	{"setvalue", (PyCFunction)bzpy_value, METH_KEYWORDS, ""},
-	{"block", bzpy_block, METH_VARARGS, ""},
-	{"setblock", bzpy_block, METH_VARARGS, ""},
-	{"mark", (PyCFunction)bzpy_mark, METH_KEYWORDS, ""},
-	{"togglemark", bzpy_togglemark, METH_VARARGS, ""}, // call-only
-	{"setmark", (PyCFunction)bzpy_mark, METH_KEYWORDS, ""},
-	{"filemapping", bzpy_filemapping, METH_VARARGS, ""}, // read-only
-	{"invalidate", bzpy_invalidate, METH_VARARGS, ""}, // call-only
-	{"endianess", bzpy_endianess, METH_VARARGS, ""},
-	{"setendianess", bzpy_endianess, METH_VARARGS, ""},
-	{"filename", bzpy_filename, METH_VARARGS, ""}, // read-only
-	{"__len__", bzpy_len, METH_VARARGS, ""}, // read-only
+	{"caret", bzpy_caret, METH_VARARGS, "caret()=long; Get caret position in bytes."},
+	{"setcaret", bzpy_caret, METH_VARARGS, "setcaret(offset)=long; Set caret position in bytes, return caret position before set."},
+	{"data", (PyCFunction)bzpy_data, METH_VARARGS | METH_KEYWORDS, "data(begin=0[or caret if end is not present],end=size[or caret+1 if begin is present])=str; Get part of data."},
+	{"setdata", (PyCFunction)bzpy_data, METH_VARARGS | METH_KEYWORDS, "setdata(begin=0[or caret if end is not present],end=size[or caret if begin is present],data)=data; Insert or replace whole or part of data."},
+	{"value", (PyCFunction)bzpy_value, METH_VARARGS | METH_KEYWORDS, "value(offset=caret)=long; Get part of data as a word."},
+	{"setvalue", (PyCFunction)bzpy_value, METH_VARARGS | METH_KEYWORDS, "setvalue(offset=caret,data)=data; Set part of data as a word."},
+	{"block", bzpy_block, METH_VARARGS, "block()=(begin,end); Get selection range."},
+	{"setblock", bzpy_block, METH_VARARGS, "setblock(begin,end)=None; Set selection range."},
+	{"mark", (PyCFunction)bzpy_mark, METH_VARARGS | METH_KEYWORDS, "mark(offset=caret)=long; Get mark."},
+	{"togglemark", bzpy_togglemark, METH_VARARGS, "togglemark(offset=caret)=oldmark; Toggle mark."}, // call-only
+	{"setmark", (PyCFunction)bzpy_mark, METH_VARARGS | METH_KEYWORDS, "setmark(offset=caret,mark)=oldmark; Set mark."},
+	{"filemapping", bzpy_filemapping, METH_VARARGS, "filemapping()=bool; Get file is opened in File-mapping mode or not."}, // read-only
+	{"invalidate", bzpy_invalidate, METH_VARARGS, "invalidate()=None; Redraw screen to reflect state to display."}, // call-only
+	{"endianess", bzpy_endianess, METH_VARARGS, "endianess()=0[intel]/1[motorola]; Get endianess."},
+	{"setendianess", bzpy_endianess, METH_VARARGS, "setendianess(0[intel]/1[motorola])=oldendianess; Set endianess."},
+	{"filename", bzpy_filename, METH_VARARGS, "filename()=str; Get opened file name."}, // read-only
+	{"len", bzpy_len, METH_VARARGS, "len()=long; Get data size."}, // read-only
 	//{"bytes", bzpy_bytes, METH_VARARGS, ""}, // Iterator
 	//{"words", bzpy_words, METH_VARARGS, ""}, // Iterator
-	{"wide", bzpy_wide, METH_VARARGS, ""},
-	{"setwide", bzpy_wide, METH_VARARGS, ""},
-	{"autoinvalidate", bzpy_autoinvalidate, METH_VARARGS, ""},
-	{"setautoinvalidate", bzpy_autoinvalidate, METH_VARARGS, ""},
-	{"undo", bzpy_undo, METH_VARARGS, ""}, // call-only
-	{"selected", bzpy_selected, METH_VARARGS, ""}, // bzruby's "b"
+	{"wide", bzpy_wide, METH_VARARGS, "wide()=int; Get word size."},
+	{"setwide", bzpy_wide, METH_VARARGS, "setwide(int)=oldwide; Set word size."},
+	{"autoinvalidate", bzpy_autoinvalidate, METH_VARARGS, "autoinvalidate()=bool; Set \"invalidate\" when operation that affects display is done."},
+	{"setautoinvalidate", bzpy_autoinvalidate, METH_VARARGS, "setautoinvalidate(bool)=bool; Get \"invalidate\" or not when operation that affects display is done."},
+	{"undo", bzpy_undo, METH_VARARGS, "undo()=bool[could undo]; Undo last change."}, // call-only
+	{"selected", bzpy_selected, METH_VARARGS, "selected()=str; Get selected part of data."}, // bzruby's "b"
 	// clipboard feature is hidden until merging b128dd8
 	//{"clip", bzpy_, METH_VARARGS, ""},
 	//{"setclip", bzpy_, METH_VARARGS, ""},

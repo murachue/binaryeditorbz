@@ -550,6 +550,10 @@ static VALUE bzruby_setendianess(VALUE self, VALUE vendian)
 	old_endian = options.bByteOrder == TRUE ? 1 : 0;
 	options.bByteOrder = (endian == 1) ? TRUE : FALSE;
 
+	// UTF-16はendianessで表示が変わるため必要。
+	if(RTEST(rb_iv_get(self, "auto_invalidate")))
+		cbzsv->m_pView->Invalidate();
+
 	return UINT2NUM(old_endian); // おまけ
 }
 static VALUE bzruby_isle(VALUE self) { return options.bByteOrder == 0 ? Qtrue : Qfalse; }
