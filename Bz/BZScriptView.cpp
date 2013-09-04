@@ -151,7 +151,7 @@ void CBZScriptView::LoadScriptPlugin(LPCTSTR dllname)
 	}
 	BZScriptWrapper *sw = new BZScriptWrapper();
 	BOOL ok1 = sw->init(proc(), this);
-	ASSERT(ok1);
+	ASSERT(ok1); // TODO: まともなエラーチェック。もしくは戻り値の意味を変更する(すでに初期化済とか)。
 	scripts.Add(sw);
 	int idx = m_comboEngine.AddString(sw->getSIF()->name());
 	if(sw->getSIF()->name() == options.sScriptEngine || m_comboEngine.GetCurSel() == CB_ERR)
@@ -231,7 +231,21 @@ void CBZScriptView::ClearAll(void)
 
 	for(int i = 0; i < scripts.GetCount(); i++)
 	{
-		scripts.GetAt(i)->getSIF()->onClear(this);
+		BZScriptInterface *sif = scripts.GetAt(i)->getSIF();
+		sif->onClear(this);
+
+		// XXX: ClearAllは複数回呼ばれる(初期化時一回だけとは限らない)ようになるかもしれないことを考えると
+		//      ここで自動実行文を呼ぶのはナシだと思うけど、適切な場所がほかにない…。
+		//      (LoadScriptPlugins内で呼ぶとputsなどの出力が消される。)
+		COptions op;
+		CString opkey;
+		opkey.Format(_T("ScriptInit.%s"), sif->name());
+		CString initstr = op.GetProfileString(opkey, _T(""));
+		if(!initstr.IsEmpty())
+		{
+			// 自動実行文は履歴に追加したくないので、BZScriptInterface::runを直接呼び出す。
+			sif->run(this, CStringA(initstr));
+		}
 	}
 
 	if(scripts.GetCount() > 0)
