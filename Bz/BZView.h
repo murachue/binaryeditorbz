@@ -183,7 +183,7 @@ private:
 	CString GetStatusInfoText();
 	void JumpTo(DWORD dwNewCaret);
 	void SetMaxPrintingPage(CPrintInfo* pInfo);		// ### 1.54
-	void PutUnicodeChar(WORD w);					// ### 1.54b
+	void PutUnicodeChar(WORD w, BOOL wascolorset);	// ### 1.54b
 	void OnDoubleClick();							// ### 1.62
 	static BOOL LoadEbcDicTable();					// ### 1.63
 	UCHAR ConvertEbcDic(UCHAR c);

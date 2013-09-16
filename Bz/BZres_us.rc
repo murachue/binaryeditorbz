@@ -736,6 +736,8 @@ STRINGTABLE
 BEGIN
     IDS_COLOR_OVERBROTHER   "Overs"
     IDS_COLOR_HORIZON       "Horizontal Line"
+    IDS_COLOR_TEXTNULL      "Null Byte"
+    IDS_COLOR_CHARNG        "Invalid Char"
 END
 
 STRINGTABLE

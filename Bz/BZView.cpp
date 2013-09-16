@@ -466,6 +466,8 @@ void CBZView::OnDraw(CDC* pDC)
 #endif
 
 		for_to_(i,16) {
+			BOOL wascolorset = TRUE;
+
 			if(ofs >= dwTotal) {
 				SetColor();
 				PutChar(' ', 16-i);
@@ -480,12 +482,14 @@ void CBZView::OnDraw(CDC* pDC)
 				else
 					SetColor(TCOLOR_STRUCT);
 			}
-			else
+			else {
+				wascolorset = FALSE;
 				SetColor();
+			}
 
 			if(m_charset == CTYPE_UNICODE) {
 				WORD w = SwapWord(*((WORD*)(p+ofs)));	// ### 1.54a
-				PutUnicodeChar(w);
+				PutUnicodeChar(w, wascolorset);
 				ofs += 2;
 				i++;
 			} else {
@@ -582,7 +586,7 @@ void CBZView::OnDraw(CDC* pDC)
 							}
 							}
 							if(w) {
-								PutUnicodeChar(w);
+								PutUnicodeChar(w, wascolorset);
 								if(w & ~0x07FF && i < 16) {
 									c = CHAR_NG;
 								} else
@@ -598,6 +602,16 @@ void CBZView::OnDraw(CDC* pDC)
 						c = *(m_pEbcDic + ((BYTE)c - EBCDIC_BASE));
 					break;
 				}
+
+				if(!wascolorset) {
+					WORD orgc = *(p + ofs - 1);
+					if(orgc == 0) {
+						SetColor(TCOLOR_TEXTNULL);
+					} else if(orgc != CHAR_NG && c == CHAR_NG) {
+						SetColor(TCOLOR_CHARNG);
+					}
+				}
+
 #if 0//#ifdef _UNICODE
 				if(fPutSkip)
 				{
@@ -667,7 +681,7 @@ void CBZView::DrawGrid(CDC* pDC, RECT& rClip)
 	pDC->SetBkMode(OldBkMode);
 }
 
-void CBZView::PutUnicodeChar(WORD w)
+void CBZView::PutUnicodeChar(WORD w, BOOL wascolorset)
 {
 	WCHAR wbs[3] = {0};
 	wbs[0] = w;
@@ -675,9 +689,16 @@ void CBZView::PutUnicodeChar(WORD w)
 #if 1//#ifndef _UNICODE
 	char  mbs[4];
 	int len = ::WideCharToMultiByte(CP_ACP, 0, wbs, -1, mbs, 3, NULL, NULL);
-	if(len <= 1 || mbs[0] == '?' || wbs[0] < 0x20)
+	if(len <= 1 || mbs[0] == '?' || wbs[0] < 0x20) {
+		if(!wascolorset) {
+			if(len == 0 || wbs[0] == 0x00) {
+				SetColor(TCOLOR_TEXTNULL);
+			} else {
+				SetColor(TCOLOR_CHARNG);
+			}
+		}
 		PutStr(". ");
-	else {
+	} else {
 		if(mbs[1] == 0) {
 			mbs[1] = ' '; mbs[2] = 0;
 		}

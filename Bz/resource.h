@@ -77,6 +77,8 @@
 #define IDS_COLOR_MEMBER                3007
 #define IDS_COLOR_OVERBROTHER           3008
 #define IDS_COLOR_HORIZON               3009
+#define IDS_COLOR_TEXTNULL              3010
+#define IDS_COLOR_CHARNG                3011
 #define IDS_ERR_FILENOTFOUND            4000
 #define IDS_ERR_SYNTAX                  4001
 #define IDS_ERR_MALLOC                  4002
