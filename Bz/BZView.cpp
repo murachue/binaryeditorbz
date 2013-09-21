@@ -70,7 +70,7 @@ static char THIS_FILE[] = __FILE__;
 //static const UINT nMsgFindReplace = ::RegisterWindowMessage(FINDMSGSTRING);
 
 static DWORD  MemCompByte2(LPCVOID p1, LPCVOID p2, DWORD len);
-static LPBYTE MemScanByteNeg(BYTE *p, BYTE c, DWORD len);
+static DWORD  MemScanByteNeg(const BYTE *p, BYTE c, DWORD len);
 
 BOOL CBZView::m_bHexSize = FALSE;
 LPSTR CBZView::m_pEbcDic = NULL;
@@ -1648,7 +1648,7 @@ void CBZView::OnJumpFindnext()
 	CWaitCursor wait;	// ###1.61
 
 	DWORD dwStart = m_dwCaret + 1;
-	if(dwStart >= m_dwTotal-1)return;
+	if(dwStart >= m_dwTotal)return;
 
 	DWORD dwRetAddress = 0xFFFFffff;//err
 
@@ -1668,7 +1668,25 @@ void CBZView::OnJumpFindnext()
 			AfxMessageBox(IDS_ERR_TOOLONG_NEGFIND, MB_OK | MB_ICONERROR);
 			return;
 		}
-		dwRetAddress = strstrBinary(pFind, nFind, dwStart);//charset = CTYPE_BINARY;
+		if(!negativeFind)
+			dwRetAddress = strstrBinary(pFind, nFind, dwStart);//charset = CTYPE_BINARY;
+		else {
+			// negativeFind
+			DWORD dwOffset = dwStart;
+			while(dwOffset < m_dwTotal) {
+				LPBYTE p = m_pDoc->QueryMapViewTama2(dwOffset, m_dwTotal - dwOffset);
+				if(!p) {
+					dwRetAddress = 0xFFFFffff;
+					break;
+				}
+				dwRetAddress = MemScanByteNeg(p, pFind[0], m_pDoc->GetMapRemain(dwOffset));
+				if(dwRetAddress != 0xFFFFffff)
+				{
+					dwRetAddress += dwOffset;
+					break;
+				}
+			}
+		}
 	} else {		//ŒŸõƒ‚[ƒh [abcdef]
 		if(charset >= CTYPE_UNICODE) { //CTYPE_UNICODE, CTYPE_JIS, CTYPE_EUC, CTYPE_UTF8, CTYPE_EBCDIC, CTYPE_EPWING, CTYPE_COUNT, CTYPE_BINARY
 			nFind = ConvertCharSet(charset, sFind, pFind);
@@ -1719,14 +1737,15 @@ static DWORD MemCompByte2(const BYTE *p1, const BYTE *p2, DWORD len)
 	return p3-p1;
 }
 
-static LPBYTE MemScanByteNeg(BYTE *p, BYTE c, DWORD len)
+static DWORD MemScanByteNeg(const BYTE *p, BYTE c, DWORD len)
 {
-	BYTE *p2 = p+len;
-	for(;p<p2;p++)
+	const BYTE *pstart = p;
+	const BYTE *pend = p + len;
+	for(;p<pend;p++)
 	{
-		if(*p!=c)return p;
+		if(*p != c)return p - pstart;
 	}
-	return 0;
+	return 0xFFFFffff;
 }
 
 BOOL CBZView::CalcHexa(LPCSTR sExp, long& n1)
