@@ -452,6 +452,85 @@ void CBZDoc::OnUpdateEditReadOnlyOpen(CCmdUI* pCmdUI)
 	pCmdUI->SetCheck(options.bReadOnlyOpen);	
 }
 
+// TODO: merge後削除
+BOOL CBZDoc::CopyToClipboard(DWORD dwOffset, DWORD dwSize, BOOL bHexString)	// ###1.5
+{
+#ifdef FILE_MAPPING
+	LPBYTE lpStart = QueryMapViewTama2(dwOffset, dwSize); //QueryMapView(m_pData, dwPtr);
+	if(GetMapRemain(dwOffset) < dwSize) //if(dwSize >= options.dwMaxMapSize || IsOutOfMap(m_pData + dwPtr + dwSize))
+	{
+		AfxMessageBox(IDS_ERR_COPY);
+		return FALSE;
+	}
+#endif //FILE_MAPPING
+	HGLOBAL hMemTxt = ::GlobalAlloc(GMEM_MOVEABLE, dwSize + 1);
+	HGLOBAL hMemBin = ::GlobalAlloc(GMEM_MOVEABLE, dwSize + sizeof(dwSize));
+	LPBYTE pMemTxt  = (LPBYTE)::GlobalLock(hMemTxt);
+	LPBYTE pMemBin  = (LPBYTE)::GlobalLock(hMemBin);
+	memcpy(pMemTxt, lpStart, dwSize);
+	*(pMemTxt + dwSize) = '\0';
+	*((DWORD*)(pMemBin)) = dwSize;
+	memcpy(pMemBin + sizeof(dwSize), lpStart, dwSize);
+	::GlobalUnlock(hMemTxt);
+	::GlobalUnlock(hMemBin);
+	AfxGetMainWnd()->OpenClipboard();
+	::EmptyClipboard();
+	::SetClipboardData(CF_TEXT, hMemTxt);
+	::SetClipboardData(RegisterClipboardFormat(_T("BinaryData2")), hMemBin);
+	::CloseClipboard();
+	return TRUE;
+}
+
+// merge後削除
+DWORD CBZDoc::PasteFromClipboard(DWORD dwPtr, BOOL bIns, UINT format)
+{
+	AfxGetMainWnd()->OpenClipboard();
+	HGLOBAL hMem;
+	DWORD dwSize;
+	LPBYTE pMem;
+	if(hMem = ::GetClipboardData(RegisterClipboardFormat(_T("BinaryData2")))) {
+		pMem = (LPBYTE)::GlobalLock(hMem);
+		dwSize = *((DWORD*)(pMem));
+		pMem += sizeof(DWORD);
+	} else if(hMem = GetClipboardData(CF_TEXT)) {
+		pMem = (LPBYTE)::GlobalLock(hMem);
+		dwSize = lstrlenA((LPCSTR)pMem);
+	} else {
+/*		UINT uFmt = 0;
+		while(uFmt = ::EnumClipboardFormats(uFmt)) {
+			CString sName;
+			::GetClipboardFormatName(uFmt, sName.GetBuffer(MAX_PATH), MAX_PATH);
+			sName.ReleaseBuffer();
+			TRACE("clip 0x%X:%s\n", uFmt, sName);
+		}
+
+		return 0;
+*/		if(!(hMem = ::GetClipboardData(::EnumClipboardFormats(0))))
+			return 0;
+		pMem = (LPBYTE)::GlobalLock(hMem);
+		dwSize = ::GlobalSize(hMem);
+	}
+	if(!dwSize) return 0;
+#ifdef FILE_MAPPING
+	if(IsFileMapping()) {
+		//int nGlow = dwSize - (m_dwTotal - dwPtr);
+		DWORD nGlow = dwSize - (m_dwTotal - dwPtr);
+		if(nGlow <= dwSize/*overflow check*/ && nGlow > 0)
+			dwSize -= nGlow;
+	}
+#endif //FILE_MAPPING
+	if(bIns || dwPtr == m_dwTotal)
+		StoreUndo(dwPtr, dwSize, UNDO_DEL);
+	else
+		StoreUndo(dwPtr, dwSize, UNDO_OVR);
+	InsertData(dwPtr, dwSize, bIns);
+	memcpy(m_pData+dwPtr, pMem, dwSize);
+	::GlobalUnlock(hMem);
+	::CloseClipboard();
+	return dwPtr+dwSize;
+}
+
+// scripting用
 BOOL CBZDoc::DoCopyToClipboard(LPBYTE lpStart, DWORD dwSize, BOOL bHexString)
 {
 	HGLOBAL hMemTxt, hMemBin;
@@ -496,6 +575,7 @@ BOOL CBZDoc::DoCopyToClipboard(LPBYTE lpStart, DWORD dwSize, BOOL bHexString)
 	return TRUE;
 }
 
+#if 0 // merge後復活させる
 BOOL CBZDoc::CopyToClipboard(DWORD dwOffset, DWORD dwSize, BOOL bHexString)	// ###1.5
 {
 #ifdef FILE_MAPPING
@@ -508,6 +588,7 @@ BOOL CBZDoc::CopyToClipboard(DWORD dwOffset, DWORD dwSize, BOOL bHexString)	// #
 #endif //FILE_MAPPING
 	return DoCopyToClipboard(lpStart, dwSize, bHexString);
 }
+#endif
 
 DWORD CBZDoc::ClipboardReadOpen(HGLOBAL &hMem, LPBYTE &pMem, LPBYTE &pWorkMem, UINT format)
 {
@@ -579,6 +660,7 @@ void CBZDoc::ClipboardReadClose(HGLOBAL hMem, LPBYTE pMem, LPBYTE pWorkMem)
 	}
 }
 
+#if 0 // merge後復活させる
 DWORD CBZDoc::PasteFromClipboard(DWORD dwPtr, BOOL bIns, UINT format)
 {
 	HGLOBAL hMem;
@@ -605,6 +687,7 @@ DWORD CBZDoc::PasteFromClipboard(DWORD dwPtr, BOOL bIns, UINT format)
 	ClipboardReadClose(hMem, pMem, pWorkMem);
 	return dwPtr+dwSize;
 }
+#endif
 
 // strの中からhexstringを構成する文字を探しだし、バイナリに変換した後のバッファのポインタを返す。
 // バッファはMemAllocによって確保されているので、MemFreeすること。
