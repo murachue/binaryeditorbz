@@ -172,7 +172,7 @@ private:
 	CBZView* GetBrotherView();
 	void	ChangeFont(LOGFONT& logFont);
 	void	SetValue(LPBYTE p, int bytes, int val);
-	BOOL	IsMBS(LPBYTE pTop, DWORD ofs, BOOL bTrail);
+	//BOOL	IsMBS(LPBYTE pTop, DWORD ofs, BOOL bTrail);
 	CharSet AutoDetectCharSet();
 	int ConvertCharSet(CharSet charset, LPCSTR sFind, LPBYTE &buffer);
 	CharSet DetectCodeType(DWORD dwStart = 0, DWORD dwMaxSize = 0xFFFFffff);//(LPBYTE p, LPBYTE pEnd);
@@ -187,6 +187,17 @@ private:
 	void OnDoubleClick();							// ### 1.62
 	static BOOL LoadEbcDicTable();					// ### 1.63
 	UCHAR ConvertEbcDic(UCHAR c);
+
+	// Quick Search Algorithm
+	void preQuickSearchWI1(LPCWSTR searchTextW, BYTE nSearchTextW, BYTE *skipTable);
+	DWORD stristrBinaryW1(LPCWSTR searchTextW, BYTE nSearchTextW, DWORD dwStart);
+	void preQuickSearchWI4(LPCWSTR searchTextW, DWORD nSearchTextW, DWORD *skipTable);
+	DWORD stristrBinaryW4(LPCWSTR searchTextW, DWORD nSearchTextW, DWORD dwStart);
+	DWORD stristrBinaryW(LPCWSTR searchTextW, DWORD nSearchTextW, DWORD dwStart);
+	void preQuickSearchAI(LPCSTR searchText, DWORD nSearchText, DWORD *skipTable);
+	DWORD stristrBinaryA(LPCSTR searchText, DWORD dwStart);
+	void preQuickSearch(LPBYTE searchByte, unsigned int nSearchByte, DWORD* skipTable);
+	DWORD strstrBinary(LPBYTE searchByte, unsigned int nSearchByte, DWORD dwStart);
 
 public:
 	void ReCreateBackup();
