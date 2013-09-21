@@ -29,6 +29,8 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 #define FILE_MAPPING	// ###1.60
 
+enum UndoMode {	UNDO_INS, UNDO_OVR, UNDO_DEL };
+
 class BZ_SCRIPT_DLLEXTERN CBZDoc : public CDocument
 {
 public: // create from serialization only
