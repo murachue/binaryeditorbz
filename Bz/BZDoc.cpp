@@ -452,15 +452,16 @@ void CBZDoc::OnUpdateEditReadOnlyOpen(CCmdUI* pCmdUI)
 	pCmdUI->SetCheck(options.bReadOnlyOpen);	
 }
 
-// TODO: merge後削除
-BOOL CBZDoc::CopyToClipboard(DWORD dwStart, DWORD dwSize)	// ###1.5
+// scripting向けにデータ取得とクリップボード操作を分離している。
+// TODO: CBZDocにある必要がない(func2に相当する部分だけCBZDocにあればよい)。
+BOOL CBZDoc::DoCopyToClipboard(DWORD dwStart, DWORD dwSize, BOOL (*func2)(void*,void*,void*,DWORD,DWORD), void *param)
 {
 	HGLOBAL hMemTxt = ::GlobalAlloc(GMEM_MOVEABLE, dwSize + 1);
 	HGLOBAL hMemBin = ::GlobalAlloc(GMEM_MOVEABLE, dwSize + sizeof(dwSize));
 	LPBYTE pMemTxt  = (LPBYTE)::GlobalLock(hMemTxt);
 	LPBYTE pMemBin  = (LPBYTE)::GlobalLock(hMemBin);
 
-	if(!memcpyFilemap2Mem(pMemTxt, pMemBin + sizeof(dwSize), dwStart, dwSize))
+	if(!func2(param, pMemTxt, pMemBin + sizeof(dwSize), dwStart, dwSize))
 	{
 		AfxMessageBox(IDS_ERR_COPY);
 		::GlobalUnlock(hMemTxt);
@@ -476,155 +477,55 @@ BOOL CBZDoc::CopyToClipboard(DWORD dwStart, DWORD dwSize)	// ###1.5
 	::GlobalUnlock(hMemBin);
 	AfxGetMainWnd()->OpenClipboard();
 	::EmptyClipboard();
-	::SetClipboardData(CF_TEXT, hMemTxt);
+	::SetClipboardData(CF_TEXT, hMemTxt); // TODO: 選択されている文字コードに応じてエンコードしてからコピー? 場合によってはCF_UNICODETEXTもセットする。
 	::SetClipboardData(RegisterClipboardFormat(_T("BinaryData2")), hMemBin);
 	::CloseClipboard();
 	return TRUE;
 }
 
-// merge後削除
-DWORD CBZDoc::PasteFromClipboard(DWORD dwStart, BOOL bIns)
+static BOOL cb_memcpyFilemap2Mem(void *param, void *ptr1, void *ptr2, DWORD dwStart, DWORD dwSize)
 {
-	AfxGetMainWnd()->OpenClipboard();
-	HGLOBAL hMem;
-	DWORD dwSize;
-	LPBYTE pMem;
-	if(hMem = ::GetClipboardData(RegisterClipboardFormat(_T("BinaryData2")))) {
-		pMem = (LPBYTE)::GlobalLock(hMem);
-		dwSize = *((DWORD*)(pMem));
-		pMem += sizeof(DWORD);
-	} else if(hMem = GetClipboardData(CF_TEXT)) {
-		pMem = (LPBYTE)::GlobalLock(hMem);
-		dwSize = lstrlenA((LPCSTR)pMem);
-	} else {
-/*		UINT uFmt = 0;
-		while(uFmt = ::EnumClipboardFormats(uFmt)) {
-			CString sName;
-			::GetClipboardFormatName(uFmt, sName.GetBuffer(MAX_PATH), MAX_PATH);
-			sName.ReleaseBuffer();
-			TRACE("clip 0x%X:%s\n", uFmt, sName);
-		}
+	CBZDoc *doc = (CBZDoc*)param;
 
-		return 0;
-*/		if(!(hMem = ::GetClipboardData(::EnumClipboardFormats(0))))
-			return 0;
-		pMem = (LPBYTE)::GlobalLock(hMem);
-		dwSize = ::GlobalSize(hMem);
-	}
-	if(!dwSize) return 0;
-#ifdef FILE_MAPPING
-	if(IsFileMapping()) {
-		DWORD nGlow = dwSize - (m_dwTotal - dwStart);
-		if(nGlow <= dwSize/*overflow check*/ && nGlow > 0)
-			dwSize -= nGlow;
-	}
-#endif //FILE_MAPPING
-	if(bIns || dwStart == m_dwTotal)
-		StoreUndo(dwStart, dwSize, UNDO_DEL);
-	else
-		StoreUndo(dwStart, dwSize, UNDO_OVR);
-	InsertData(dwStart, dwSize, bIns);
-	memcpyMem2Filemap(dwStart, pMem, dwSize);
-	::GlobalUnlock(hMem);
-	::CloseClipboard();
-	return dwStart+dwSize;
+	return doc->memcpyFilemap2Mem(ptr1, ptr2, dwStart, dwSize);
 }
 
-/* vvv merge後isDocumentEditedSelfOnlyの後ろに移動 */
-
-void CBZDoc::InsertData(DWORD dwStart, DWORD dwSize, BOOL bIns)
+BOOL CBZDoc::CopyToClipboard(DWORD dwStart, DWORD dwSize)	// ###1.5
 {
-	BOOL bGlow = false;
-	DWORD nGlow = dwSize - (m_dwTotal - dwStart);
-	if(nGlow <= dwSize/*overflow check*/ && nGlow > 0)
-		bGlow=true;
-	if(!m_pData) {
-		m_pData = (LPBYTE)MemAlloc(dwSize);
-		m_dwTotal = dwSize;
-	} else if(bIns || dwStart == m_dwTotal) {
-			m_pData = (LPBYTE)MemReAlloc(m_pData, m_dwTotal+dwSize);
-			m_dwTotal += dwSize;
-			ShiftFileDataR(dwStart, dwSize);//memmove(m_pData+dwStart+dwSize, m_pData+dwStart, m_dwTotal - dwStart);
-	} else if(bGlow) {
-			m_pData = (LPBYTE)MemReAlloc(m_pData, m_dwTotal+nGlow);
-			m_dwTotal += nGlow;
-	}
-	ASSERT(m_pData != NULL);
+	return DoCopyToClipboard(dwStart, dwSize, cb_memcpyFilemap2Mem, this);
 }
 
-void CBZDoc::DeleteData(DWORD dwDelStart, DWORD dwDelSize)
+// TODO: CopyToClipboardのほぼコピペなので、何とかして統一したい…。
+//       適当に統一するとif文だらけで見にくくなる上、merge時にconflictしやすい。
+BOOL CBZDoc::CopyToClipboardWithHexalize(DWORD dwStart, DWORD dwSize)	// ###1.5
 {
-	if(dwDelStart == m_dwTotal) return;
-	ShiftFileDataL(dwDelStart, dwDelSize);//memmove(m_pData+dwPtr, m_pData+dwPtr+dwSize, m_dwTotal-dwPtr-dwSize);
-	m_dwTotal -= dwDelSize;
-#ifdef FILE_MAPPING
-	if(!IsFileMapping())
-#endif //FILE_MAPPING
-		m_pData = (LPBYTE)MemReAlloc(m_pData, m_dwTotal);
-	TouchDoc();
-}
+	HGLOBAL hMemTxt = ::GlobalAlloc(GMEM_MOVEABLE, dwSize * 2 + 1);
+	LPBYTE pMemTxt  = (LPBYTE)::GlobalLock(hMemTxt);
 
-/* ^^^ */
+	if(!memcpyFilemap2Mem(pMemTxt, dwStart, dwSize))
+	{
+		AfxMessageBox(IDS_ERR_COPY);
+		::GlobalUnlock(hMemTxt);
+		::GlobalFree(hMemTxt);
+		return FALSE;
+	}
+	*(pMemTxt + dwSize * 2) = '\0';
 
-// scripting用
-BOOL CBZDoc::DoCopyToClipboard(LPBYTE lpStart, DWORD dwSize, BOOL bHexString)
-{
-	HGLOBAL hMemTxt, hMemBin;
-	LPBYTE pMemTxt, pMemBin;
-	if(!bHexString) {
-		hMemTxt = ::GlobalAlloc(GMEM_MOVEABLE, dwSize + 1);
-	} else {
-		// hexstring
-		hMemTxt = ::GlobalAlloc(GMEM_MOVEABLE, dwSize * 2 + 1);
+	// 16進文字列化: (w)sprintf使うより自前でやるほうが速い。
+	static const char hextab[] = "0123456789ABCDEF";
+	for(int i = dwSize - 1; 0 <= i; i--)
+	{
+		pMemTxt[i * 2 + 1] = hextab[pMemTxt[i] % 16];
+		pMemTxt[i * 2] = hextab[pMemTxt[i] / 16];
 	}
-	pMemTxt  = (LPBYTE)::GlobalLock(hMemTxt);
-	if(!bHexString) {
-		hMemBin = ::GlobalAlloc(GMEM_MOVEABLE, dwSize + sizeof(dwSize));
-		pMemBin  = (LPBYTE)::GlobalLock(hMemBin);
-	}
-	if(!bHexString) {
-		memcpy(pMemTxt, lpStart, dwSize);
-		*(pMemTxt + dwSize) = '\0';
-	} else {
-		// hexstring
-		LPBYTE s = lpStart;
-		LPBYTE e = s + dwSize;
-		LPBYTE d = pMemTxt;
-		for(; s < e; s++, d += 2) {
-			wsprintfA((LPSTR)d, "%02X", *s);
-		}
-		*d = '\0';
-	}
+
 	::GlobalUnlock(hMemTxt);
-	if(!bHexString) {
-		*((DWORD*)(pMemBin)) = dwSize;
-		memcpy(pMemBin + sizeof(dwSize), lpStart, dwSize);
-		::GlobalUnlock(hMemBin);
-	}
 	AfxGetMainWnd()->OpenClipboard();
 	::EmptyClipboard();
-	::SetClipboardData(CF_TEXT, hMemTxt); // TODO: 選択されている文字コードに応じてエンコードしてからコピー。場合によってはCF_UNICODETEXTもセットする。
-	if(!bHexString) {
-		::SetClipboardData(RegisterClipboardFormat(_T("BinaryData2")), hMemBin);
-	}
+	::SetClipboardData(CF_TEXT, hMemTxt);
 	::CloseClipboard();
 	return TRUE;
 }
-
-#if 0 // merge後復活させる
-BOOL CBZDoc::CopyToClipboard(DWORD dwOffset, DWORD dwSize, BOOL bHexString)	// ###1.5
-{
-#ifdef FILE_MAPPING
-	LPBYTE lpStart = QueryMapViewTama2(dwOffset, dwSize); //QueryMapView(m_pData, dwPtr);
-	if(GetMapRemain(dwOffset) < dwSize) //if(dwSize >= options.dwMaxMapSize || IsOutOfMap(m_pData + dwPtr + dwSize))
-	{
-		AfxMessageBox(IDS_ERR_COPY);
-		return FALSE;
-	}
-#endif //FILE_MAPPING
-	return DoCopyToClipboard(lpStart, dwSize, bHexString);
-}
-#endif
 
 DWORD CBZDoc::ClipboardReadOpen(HGLOBAL &hMem, LPBYTE &pMem, LPBYTE &pWorkMem, UINT format)
 {
@@ -647,7 +548,9 @@ DWORD CBZDoc::ClipboardReadOpen(HGLOBAL &hMem, LPBYTE &pMem, LPBYTE &pWorkMem, U
 
 		if(options.charset == CTYPE_UTF8) {
 			// UTF-8なら、UTF-16からUTF-8に変換する。
-			dwSize = ConvertUTF16toUTF8(pWorkMem, (LPCWSTR)pMem); // pWorkMemはMemAllocが返却するポインタで上書きされる。
+			dwSize = WideCharToMultiByte(CP_UTF8, 0, (LPCTCH)pMem, nchars, NULL, 0, NULL, NULL);
+			pWorkMem = (LPBYTE)MemAlloc(dwSize);
+			WideCharToMultiByte(CP_UTF8, 0, (LPCTCH)pMem, nchars, (LPSTR)pWorkMem, dwSize, NULL, NULL);
 
 			pMem = pWorkMem;
 		} else {
@@ -675,6 +578,7 @@ DWORD CBZDoc::ClipboardReadOpen(HGLOBAL &hMem, LPBYTE &pMem, LPBYTE &pWorkMem, U
 */		if(!(hMem = ::GetClipboardData(::EnumClipboardFormats(0))))
 			return 0;
 		// HBITMAPで(デバッグ時は問題ないがリリースだと)例外発生して落ちるので、__tryで囲む。
+		// TODO: HBITMAPなどハンドル系はHGLOBALではなくハンドルそのものだから死ぬ? どうやってHGLOBALかどうか確認する?
 		__try
 		{
 			pMem = (LPBYTE)::GlobalLock(hMem);
@@ -696,8 +600,7 @@ void CBZDoc::ClipboardReadClose(HGLOBAL hMem, LPBYTE pMem, LPBYTE pWorkMem)
 	}
 }
 
-#if 0 // merge後復活させる
-DWORD CBZDoc::PasteFromClipboard(DWORD dwPtr, BOOL bIns, UINT format)
+DWORD CBZDoc::PasteFromClipboard(DWORD dwStart, BOOL bIns, UINT format)
 {
 	HGLOBAL hMem;
 	LPBYTE pMem;
@@ -709,21 +612,20 @@ DWORD CBZDoc::PasteFromClipboard(DWORD dwPtr, BOOL bIns, UINT format)
 	if(IsFileMapping()) {
 		// FileMapping時、貼り付けるとファイルサイズが大きくなってしまうようであれば、事前に張り付けサイズを切り詰める。
 		//int nGlow = dwSize - (m_dwTotal - dwPtr);
-		DWORD nGlow = dwSize - (m_dwTotal - dwPtr);
+		DWORD nGlow = dwSize - (m_dwTotal - dwStart);
 		if(nGlow <= dwSize/*overflow check*/ && nGlow > 0)
 			dwSize -= nGlow;
 	}
 #endif //FILE_MAPPING
-	if(bIns || dwPtr == m_dwTotal)
-		StoreUndo(dwPtr, dwSize, UNDO_DEL);
+	if(bIns || dwStart == m_dwTotal)
+		StoreUndo(dwStart, dwSize, UNDO_DEL);
 	else
-		StoreUndo(dwPtr, dwSize, UNDO_OVR);
-	InsertData(dwPtr, dwSize, bIns);
-	memcpy(m_pData+dwPtr, pMem, dwSize);
+		StoreUndo(dwStart, dwSize, UNDO_OVR);
+	InsertData(dwStart, dwSize, bIns);
+	memcpyMem2Filemap(dwStart, pMem, dwSize);
 	ClipboardReadClose(hMem, pMem, pWorkMem);
-	return dwPtr+dwSize;
+	return dwStart+dwSize;
 }
-#endif
 
 // strの中からhexstringを構成する文字を探しだし、バイナリに変換した後のバッファのポインタを返す。
 // バッファはMemAllocによって確保されているので、MemFreeすること。
@@ -804,6 +706,38 @@ DWORD CBZDoc::PasteHexstringFromClipboard(DWORD dwPtr, BOOL bIns)
 		MemFree(pWorkMem);
 	}
 	return dwPtr+dwSize;
+}
+
+void CBZDoc::InsertData(DWORD dwStart, DWORD dwSize, BOOL bIns)
+{
+	BOOL bGlow = false;
+	DWORD nGlow = dwSize - (m_dwTotal - dwStart);
+	if(nGlow <= dwSize/*overflow check*/ && nGlow > 0)
+		bGlow=true;
+	if(!m_pData) {
+		m_pData = (LPBYTE)MemAlloc(dwSize);
+		m_dwTotal = dwSize;
+	} else if(bIns || dwStart == m_dwTotal) {
+			m_pData = (LPBYTE)MemReAlloc(m_pData, m_dwTotal+dwSize);
+			m_dwTotal += dwSize;
+			ShiftFileDataR(dwStart, dwSize);//memmove(m_pData+dwStart+dwSize, m_pData+dwStart, m_dwTotal - dwStart);
+	} else if(bGlow) {
+			m_pData = (LPBYTE)MemReAlloc(m_pData, m_dwTotal+nGlow);
+			m_dwTotal += nGlow;
+	}
+	ASSERT(m_pData != NULL);
+}
+
+void CBZDoc::DeleteData(DWORD dwDelStart, DWORD dwDelSize)
+{
+	if(dwDelStart == m_dwTotal) return;
+	ShiftFileDataL(dwDelStart, dwDelSize);//memmove(m_pData+dwPtr, m_pData+dwPtr+dwSize, m_dwTotal-dwPtr-dwSize);
+	m_dwTotal -= dwDelSize;
+#ifdef FILE_MAPPING
+	if(!IsFileMapping())
+#endif //FILE_MAPPING
+		m_pData = (LPBYTE)MemReAlloc(m_pData, m_dwTotal);
+	TouchDoc();
 }
 
 BOOL CBZDoc::isDocumentEditedSelfOnly()

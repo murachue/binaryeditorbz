@@ -492,6 +492,7 @@ void CBZView::OnDraw(CDC* pDC)
 				i++;
 			} else {
 				WORD c = *(p + ofs++);//注意: WORDだけどpがLPBYTEなので1バイトしか格納されていない
+				WORD orgc = c;
 				switch(m_charset) {
 				case CTYPE_ASCII:
 					if(c < 0x20 || c > 0x7E) c = CHAR_NG;
@@ -499,8 +500,9 @@ void CBZView::OnDraw(CDC* pDC)
 				case CTYPE_SJIS:
 				{
 					if(c < 0x20) c = CHAR_NG;
-					else if(_ismbblead(c)/*IsMBS(p, ofs-1, FALSE)*/ && m_dwTotal > ofs && _ismbbtrail(*(p + ofs)))
-					{
+					else if(i == 0 && IsMBS(p, ofs-1, TRUE))
+						 c=' ';
+					else if(IsMBS(p, ofs-1, FALSE)) {
 						BYTE c1 = *(p + ofs);
 						if(_ismbclegal(MAKEWORD(c1, c))) {
 							PutChar((char)c);
@@ -511,10 +513,7 @@ void CBZView::OnDraw(CDC* pDC)
 							}
 						} else
 							c = CHAR_NG;
-					}
-					else if(i == 0 && _ismbbtrail(c)/*IsMBS(p, ofs-1, TRUE)*/)
-						 c=' ';
-					else if((c > 0x7E && c < 0xA1) || c > 0xDF)
+					} else if((c > 0x7E && c < 0xA1) || c > 0xDF)
 						c = CHAR_NG;
 					break;
 				}
@@ -594,7 +593,6 @@ void CBZView::OnDraw(CDC* pDC)
 				}
 
 				if(!wascolorset) {
-					WORD orgc = *(p + ofs - 1);
 					if(orgc == 0) {
 						SetColor(TCOLOR_TEXTNULL);
 					} else if(orgc != CHAR_NG && c == CHAR_NG) {
@@ -1137,60 +1135,61 @@ void CBZView::OnChar(UINT nChar, UINT nRepCnt, UINT nFlags)
 		} else
 			m_bEnterVal = TRUE;
 #ifdef UNICODE
-	} else if(m_charset >= CTYPE_SJIS) {
-		if(m_charset == CTYPE_UNICODE) {
-			// バイトオーダーを調整して、そのまま使用
-			*(LPWORD)p = SwapWord(nChar);
+	// TODO: がんばって!UNICODE時のコードにマージ(#ifdef UNICODEは残ると思うが)。
+	// TODO: UTF-8もconvertWCHARtoUTF8ではなくWideCharToMultiByteを使うように変更。
+	} else if(m_charset == CTYPE_UNICODE) {
+		// バイトオーダーを調整して、そのまま使用
+		WORD w = SwapWord(nChar);
+		m_pDoc->memcpyMem2Filemap(m_dwCaret, &w, sizeof(w));//*(LPWORD)p = SwapWord(nChar);
 
-			// 後続の処理ではBYTEにキャストしていて使いまわせないので、上で代入したうえでコピペ…。
-			Invalidate(FALSE);
-			if(!m_bEnterVal) {
-				MoveCaretTo(m_dwCaret + 2); // TODO: サロゲートペア対応
-			}
-			return;
-		} else if(m_charset == CTYPE_UTF8) {
-			// UTF-8に変換して使用
-			BYTE buf[4];
-			LPBYTE pb = buf;
-			int len = convertWCHARtoUTF8(buf, nChar);
-			for_to(i, len) *p++ = *pb++;
-
-			Invalidate(FALSE);
-			if(!m_bEnterVal) {
-				MoveCaretTo(m_dwCaret + len);
-			}
-			return;
-		} else { // SJIS, JIS, EUC, ...
-			// TODO: 適当すぎる作りなので、そのうち書き直す。
-			CHAR mbs[4];
-			int bytes;
-
-			// とりあえずSJISにして、後はConvertCharSetに任せる。
-			bytes = WideCharToMultiByte(932, 0, (LPCWCH)&nChar, 1, mbs, sizeof(mbs), "?", NULL);
-			mbs[bytes] = 0;
-
-			// TODO: ほぼコピペなのを何とかする…
-			char *pb = mbs;
-			LPBYTE buffer = NULL;
-			int len;
-			if(m_charset == CTYPE_SJIS) {
-				buffer = (LPBYTE)MemAlloc(bytes);
-				memcpy(buffer, mbs, bytes);
-				len = bytes;
-			} else {
-				len = ConvertCharSet(m_charset, mbs, buffer);
-			}
-			if(len) {
-				//if(m_charset == CTYPE_UNICODE) len *= 2; // ここでは意味ない。
-				pb = (char*)buffer;
-				for_to(i, len) *p++ = *pb++;
-				MemFree(buffer);
-				Invalidate(FALSE);
-				if(!m_bEnterVal) 
-					MoveCaretTo(m_dwCaret + len);
-			}
-			return;
+		// 後続の処理ではBYTEにキャストしていて使いまわせないので、上で代入したうえでコピペ…。
+		Invalidate(FALSE);
+		if(!m_bEnterVal) {
+			MoveCaretTo(m_dwCaret + 2); // TODO: サロゲートペア対応
 		}
+		return;
+	} else if(m_charset == CTYPE_UTF8) {
+		// UTF-16から直接UTF-8に変換して使用  TODO: サロゲートペア対応
+		BYTE buf[4];
+		LPBYTE pb = buf;
+		int len = convertWCHARtoUTF8(buf, nChar);
+		m_pDoc->memcpyMem2Filemap(m_dwCaret, pb, len);//for_to(i, len) *p++ = *pb++;
+
+		Invalidate(FALSE);
+		if(!m_bEnterVal) {
+			MoveCaretTo(m_dwCaret + len);
+		}
+		return;
+	} else if(m_charset >= CTYPE_SJIS) { // SJIS, JIS, EUC, UTF8, ...
+		// TODO: 適当すぎる作りなので、そのうち書き直す。
+		CHAR mbs[4];
+		int bytes;
+
+		// とりあえずSJISにして、後はConvertCharSetに任せる。
+		bytes = WideCharToMultiByte(932, 0, (LPCWCH)&nChar, 1, mbs, sizeof(mbs), "?", NULL);
+		mbs[bytes] = 0;
+
+		// TODO: ほぼコピペなのを何とかする…
+		char *pb = mbs;
+		LPBYTE buffer = NULL;
+		int len;
+		if(m_charset == CTYPE_SJIS) {
+			buffer = (LPBYTE)MemAlloc(bytes);
+			memcpy(buffer, mbs, bytes);
+			len = bytes;
+		} else {
+			len = ConvertCharSet(m_charset, mbs, buffer);
+		}
+		if(len) {
+			//if(m_charset == CTYPE_UNICODE) len *= 2; // ここでは意味ない。
+			pb = (char*)buffer;
+			m_pDoc->memcpyMem2Filemap(m_dwCaret, pb, len);//for_to(i, len) *p++ = *pb++;
+			MemFree(buffer);
+			Invalidate(FALSE);
+			if(!m_bEnterVal) 
+				MoveCaretTo(m_dwCaret + len);
+		}
+		return;
 #else
 	} else if(m_charset >= CTYPE_UNICODE) {
 		char  mbs[4];
@@ -1870,9 +1869,11 @@ void CBZView::CutOrCopy(CutMode mode)
 {
 	DWORD dwPtr  = BlockBegin();
 	DWORD dwSize = BlockEnd() - dwPtr;
-	if(mode != EDIT_DELETE)
-		m_pDoc->CopyToClipboard(dwPtr, dwSize, mode == EDIT_COPYHEX);
-	if(mode != EDIT_COPY && mode != EDIT_COPYHEX) {
+	if(mode == EDIT_COPYHEX)
+		m_pDoc->CopyToClipboardWithHexalize(dwPtr, dwSize);
+	if(mode == EDIT_COPY || mode == EDIT_CUT)
+		m_pDoc->CopyToClipboard(dwPtr, dwSize);
+	if(mode == EDIT_DELETE || mode == EDIT_CUT) {
 		m_pDoc->StoreUndo(dwPtr, dwSize, UNDO_INS);
 		m_pDoc->DeleteData(dwPtr, dwSize);
 		m_dwCaret = m_dwOldCaret = dwPtr;
@@ -2135,16 +2136,18 @@ void CBZView::OnUpdateByteOrder(CCmdUI* pCmdUI)
 /////////////////////////////////////////////////////////////////////////////
 // CBZView Character code
 
-/*BOOL CBZView::IsMBS(LPBYTE pTop, DWORD ofs, BOOL bTrail)
+// TODO: IsMBS is too slow (without pTop=max(...)), stay limit or cache it.
+BOOL CBZView::IsMBS(LPBYTE pTop, DWORD ofs, BOOL bTrail)
 {
 	LPBYTE p, p1;
 	p = p1 = pTop+ofs;
+	pTop = max(pTop, pTop+ofs-16);
 	while(pTop < p) {
 		if(*(p-1) < 0x81) break;
 		p--;
 	}
 	return bTrail ? _ismbstrail(p, p1) : _ismbslead(p, p1);
-}*/
+}
 
 void CBZView::InitCharMode(LPBYTE pTop, DWORD ofs)
 {

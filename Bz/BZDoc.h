@@ -69,8 +69,10 @@ public:
 
 // Operations
 public:
+	BOOL	DoCopyToClipboard(DWORD dwStart, DWORD dwSize, BOOL (*func2)(void*,void*,void*,DWORD,DWORD), void *param);
 	BOOL	CopyToClipboard(DWORD dwStart, DWORD dwSize);
-	DWORD	PasteFromClipboard(DWORD dwStart, BOOL bIns);
+	BOOL	CopyToClipboardWithHexalize(DWORD dwStart, DWORD dwSize);
+	DWORD	PasteFromClipboard(DWORD dwStart, BOOL bIns, UINT format=0);
 	DWORD	PasteHexstringFromClipboard(DWORD dwPtr, BOOL bIns);
 	BOOL	isDocumentEditedSelfOnly();
 	void	InsertData(DWORD dwPtr, DWORD dwSize, BOOL bIns);
@@ -83,7 +85,6 @@ public:
 	BOOL	CheckMark(DWORD dwPtr);
 	DWORD	JumpToMark(DWORD dwPtr);
 	BOOL	CanUndo() { return !!m_pUndo; };
-	BOOL	DoCopyToClipboard(LPBYTE lpStart, DWORD dwSize, BOOL bHexString);
 	DWORD	ClipboardReadOpen(HGLOBAL &hMem, LPBYTE &pMem, LPBYTE &pWorkMem, UINT format);
 	void	ClipboardReadClose(HGLOBAL hMem, LPBYTE pMem, LPBYTE pWorkMem);
 #ifdef FILE_MAPPING

@@ -770,10 +770,16 @@ static VALUE bzruby_clip(VALUE self)
 
 	return ret;
 }
+static BOOL bzruby_clipeq_cb(void *param, void *ptr1, void *ptr2, DWORD dwStart, DWORD dwSize)
+{
+	memcpy(ptr1, RSTRING_PTR((VALUE)param), dwSize);
+	memcpy(ptr2, RSTRING_PTR((VALUE)param), dwSize);
+	return TRUE; // always succeed
+}
 static VALUE bzruby_clipeq(VALUE self, VALUE val)
 {
 	Check_Type(val, T_STRING);
-	cbzsv->m_pView->GetDocument()->DoCopyToClipboard((LPBYTE)RSTRING_PTR(val), RSTRING_LEN(val), FALSE);
+	cbzsv->m_pView->GetDocument()->DoCopyToClipboard(0, RSTRING_LEN(val), bzruby_clipeq_cb, (void*)val);
 	return val;
 }
 
