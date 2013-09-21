@@ -530,6 +530,42 @@ DWORD CBZDoc::PasteFromClipboard(DWORD dwPtr, BOOL bIns, UINT format)
 	return dwPtr+dwSize;
 }
 
+/* vvv mergeŒãisDocumentEditedSelfOnly‚ÌŒã‚ë‚ÉˆÚ“® */
+
+void CBZDoc::InsertData(DWORD dwPtr, DWORD dwSize, BOOL bIns)
+{
+	BOOL bGlow = false;
+	DWORD nGlow = dwSize - (m_dwTotal - dwPtr);
+	if(nGlow <= dwSize/*overflow check*/ && nGlow > 0)bGlow=true;
+//	int nGlow = dwSize - (m_dwTotal - dwPtr);
+	if(!m_pData) {
+		m_pData = (LPBYTE)MemAlloc(dwSize);
+		m_dwTotal = dwSize;
+	} else if(bIns || dwPtr == m_dwTotal) {
+			m_pData = (LPBYTE)MemReAlloc(m_pData, m_dwTotal+dwSize);
+			memmove(m_pData+dwPtr+dwSize, m_pData+dwPtr, m_dwTotal - dwPtr);
+			m_dwTotal += dwSize;
+	} else if(bGlow) {
+			m_pData = (LPBYTE)MemReAlloc(m_pData, m_dwTotal+nGlow);
+			m_dwTotal += nGlow;
+	}
+	ASSERT(m_pData != NULL);
+}
+
+void CBZDoc::DeleteData(DWORD dwPtr, DWORD dwSize)
+{
+	if(dwPtr == m_dwTotal) return;
+	memmove(m_pData+dwPtr, m_pData+dwPtr+dwSize, m_dwTotal-dwPtr-dwSize);
+	m_dwTotal -= dwSize;
+#ifdef FILE_MAPPING
+	if(!IsFileMapping())
+#endif //FILE_MAPPING
+		m_pData = (LPBYTE)MemReAlloc(m_pData, m_dwTotal);
+	TouchDoc();
+}
+
+/* ^^^ */
+
 // scripting—p
 BOOL CBZDoc::DoCopyToClipboard(LPBYTE lpStart, DWORD dwSize, BOOL bHexString)
 {
@@ -768,38 +804,6 @@ DWORD CBZDoc::PasteHexstringFromClipboard(DWORD dwPtr, BOOL bIns)
 		MemFree(pWorkMem);
 	}
 	return dwPtr+dwSize;
-}
-
-void CBZDoc::InsertData(DWORD dwPtr, DWORD dwSize, BOOL bIns)
-{
-	BOOL bGlow = false;
-	DWORD nGlow = dwSize - (m_dwTotal - dwPtr);
-	if(nGlow <= dwSize/*overflow check*/ && nGlow > 0)bGlow=true;
-//	int nGlow = dwSize - (m_dwTotal - dwPtr);
-	if(!m_pData) {
-		m_pData = (LPBYTE)MemAlloc(dwSize);
-		m_dwTotal = dwSize;
-	} else if(bIns || dwPtr == m_dwTotal) {
-			m_pData = (LPBYTE)MemReAlloc(m_pData, m_dwTotal+dwSize);
-			memmove(m_pData+dwPtr+dwSize, m_pData+dwPtr, m_dwTotal - dwPtr);
-			m_dwTotal += dwSize;
-	} else if(bGlow) {
-			m_pData = (LPBYTE)MemReAlloc(m_pData, m_dwTotal+nGlow);
-			m_dwTotal += nGlow;
-	}
-	ASSERT(m_pData != NULL);
-}
-
-void CBZDoc::DeleteData(DWORD dwPtr, DWORD dwSize)
-{
-	if(dwPtr == m_dwTotal) return;
-	memmove(m_pData+dwPtr, m_pData+dwPtr+dwSize, m_dwTotal-dwPtr-dwSize);
-	m_dwTotal -= dwSize;
-#ifdef FILE_MAPPING
-	if(!IsFileMapping())
-#endif //FILE_MAPPING
-		m_pData = (LPBYTE)MemReAlloc(m_pData, m_dwTotal);
-	TouchDoc();
 }
 
 BOOL CBZDoc::isDocumentEditedSelfOnly()
