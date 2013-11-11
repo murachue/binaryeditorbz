@@ -71,6 +71,7 @@ void CBZInspectView::DoDataExchange(CDataExchange* pDX)
 	DDX_Control(pDX, IDC_INS_STATIC2, m_staticBinary2);
 	DDX_Control(pDX, IDC_INS_STATIC4, m_staticBinary4);
 	DDX_Control(pDX, IDC_INS_STATIC8, m_staticBinary8);
+	DDX_Control(pDX, IDE_INS_FILETIME, m_editFileTime);
 	DDX_Control(pDX, IDC_INS_CALCSUM, m_buttonCalcsum);
 	DDX_Control(pDX, IDE_INS_CRC16, m_editCRC16);
 	DDX_Control(pDX, IDE_INS_CRC32, m_editCRC32);
@@ -140,6 +141,7 @@ void CBZInspectView::ClearAll(void)
 	m_editBinary8.SetWindowText(_T(""));
 	m_editFloat.SetWindowText(_T(""));
 	m_editDouble.SetWindowText(_T(""));
+	m_editFileTime.SetWindowText(_T(""));
 
 	ClearSums();
 }
@@ -445,6 +447,12 @@ void CBZInspectView::Update(void)
 	str8bits = BYTE2BitsCString(*( ((BYTE*)pVal)+0 ));
 	strVal += str8bits;
 	m_edit8bits.SetWindowText(strVal);
+
+	CString strTime;
+	SYSTEMTIME st;
+	FileTimeToSystemTime((FILETIME*)&qval, &st);
+	strTime.Format(_T("%04d/%02d/%02d %02d:%02d:%02d.%07d"), st.wYear, st.wMonth, st.wDay, st.wHour, st.wMinute, st.wSecond, (qval % 10000000));
+	m_editFileTime.SetWindowText(strTime);
 
 	// ブロックが0byteの時も表示する。(まれに初期値が知りたい場合がある…。)
 	if(m_pView->IsBlockAvailable() /*&& (m_pView->BlockEnd() - m_pView->BlockBegin()) > 0*/)

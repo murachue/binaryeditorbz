@@ -83,6 +83,7 @@ public:
 	void Update(void);
 	void UpdateChecks(void);
 	void _UpdateChecks(void);
+	CEdit m_editFileTime;
 	CButton m_buttonCalcsum;
 	CEdit m_editCRC16;
 	CEdit m_editCRC32;

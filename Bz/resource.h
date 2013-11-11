@@ -65,6 +65,7 @@
 #define IDE_INS_SHA1                    1051
 #define IDE_INS_SHA256                  1052
 #define IDC_SCRIPT_ENGINE               1053
+#define IDE_INS_FILETIME                1053
 #define IDC_CLIPTYPELIST                1054
 #define IDC_CLIPITEMSIZE                1055
 #define IDS_COLOR_ADDRESS               3000
