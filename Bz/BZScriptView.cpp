@@ -1,7 +1,7 @@
 /*
 licenced by New BSD License
 
-Copyright (c) 1996-2013, c.mos(original author) & devil.tamachan@gmail.com(Modder)
+Copyright (c) 1996-2013, c.mos(original author) & devil.tamachan@gmail.com(Modder) & Murachue (Modder)
 All rights reserved.
 
 Redistribution and use in source and binary forms, with or without
